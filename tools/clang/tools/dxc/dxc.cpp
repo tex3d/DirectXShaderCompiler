@@ -26,18 +26,12 @@
 //
 // Unimplemented but on roadmap:
 //
-// /getprivate  - Save private data to a file.
 // /matchUAVs   - Match template shader UAV slot allocations in the current shader
 // /mergeUAVs   - Merge UAV slot allocations of template shader and the current shader
 // /Ni          - Output instruction numbers in assembly listings
 // /No          - Output instruction byte offset in assembly listings
-// /Qstrip_debug
-// /Qstrip_priv
 // /Qstrip_reflect
-// /Qstrip_rootsignature
 // /res_may_alias
-// /setprivate
-// /setrootsignature
 // /shtemplate
 // /verifyrootsignature
 //
@@ -87,9 +81,13 @@ private:
   bool UpdatePartRequired();
   void WriteHeader(IDxcBlobEncoding *pDisassembly, IDxcBlob *pCode,
                    llvm::Twine &pVariableName, LPCWSTR pPath);
+  HRESULT ReadFileIntoPartContent(hlsl::DxilFourCC fourCC, DxcDllSupport &dllSupport, LPCWSTR fileName, IDxcBlob **ppResult);
+  
   // TODO : Refactor two functions below. There are duplicate functions in DxcContext in dxa.cpp
   HRESULT GetDxcDiaTable(IDxcLibrary *pLibrary, IDxcBlob *pTargetBlob, IDiaTable **ppTable, LPCWSTR tableName);
   HRESULT FindModuleBlob(hlsl::DxilFourCC fourCC, IDxcBlob *pSource, IDxcLibrary *pLibrary, IDxcBlob **ppTargetBlob);
+  void ExtractRootSignature(IDxcBlob *pBlob, IDxcBlob **ppResult);
+  void VerifyRootSignature();
 
 public:
   DxcContext(DxcOpts &Opts, DxcDllSupport &dxcSupport)
@@ -144,19 +142,35 @@ void DxcContext::ActOnBlob(IDxcBlob *pBlob) {
 
   // Write the output blob.
   if (!m_Opts.OutputObject.empty()) {
-    CComPtr<IDxcBlob> pResult;
-    UpdatePart(pBlob, &pResult);
-    WriteBlobToFile(pResult, m_Opts.OutputObject);
+    // For backward compatability: fxc requires /Fo for /extractrootsignature
+    if (!m_Opts.ExtractRootSignature) {
+      CComPtr<IDxcBlob> pResult;
+      UpdatePart(pBlob, &pResult);
+      WriteBlobToFile(pResult, m_Opts.OutputObject);
+    }
+  }
+
+  // Verify Root Signature
+  if (!m_Opts.VerifyRootSignatureSource.empty()) {
+    VerifyRootSignature();
   }
 
   // Extract and write the PDB/debug information.
   if (!m_Opts.DebugFile.empty()) {
+    if (!m_Opts.DebugInfo) {
+      throw hlsl::Exception(E_INVALIDARG, "/Fd specified, but no Debug Info was "
+                                          "found in the shader, please use the "
+                                          "/Zi switch to generate debug "
+                                          "information compiling this shader.");
+    }
     WritePartToFile(pBlob, hlsl::DFCC_ShaderDebugInfoDXIL, m_Opts.DebugFile);
   }
 
   // Extract and write root signature information.
-  if (!m_Opts.ExtractRootSignatureFile.empty()) {
-    WritePartToFile(pBlob, hlsl::DFCC_RootSignature, m_Opts.ExtractRootSignatureFile);
+  if (m_Opts.ExtractRootSignature) {
+    CComPtr<IDxcBlob> pRootSignatureContainer;
+    ExtractRootSignature(pBlob, &pRootSignatureContainer);
+    WriteBlobToFile(pRootSignatureContainer, m_Opts.OutputObject);
   }
 
   // Extract and write private data.
@@ -165,9 +179,12 @@ void DxcContext::ActOnBlob(IDxcBlob *pBlob) {
   }
 
   // OutputObject suppresses console dump.
-  bool needDisassembly = !m_Opts.OutputHeader.empty() ||
-                         !m_Opts.AssemblyCode.empty() ||
-                         m_Opts.OutputObject.empty();
+  bool needDisassembly =
+      !m_Opts.OutputHeader.empty() || !m_Opts.AssemblyCode.empty() ||
+      (m_Opts.OutputObject.empty() && m_Opts.DebugFile.empty() &&
+       m_Opts.ExtractPrivateFile.empty() &&
+       m_Opts.VerifyRootSignatureSource.empty() && !m_Opts.ExtractRootSignature);
+
   if (!needDisassembly)
     return;
 
@@ -216,13 +233,27 @@ void DxcContext::UpdatePart(IDxcBlob *pSource, IDxcBlob **ppResult) {
     IFT(pContainerBuilder->RemovePart(hlsl::DxilFourCC::DFCC_RootSignature));
   }
   if (!m_Opts.PrivateSource.empty()) {
-    CComPtr<IDxcBlobEncoding> privateBlob;
-    ReadFileIntoBlob(m_dxcSupport, StringRefUtf16(m_Opts.PrivateSource), &privateBlob);
+    CComPtr<IDxcBlob> privateBlob;
+    IFT(ReadFileIntoPartContent(
+        hlsl::DxilFourCC::DFCC_PrivateData, m_dxcSupport,
+        StringRefUtf16(m_Opts.PrivateSource), &privateBlob));
+
+    // setprivate option can replace existing private part. 
+    // Try removing the private data if exists
+    pContainerBuilder->RemovePart(hlsl::DxilFourCC::DFCC_PrivateData);
     IFT(pContainerBuilder->AddPart(hlsl::DxilFourCC::DFCC_PrivateData, privateBlob));
   }
   if (!m_Opts.RootSignatureSource.empty()) {
-    CComPtr<IDxcBlobEncoding> RootSignatureBlob;
-    ReadFileIntoBlob(m_dxcSupport, StringRefUtf16(m_Opts.RootSignatureSource), &RootSignatureBlob);
+    // set rootsignature assumes that the given input is a dxil container. 
+    // We only want to add RTS0 part to the container builder. 
+    CComPtr<IDxcBlob> RootSignatureBlob;
+    IFT(ReadFileIntoPartContent(
+        hlsl::DxilFourCC::DFCC_RootSignature, m_dxcSupport,
+        StringRefUtf16(m_Opts.RootSignatureSource), &RootSignatureBlob));
+
+    // setrootsignature option can replace existing rootsignature part
+    // Try removing rootsignature if exists
+    pContainerBuilder->RemovePart(hlsl::DxilFourCC::DFCC_RootSignature);
     IFT(pContainerBuilder->AddPart(hlsl::DxilFourCC::DFCC_RootSignature, RootSignatureBlob));
   }
   
@@ -249,6 +280,108 @@ bool DxcContext::UpdatePartRequired() {
   return m_Opts.StripDebug || m_Opts.StripPrivate ||
     m_Opts.StripRootSignature || !m_Opts.PrivateSource.empty() ||
     !m_Opts.RootSignatureSource.empty();
+}
+
+// This function reads the file from input file and constructs a blob with fourCC parts
+// Used for setprivate and setrootsignature option
+HRESULT DxcContext::ReadFileIntoPartContent(hlsl::DxilFourCC fourCC, DxcDllSupport &dllSupport, LPCWSTR fileName, IDxcBlob **ppResult) {
+  DXASSERT(fourCC == hlsl::DxilFourCC::DFCC_PrivateData ||
+               fourCC == hlsl::DxilFourCC::DFCC_RootSignature,
+           "Otherwise we provided wrong part to read for updating part.");
+
+  // Read result, if it's private data, then return the blob
+  if (fourCC == hlsl::DxilFourCC::DFCC_PrivateData) {
+    CComPtr<IDxcBlobEncoding> pResult;
+    ReadFileIntoBlob(dllSupport, fileName, &pResult);
+    *ppResult = pResult.Detach();
+  }
+
+  // If root signature, check if it's a dxil container that contains rootsignature part, then construct a blob of root signature part
+  if (fourCC == hlsl::DxilFourCC::DFCC_RootSignature) {
+    CComPtr<IDxcBlob> pResult;
+    CComHeapPtr<BYTE> pData;
+    DWORD dataSize;
+    hlsl::ReadBinaryFile(fileName, (void**)&pData, &dataSize);
+    DXASSERT(pData != nullptr, "otherwise ReadBinaryFile should throw an exception");
+    hlsl::DxilContainerHeader *pHeader = (hlsl::DxilContainerHeader*) pData.m_pData;
+    IFRBOOL(hlsl::IsDxilContainerLike(pHeader, pHeader->ContainerSizeInBytes), E_INVALIDARG);
+    hlsl::DxilPartHeader *pPartHeader = hlsl::GetDxilPartByType(pHeader, hlsl::DxilFourCC::DFCC_RootSignature);
+    IFRBOOL(pPartHeader != nullptr, E_INVALIDARG);
+    hlsl::DxcCreateBlobOnHeapCopy(hlsl::GetDxilPartData(pPartHeader), pPartHeader->PartSize, &pResult);
+    *ppResult = pResult.Detach();
+  }
+  return S_OK;
+}
+
+// Constructs a dxil container builder with only root signature part.
+// Right now IDxcContainerBuilder assumes that we are building a full dxil container,
+// but we are building a container with only rootsignature part
+void DxcContext::ExtractRootSignature(IDxcBlob *pBlob, IDxcBlob **ppResult) {
+  
+  DXASSERT_NOMSG(pBlob != nullptr && ppResult != nullptr);
+  const hlsl::DxilContainerHeader *pHeader = (hlsl::DxilContainerHeader *)(pBlob->GetBufferPointer());
+  IFTBOOL(hlsl::IsValidDxilContainer(pHeader, pHeader->ContainerSizeInBytes), DXC_E_CONTAINER_INVALID);
+  const hlsl::DxilPartHeader *pPartHeader = hlsl::GetDxilPartByType(pHeader, hlsl::DxilFourCC::DFCC_RootSignature);
+  IFTBOOL(pPartHeader != nullptr, DXC_E_MISSING_PART);
+
+  // Get new header and allocate memory for new container
+  hlsl::DxilContainerHeader newHeader;
+  uint32_t containerSize = hlsl::GetDxilContainerSizeFromParts(1, pPartHeader->PartSize);
+  hlsl::InitDxilContainer(&newHeader, 1, containerSize); 
+  CComPtr<IMalloc> pMalloc;
+  CComPtr<hlsl::AbstractMemoryStream> pMemoryStream;
+  IFT(CoGetMalloc(1, &pMalloc));
+  IFT(hlsl::CreateMemoryStream(pMalloc, &pMemoryStream));
+  ULONG cbWritten;
+
+  // Write Container Header
+  IFT(pMemoryStream->Write(&newHeader, sizeof(hlsl::DxilContainerHeader), &cbWritten));
+  IFTBOOL(cbWritten == sizeof(hlsl::DxilContainerHeader), E_OUTOFMEMORY);
+  
+  // Write Part Offset
+  uint32_t offset = sizeof(hlsl::DxilContainerHeader) + hlsl::GetOffsetTableSize(1);
+  IFT(pMemoryStream->Write(&offset, sizeof(uint32_t), &cbWritten));
+  IFTBOOL(cbWritten == sizeof(uint32_t), E_OUTOFMEMORY);
+  
+  // Write Root Signature Header
+  IFT(pMemoryStream->Write(pPartHeader, sizeof(hlsl::DxilPartHeader), &cbWritten));
+  IFTBOOL(cbWritten == sizeof(hlsl::DxilPartHeader), E_OUTOFMEMORY);
+  const char * partContent = hlsl::GetDxilPartData(pPartHeader);
+  
+  // Write Root Signature Content
+  IFT(pMemoryStream->Write(partContent, pPartHeader->PartSize, &cbWritten));
+  IFTBOOL(cbWritten == pPartHeader->PartSize, E_OUTOFMEMORY);
+  
+  // Return Result
+  CComPtr<IDxcBlob> pResult;
+  IFT(pMemoryStream->QueryInterface(&pResult));
+  *ppResult = pResult.Detach();
+}
+
+void DxcContext::VerifyRootSignature() {
+  // Get dxil container from file
+  CComPtr<IDxcBlobEncoding> pSource;
+  ReadFileIntoBlob(m_dxcSupport, StringRefUtf16(m_Opts.InputFile), &pSource);
+  hlsl::DxilContainerHeader *pSourceHeader = (hlsl::DxilContainerHeader *)pSource->GetBufferPointer();
+  IFTBOOLMSG(hlsl::IsValidDxilContainer(pSourceHeader, pSourceHeader->ContainerSizeInBytes), E_INVALIDARG, "invalid DXIL container to verify.");
+  // Get PSV from the blob
+  hlsl::DxilPartHeader *pPSV = hlsl::GetDxilPartByType(pSourceHeader, hlsl::DxilFourCC::DFCC_PipelineStateValidation);
+  IFTBOOLMSG(pPSV != nullptr, E_INVALIDARG, "invalid DXIL container to verify.");
+  // Get rootsignature from file
+  CComPtr<IDxcBlobEncoding> pRootSignature;
+  ReadFileIntoBlob(m_dxcSupport, StringRefUtf16(m_Opts.RootSignatureSource), &pRootSignature);
+  hlsl::DxilContainerHeader *pRootSigHeader = (hlsl::DxilContainerHeader *)pRootSignature->GetBufferPointer();
+  IFTBOOLMSG(hlsl::IsValidDxilContainer(pRootSigHeader, pRootSigHeader->ContainerSizeInBytes), E_INVALIDARG, "invalid root signature to verify.");
+  // Get RTS0 from rootsignature blob by deserializing.
+  hlsl::DxilPartHeader *pRTS = hlsl::GetDxilPartByType(pRootSigHeader, hlsl::DxilFourCC::DFCC_RootSignature);
+  IFTBOOLMSG(pRTS != nullptr, E_INVALIDARG, "invalid root signature to verify.");
+  hlsl::DxilVersionedRootSignatureDesc *pRootSigDesc;
+
+  
+  // Verify rootsignature 
+
+  // Make sure to delete description after. 
+
 }
 
 class DxcIncludeHandlerForInjectedSources : public IDxcIncludeHandler {
@@ -579,7 +712,7 @@ void DxcContext::WriteHeader(IDxcBlobEncoding *pDisassembly, IDxcBlob *pCode,
   {
     std::string s;
     llvm::raw_string_ostream OS(s);
-    OS << "\r\nconst BYTE " << pVariableName << "[] = {";
+    OS << "\r\nconst unsigned char " << pVariableName << "[] = {";
     const uint8_t *pBytes = (const uint8_t *)pCode->GetBufferPointer();
     size_t len = pCode->GetBufferSize();
     s.reserve(100 + len * 6 + (len / 12) * 3); // rough estimate
@@ -614,8 +747,8 @@ HRESULT DxcContext::FindModuleBlob(hlsl::DxilFourCC fourCC, IDxcBlob *pSource, I
 
   if (hlsl::IsValidDxilContainer((hlsl::DxilContainerHeader*)pSource->GetBufferPointer(), pSource->GetBufferSize())) {
     hlsl::DxilContainerHeader *pDxilContainerHeader = (hlsl::DxilContainerHeader*)pSource->GetBufferPointer();
-    pDxilPartHeader = *std::find_if(begin(pDxilContainerHeader), end(pDxilContainerHeader), hlsl::DxilPartIsType(fourCC));
-    IFTARG(pDxilPartHeader != *end(pDxilContainerHeader));
+    pDxilPartHeader = hlsl::GetDxilPartByType(pDxilContainerHeader, fourCC);
+    IFTBOOL(pDxilPartHeader != nullptr, DXC_E_CONTAINER_MISSING_DEBUG);
   }
   if (fourCC == pDxilPartHeader->PartFourCC) {
     UINT32 pBlobSize;
@@ -737,15 +870,31 @@ int __cdecl wmain(int argc, const wchar_t **argv_) {
                                           // UTF-8 because we use ASCII only errors
       if (msg == nullptr || *msg == '\0') {
         if (hlslException.hr == DXC_E_DUPLICATE_PART) {
-          sprintf_s(printBuffer, _countof(printBuffer),
-                    "DXIL container already contains the given part.");
+          sprintf_s(
+              printBuffer, _countof(printBuffer),
+              "dxc failed : DXIL container already contains the given part.");
         } else if (hlslException.hr == DXC_E_MISSING_PART) {
+          sprintf_s(
+              printBuffer, _countof(printBuffer),
+              "dxc failed : DXIL container does not contain the given part.");
+        } else if (hlslException.hr == DXC_E_CONTAINER_INVALID) {
           sprintf_s(printBuffer, _countof(printBuffer),
-                    "DXIL container does not contain the given part.");
-        }
-        else {
+                    "dxc failed : Invalid DXIL container.");
+        } else if (hlslException.hr == DXC_E_CONTAINER_MISSING_DXIL) {
           sprintf_s(printBuffer, _countof(printBuffer),
-            "Compilation failed - error code 0x%08x.\n", hlslException.hr);
+                    "dxc failed : DXIL container is missing DXIL part.");
+        } else if (hlslException.hr == DXC_E_CONTAINER_MISSING_DEBUG) {
+          sprintf_s(printBuffer, _countof(printBuffer),
+                    "dxc failed : DXIL container is missing Debug Info part.");
+        } else if (hlslException.hr == E_OUTOFMEMORY) {
+          sprintf_s(printBuffer, _countof(printBuffer),
+                    "dxc failed : Out of Memory.");
+        } else if (hlslException.hr == E_INVALIDARG) {
+          sprintf_s(printBuffer, _countof(printBuffer),
+                    "dxc failed : Invalid argument.");
+        } else {
+          sprintf_s(printBuffer, _countof(printBuffer),
+            "dxc failed : error code 0x%08x.\n", hlslException.hr);
         }
         msg = printBuffer;
       }
