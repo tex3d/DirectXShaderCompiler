@@ -55,6 +55,12 @@ if %errorlevel% neq 0 (
   exit /b 1
 )
 
+dxc.exe smoke.hlsl /P preprocessed.hlsl 1>nul
+if %errorlevel% neq 0 (
+  echo Failed to preprocess smoke.hlsl
+  exit /b 1
+)
+
 dxc.exe /T ps_6_0 smoke.hlsl -force_rootsig_ver rootsig_1_0 1>nul
 if %errorlevel% neq 0 (
   echo Failed to compile with forcing rootsignature rootsig_1_0
@@ -68,7 +74,7 @@ if %errorlevel% neq 0 (
 )
 
 dxc.exe /T ps_6_0 smoke.hlsl -force_rootsig_ver rootsig_2_0 2>nul
-if %errorlevel% neq 0 (
+if %errorlevel% equ 0 (
   echo rootsig_2_0 is not supported but compilation passed
   exit /b 1
 )
@@ -260,6 +266,7 @@ if %errorlevel% neq 0 (
 )
 
 rem Clean up.
+del %CD%\preprocessed.hlsl
 del %CD%\smoke.hlsl.c
 del %CD%\smoke.hlsl.d
 del %CD%\smoke.hlsl.e

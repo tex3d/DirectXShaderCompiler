@@ -287,7 +287,6 @@ int ReadDxcOpts(const OptTable *optionTable, unsigned flagsToInclude,
   opts.DefaultRowMajor = Args.hasFlag(OPT_Zpr, OPT_INVALID, false);
   opts.DefaultColMajor = Args.hasFlag(OPT_Zpc, OPT_INVALID, false);
   opts.DumpBin = Args.hasFlag(OPT_dumpbin, OPT_INVALID, false);
-  //opts.EnableUnboundedDescriptorTables = Args.hasFlag(OPT_enable_unbounded_descriptor_tables, OPT_INVALID, false);
   opts.NotUseLegacyCBufLoad = Args.hasFlag(OPT_not_use_legacy_cbuf_load, OPT_INVALID, false);
   opts.DisplayIncludeProcess = Args.hasFlag(OPT_H, OPT_INVALID, false);
   opts.WarningAsError = Args.hasFlag(OPT__SLASH_WX, OPT_INVALID, false);
@@ -334,7 +333,7 @@ int ReadDxcOpts(const OptTable *optionTable, unsigned flagsToInclude,
 
   if (!opts.Preprocess.empty() &&
       (!opts.OutputHeader.empty() || !opts.OutputObject.empty() ||
-       opts.OutputWarnings || !opts.OutputWarningsFile.empty())) {
+       !opts.OutputWarnings || !opts.OutputWarningsFile.empty())) {
     errors << "Preprocess cannot be specified with other options.";
     return 1;
   }

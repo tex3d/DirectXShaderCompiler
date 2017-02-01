@@ -112,7 +112,6 @@ public:
   bool CodeGenHighLevel; // OPT_fcgl
   bool DebugInfo; // OPT__SLASH_Zi
   bool DumpBin;        // OPT_dumpbin
-  //bool EnableUnboundedDescriptorTables; // OPT_enable_unbounded_descriptor_tables
   bool WarningAsError; // OPT__SLASH_WX
   bool IEEEStrict;     // OPT_Gis
   bool DefaultColMajor;  // OPT_Zpc
