@@ -76,7 +76,7 @@ void WriteOperationErrorsToConsole(_In_ IDxcOperationResult *pResult,
     CComPtr<IDxcBlobEncoding> pErrors;
     IFT(pResult->GetErrorBuffer(&pErrors));
     if (pErrors.p != nullptr) {
-      WriteBlobToConsole(pErrors);
+      WriteBlobToConsole(pErrors, stderr);
     }
   }
 }
@@ -87,16 +87,16 @@ void WriteOperationResultToConsole(_In_ IDxcOperationResult *pRewriteResult,
 
   CComPtr<IDxcBlob> pBlob;
   IFT(pRewriteResult->GetResult(&pBlob));
-  WriteBlobToConsole(pBlob);
+  WriteBlobToConsole(pBlob, stdout);
 }
 
-void WriteBlobToConsole(_In_opt_ IDxcBlob *pBlob) {
+void WriteBlobToConsole(_In_opt_ IDxcBlob *pBlob, FILE* streamType) {
   if (pBlob == nullptr) {
     return;
   }
 
   // Assume UTF-8 for now, which is typically the case for dxcompiler ouput.
-  WriteUtf8ToConsoleSizeT((char *)pBlob->GetBufferPointer(), pBlob->GetBufferSize());
+  WriteUtf8ToConsoleSizeT((char *)pBlob->GetBufferPointer(), pBlob->GetBufferSize(), streamType);
 }
 
 void WriteBlobToFile(_In_opt_ IDxcBlob *pBlob, _In_ LPCWSTR pFileName) {
@@ -125,7 +125,7 @@ void WriteBlobToHandle(_In_opt_ IDxcBlob *pBlob, _In_ HANDLE hFile, _In_opt_ LPC
 }
 
 void WriteUtf8ToConsole(_In_opt_count_(charCount) const char *pText,
-                        int charCount) {
+                        int charCount, FILE* streamType) {
   if (charCount == 0 || pText == nullptr) {
     return;
   }
@@ -139,19 +139,19 @@ void WriteUtf8ToConsole(_In_opt_count_(charCount) const char *pText,
 
   std::string consoleMessage;
   Unicode::UTF16ToConsoleString(utf16Message, &consoleMessage, &lossy);
-  printf("%s\n", consoleMessage.c_str());
+  fprintf(streamType, "%s\n", consoleMessage.c_str());
   delete[] utf16Message;
 }
 
 void WriteUtf8ToConsoleSizeT(_In_opt_count_(charCount) const char *pText,
-  size_t charCount) {
+  size_t charCount, FILE* streamType) {
   if (charCount == 0) {
     return;
   }
 
   int charCountInt;
   IFT(SizeTToInt(charCount, &charCountInt));
-  WriteUtf8ToConsole(pText, charCountInt);
+  WriteUtf8ToConsole(pText, charCountInt, streamType);
 }
 
 } // namespace dxc
