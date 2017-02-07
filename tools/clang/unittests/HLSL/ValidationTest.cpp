@@ -2125,89 +2125,89 @@ TEST_F(ValidationTest, WhenRootSigCompatThenSucceed) {
 
 
 #define VERTEX_STRUCT1 \
-    "struct PSSceneIn \
-    { \
-      float4 pos  : SV_Position; \
-      float2 tex  : TEXCOORD0; \
-      float3 norm : NORMAL; \
-    }; "
+    "struct PSSceneIn \n\
+    { \n\
+      float4 pos  : SV_Position; \n\
+      float2 tex  : TEXCOORD0; \n\
+      float3 norm : NORMAL; \n\
+    }; \n"
 #define VERTEX_STRUCT2 \
-    "struct PSSceneIn \
-    { \
-      float4 pos  : SV_Position; \
-      float2 tex  : TEXCOORD0; \
-    }; "
-#define PC_STRUCT1 "struct HSPerPatchData {  \
-      float	edges[ 3 ] : SV_TessFactor; \
-      float	inside : SV_InsideTessFactor; \
-      float foo : FOO; \
-    }; "
-#define PC_STRUCT2 "struct HSPerPatchData {  \
-      float	edges[ 3 ] : SV_TessFactor; \
-      float	inside : SV_InsideTessFactor; \
-    }; "
-#define PC_FUNC "HSPerPatchData HSPerPatchFunc( InputPatch< PSSceneIn, 3 > points, \
-      OutputPatch<PSSceneIn, 3> outpoints) { \
-      HSPerPatchData d = (HSPerPatchData)0; \
-      d.edges[ 0 ] = points[0].tex.x + outpoints[0].tex.x; \
-      d.edges[ 1 ] = 1; \
-      d.edges[ 2 ] = 1; \
-      d.inside = 1; \
-      return d; \
-    } "
-#define PC_FUNC_NOOUT "HSPerPatchData HSPerPatchFunc( InputPatch< PSSceneIn, 3 > points ) { \
-      HSPerPatchData d = (HSPerPatchData)0; \
-      d.edges[ 0 ] = points[0].tex.x; \
-      d.edges[ 1 ] = 1; \
-      d.edges[ 2 ] = 1; \
-      d.inside = 1; \
-      return d; \
-    } "
-#define PC_FUNC_NOIN "HSPerPatchData HSPerPatchFunc( OutputPatch<PSSceneIn, 3> outpoints) { \
-      HSPerPatchData d = (HSPerPatchData)0; \
-      d.edges[ 0 ] = outpoints[0].tex.x; \
-      d.edges[ 1 ] = 1; \
-      d.edges[ 2 ] = 1; \
-      d.inside = 1; \
-      return d; \
-    } "
-#define HS_ATTR "[domain(\"tri\")] \
-    [partitioning(\"fractional_odd\")] \
-    [outputtopology(\"triangle_cw\")] \
-    [patchconstantfunc(\"HSPerPatchFunc\")] \
-    [outputcontrolpoints(3)] "
+    "struct PSSceneIn \n\
+    { \n\
+      float4 pos  : SV_Position; \n\
+      float2 tex  : TEXCOORD0; \n\
+    }; \n"
+#define PC_STRUCT1 "struct HSPerPatchData {  \n\
+      float edges[ 3 ] : SV_TessFactor; \n\
+      float inside : SV_InsideTessFactor; \n\
+      float foo : FOO; \n\
+    }; \n"
+#define PC_STRUCT2 "struct HSPerPatchData {  \n\
+      float edges[ 3 ] : SV_TessFactor; \n\
+      float inside : SV_InsideTessFactor; \n\
+    }; \n"
+#define PC_FUNC "HSPerPatchData HSPerPatchFunc( InputPatch< PSSceneIn, 3 > points, \n\
+      OutputPatch<PSSceneIn, 3> outpoints) { \n\
+      HSPerPatchData d = (HSPerPatchData)0; \n\
+      d.edges[ 0 ] = points[0].tex.x + outpoints[0].tex.x; \n\
+      d.edges[ 1 ] = 1; \n\
+      d.edges[ 2 ] = 1; \n\
+      d.inside = 1; \n\
+      return d; \n\
+    } \n"
+#define PC_FUNC_NOOUT "HSPerPatchData HSPerPatchFunc( InputPatch< PSSceneIn, 3 > points ) { \n\
+      HSPerPatchData d = (HSPerPatchData)0; \n\
+      d.edges[ 0 ] = points[0].tex.x; \n\
+      d.edges[ 1 ] = 1; \n\
+      d.edges[ 2 ] = 1; \n\
+      d.inside = 1; \n\
+      return d; \n\
+    } \n"
+#define PC_FUNC_NOIN "HSPerPatchData HSPerPatchFunc( OutputPatch<PSSceneIn, 3> outpoints) { \n\
+      HSPerPatchData d = (HSPerPatchData)0; \n\
+      d.edges[ 0 ] = outpoints[0].tex.x; \n\
+      d.edges[ 1 ] = 1; \n\
+      d.edges[ 2 ] = 1; \n\
+      d.inside = 1; \n\
+      return d; \n\
+    } \n"
+#define HS_ATTR "[domain(\"tri\")] \n\
+    [partitioning(\"fractional_odd\")] \n\
+    [outputtopology(\"triangle_cw\")] \n\
+    [patchconstantfunc(\"HSPerPatchFunc\")] \n\
+    [outputcontrolpoints(3)] \n"
 #define HS_FUNC \
-    "PSSceneIn main(const uint id : SV_OutputControlPointID, \
-                    const InputPatch< PSSceneIn, 3 > points ) { \
-      return points[ id ]; \
-    } "
+    "PSSceneIn main(const uint id : SV_OutputControlPointID, \n\
+                    const InputPatch< PSSceneIn, 3 > points ) { \n\
+      return points[ id ]; \n\
+    } \n"
 #define HS_FUNC_NOOUT \
-    "void main(const uint id : SV_OutputControlPointID, \
-               const InputPatch< PSSceneIn, 3 > points ) { \
-    } "
+    "void main(const uint id : SV_OutputControlPointID, \n\
+               const InputPatch< PSSceneIn, 3 > points ) { \n\
+    } \n"
 #define HS_FUNC_NOIN \
-    "PSSceneIn main( const uint id : SV_OutputControlPointID ) { \
-      return (PSSceneIn)0; \
-    } "
+    "PSSceneIn main( const uint id : SV_OutputControlPointID ) { \n\
+      return (PSSceneIn)0; \n\
+    } \n"
 #define DS_FUNC \
-    "[domain(\"tri\")] PSSceneIn main(const float3 bary : SV_DomainLocation, \
-                                      const OutputPatch<PSSceneIn, 3> patch, \
-                                      const HSPerPatchData perPatchData) { \
-      PSSceneIn v = patch[0]; \
-      v.pos = patch[0].pos * bary.x; \
-      v.pos += patch[1].pos * bary.y; \
-      v.pos += patch[2].pos * bary.z; \
-      return v; \
-    } "
+    "[domain(\"tri\")] PSSceneIn main(const float3 bary : SV_DomainLocation, \n\
+                                      const OutputPatch<PSSceneIn, 3> patch, \n\
+                                      const HSPerPatchData perPatchData) { \n\
+      PSSceneIn v = patch[0]; \n\
+      v.pos = patch[0].pos * bary.x; \n\
+      v.pos += patch[1].pos * bary.y; \n\
+      v.pos += patch[2].pos * bary.z; \n\
+      return v; \n\
+    } \n"
 #define DS_FUNC_NOPC \
-    "[domain(\"tri\")] PSSceneIn main(const float3 bary : SV_DomainLocation, \
-                                      const OutputPatch<PSSceneIn, 3> patch) { \
-      PSSceneIn v = patch[0]; \
-      v.pos = patch[0].pos * bary.x; \
-      v.pos += patch[1].pos * bary.y; \
-      v.pos += patch[2].pos * bary.z; \
-      return v; \
-    } "
+    "[domain(\"tri\")] PSSceneIn main(const float3 bary : SV_DomainLocation, \n\
+                                      const OutputPatch<PSSceneIn, 3> patch) { \n\
+      PSSceneIn v = patch[0]; \n\
+      v.pos = patch[0].pos * bary.x; \n\
+      v.pos += patch[1].pos * bary.y; \n\
+      v.pos += patch[2].pos * bary.z; \n\
+      return v; \n\
+    } \n"
 
 TEST_F(ValidationTest, WhenProgramOutSigMissingThenFail) {
   ReplaceContainerPartsCheckMsgs(
