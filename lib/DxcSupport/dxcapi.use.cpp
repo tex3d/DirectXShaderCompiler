@@ -76,7 +76,7 @@ void WriteOperationErrorsToConsole(_In_ IDxcOperationResult *pResult,
     CComPtr<IDxcBlobEncoding> pErrors;
     IFT(pResult->GetErrorBuffer(&pErrors));
     if (pErrors.p != nullptr) {
-      WriteBlobToConsole(pErrors, stderr);
+      WriteBlobToConsole(pErrors, STD_ERROR_HANDLE);
     }
   }
 }
@@ -87,10 +87,10 @@ void WriteOperationResultToConsole(_In_ IDxcOperationResult *pRewriteResult,
 
   CComPtr<IDxcBlob> pBlob;
   IFT(pRewriteResult->GetResult(&pBlob));
-  WriteBlobToConsole(pBlob, stdout);
+  WriteBlobToConsole(pBlob, STD_OUTPUT_HANDLE);
 }
 
-void WriteBlobToConsole(_In_opt_ IDxcBlob *pBlob, FILE* streamType) {
+void WriteBlobToConsole(_In_opt_ IDxcBlob *pBlob, DWORD streamType) {
   if (pBlob == nullptr) {
     return;
   }
@@ -125,7 +125,7 @@ void WriteBlobToHandle(_In_opt_ IDxcBlob *pBlob, _In_ HANDLE hFile, _In_opt_ LPC
 }
 
 void WriteUtf8ToConsole(_In_opt_count_(charCount) const char *pText,
-                        int charCount, FILE* streamType) {
+                        int charCount, DWORD streamType) {
   if (charCount == 0 || pText == nullptr) {
     return;
   }
@@ -139,12 +139,21 @@ void WriteUtf8ToConsole(_In_opt_count_(charCount) const char *pText,
 
   std::string consoleMessage;
   Unicode::UTF16ToConsoleString(utf16Message, &consoleMessage, &lossy);
-  fprintf(streamType, "%s\n", consoleMessage.c_str());
+  if (streamType == STD_OUTPUT_HANDLE) {
+    fprintf(stdout, "%s\n", consoleMessage.c_str());
+  }
+  else if (streamType == STD_ERROR_HANDLE) {
+    fprintf(stderr, "%s\n", consoleMessage.c_str());
+  }
+  else {
+    throw hlsl::Exception(E_INVALIDARG);
+  }
+
   delete[] utf16Message;
 }
 
 void WriteUtf8ToConsoleSizeT(_In_opt_count_(charCount) const char *pText,
-  size_t charCount, FILE* streamType) {
+  size_t charCount, DWORD streamType) {
   if (charCount == 0) {
     return;
   }

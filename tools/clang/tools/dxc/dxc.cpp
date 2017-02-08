@@ -916,7 +916,7 @@ int __cdecl wmain(int argc, const wchar_t **argv_) {
         msg = printBuffer;
       }
 
-      WriteUtf8ToConsoleSizeT(msg, strlen(msg), stderr);
+      WriteUtf8ToConsoleSizeT(msg, strlen(msg), STD_ERROR_HANDLE);
       printf("\n");
     } catch (...) {
       printf("%s failed - unable to retrieve error message.\n", pStage);

@@ -233,7 +233,7 @@ HRESULT CreateDxcContainerBuilder(_In_ REFIID riid, _Out_ LPVOID *ppv) {
   const char *warning;
   HRESULT hr = DxilLibCreateInstance(CLSID_DxcContainerBuilder, (IDxcContainerBuilder**)ppv);
   if (FAILED(hr)) {
-    warning = "Unable to create container builder from dxil.dll, fallback to built-in.\n";
+    warning = "Unable to create container builder from dxil.dll. Resulting container will not be signed.\n";
   }
   else {
     return hr;
