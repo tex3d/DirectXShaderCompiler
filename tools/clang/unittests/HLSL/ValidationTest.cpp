@@ -636,31 +636,35 @@ TEST_F(ValidationTest, WhenDepthNotFloatThenFail) {
 }
 
 TEST_F(ValidationTest, BarrierFail) {
-  if (!m_CompilerPreservesBBNames) return;    // This test requires name preservation to succeed currently.
-    RewriteAssemblyCheckMsg(
-      L"..\\CodeGenHLSL\\barrier.hlsl", "cs_6_0",
-      {"dx.op.barrier(i32 80, i32 8)",
-        "dx.op.barrier(i32 80, i32 9)",
-        "dx.op.barrier(i32 80, i32 11)",
-        "%class.RWStructuredBuffer = type { %class.matrix.float.2.2 }\n",
-        "call i32 @dx.op.flattenedThreadIdInGroup.i32(i32 96)",
-      },
-      {"dx.op.barrier(i32 80, i32 15)",
-        "dx.op.barrier(i32 80, i32 0)",
-        "dx.op.barrier(i32 80, i32 %rem)",
-        "%class.RWStructuredBuffer = type { %class.matrix.float.2.2 }\n"
-        "@dx.typevar.8 = external addrspace(1) constant %class.RWStructuredBuffer\n"
-        "@\"internalGV\" = internal global [64 x <4 x float>] undef\n",
-        "call i32 @dx.op.flattenedThreadIdInGroup.i32(i32 96)\n"
-        "%load = load %class.RWStructuredBuffer, %class.RWStructuredBuffer addrspace(1)* @dx.typevar.8",
-      },
-      {"Internal declaration 'internalGV' is unused",
-       "External declaration 'dx.typevar.8' is unused",
-       "Vector type '<4 x float>' is not allowed",
-       "Mode of Barrier must be an immediate constant",
-       "sync must include some form of memory barrier - _u (UAV) and/or _g (Thread Group Shared Memory)",
-       "sync can't specify both _ugroup and _uglobal. If both are needed, just specify _uglobal"
-      });
+  if (!m_CompilerPreservesBBNames) {
+    WEX::Logging::Log::Result(WEX::Logging::TestResults::Skipped, L"This test requires name preservation to succeed currently.");
+    return;
+  }
+
+  RewriteAssemblyCheckMsg(
+    L"..\\CodeGenHLSL\\barrier.hlsl", "cs_6_0",
+    { "dx.op.barrier(i32 80, i32 8)",
+      "dx.op.barrier(i32 80, i32 9)",
+      "dx.op.barrier(i32 80, i32 11)",
+      "%class.RWStructuredBuffer = type { %class.matrix.float.2.2 }\n",
+      "call i32 @dx.op.flattenedThreadIdInGroup.i32(i32 96)",
+    },
+    { "dx.op.barrier(i32 80, i32 15)",
+      "dx.op.barrier(i32 80, i32 0)",
+      "dx.op.barrier(i32 80, i32 %rem)",
+      "%class.RWStructuredBuffer = type { %class.matrix.float.2.2 }\n"
+      "@dx.typevar.8 = external addrspace(1) constant %class.RWStructuredBuffer\n"
+      "@\"internalGV\" = internal global [64 x <4 x float>] undef\n",
+      "call i32 @dx.op.flattenedThreadIdInGroup.i32(i32 96)\n"
+      "%load = load %class.RWStructuredBuffer, %class.RWStructuredBuffer addrspace(1)* @dx.typevar.8",
+    },
+    { "Internal declaration 'internalGV' is unused",
+      "External declaration 'dx.typevar.8' is unused",
+      "Vector type '<4 x float>' is not allowed",
+      "Mode of Barrier must be an immediate constant",
+      "sync must include some form of memory barrier - _u (UAV) and/or _g (Thread Group Shared Memory)",
+      "sync can't specify both _ugroup and _uglobal. If both are needed, just specify _uglobal"
+    });
 }
 TEST_F(ValidationTest, CBufferLegacyOutOfBoundFail) {
   RewriteAssemblyCheckMsg(
@@ -685,7 +689,11 @@ TEST_F(ValidationTest, CsThreadSizeFail) {
       });
 }
 TEST_F(ValidationTest, DeadLoopFail) {
-  if (!m_CompilerPreservesBBNames) return;    // This test requires name preservation to succeed currently.
+  if (!m_CompilerPreservesBBNames) {
+    WEX::Logging::Log::Result(WEX::Logging::TestResults::Skipped, L"This test requires name preservation to succeed currently.");
+    return;
+  }
+
   RewriteAssemblyCheckMsg(
       L"..\\CodeGenHLSL\\loop1.hlsl", "ps_6_0",
       {"br i1 %exitcond, label %for.end.loopexit, label %for.body, !llvm.loop !([0-9]+)",
@@ -781,7 +789,11 @@ TEST_F(ValidationTest, MultiStream2Fail) {
       "Multiple GS output streams are used but 'XXX' is not pointlist");
 }
 TEST_F(ValidationTest, PhiTGSMFail) {
-  if (!m_CompilerPreservesBBNames) return;    // This test requires name preservation to succeed currently.
+  if (!m_CompilerPreservesBBNames) {
+    WEX::Logging::Log::Result(WEX::Logging::TestResults::Skipped, L"This test requires name preservation to succeed currently.");
+    return;
+  }
+
   RewriteAssemblyCheckMsg(
       L"..\\CodeGenHLSL\\phiTGSM.hlsl", "cs_6_0",
       "ret void",
@@ -791,7 +803,11 @@ TEST_F(ValidationTest, PhiTGSMFail) {
       "TGSM pointers must originate from an unambiguous TGSM global variable");
 }
 TEST_F(ValidationTest, ReducibleFail) {
-  if (!m_CompilerPreservesBBNames) return;    // This test requires name preservation to succeed currently.
+  if (!m_CompilerPreservesBBNames) {
+    WEX::Logging::Log::Result(WEX::Logging::TestResults::Skipped, L"This test requires name preservation to succeed currently.");
+    return;
+  }
+
   RewriteAssemblyCheckMsg(
       L"..\\CodeGenHLSL\\reducible.hlsl", "ps_6_0",
       {"%conv\n"
@@ -937,7 +953,11 @@ TEST_F(ValidationTest, SimpleGs1Fail) {
        "Stream index (5) must between 0 and 3"});
 }
 TEST_F(ValidationTest, UavBarrierFail) {
-  if (!m_CompilerPreservesBBNames) return;    // This test requires name preservation to succeed currently.
+  if (!m_CompilerPreservesBBNames) {
+    WEX::Logging::Log::Result(WEX::Logging::TestResults::Skipped, L"This test requires name preservation to succeed currently.");
+    return;
+  }
+
   RewriteAssemblyCheckMsg(
       L"..\\CodeGenHLSL\\uavBarrier.hlsl", "ps_6_0",
       {"dx.op.barrier(i32 80, i32 2)",
@@ -959,7 +979,11 @@ TEST_F(ValidationTest, UndefValueFail) {
   TestCheck(L"..\\CodeGenHLSL\\UndefValue.hlsl");
 }
 TEST_F(ValidationTest, UpdateCounterFail) {
-  if (!m_CompilerPreservesBBNames) return;    // This test requires name preservation to succeed currently.
+  if (!m_CompilerPreservesBBNames) {
+    WEX::Logging::Log::Result(WEX::Logging::TestResults::Skipped, L"This test requires name preservation to succeed currently.");
+    return;
+  }
+
   RewriteAssemblyCheckMsg(
       L"..\\CodeGenHLSL\\UpdateCounter2.hlsl", "ps_6_0",
       {"%2 = call i32 @dx.op.bufferUpdateCounter(i32 70, %dx.types.Handle %buf2_UAV_structbuf, i8 1)",

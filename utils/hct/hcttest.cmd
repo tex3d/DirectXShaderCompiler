@@ -271,12 +271,34 @@ rem %2 - first argument to te
 rem %3 - second argument to te
 rem %4 - third argument to te
 
-echo te /labMode /miniDumpOnCrash /logOutput:LowWithConsoleBuffering /parallel %TEST_DIR%\%*
-call te /labMode /miniDumpOnCrash /logOutput:LowWithConsoleBuffering /parallel %TEST_DIR%\%*
-if errorlevel 1 (
-  call :showtesample %*
-  exit /b 1
+set testerror=0
+echo te /labMode /miniDumpOnCrash /logOutput:LowWithConsoleBuffering /parallel %TEST_DIR%\%* ^> %TEMP%\hcttest-taef.log
+call te /labMode /miniDumpOnCrash /logOutput:LowWithConsoleBuffering /parallel %TEST_DIR%\%* > %TEMP%\hcttest-taef.log
+set taeferror=%errorlevel%
+type %TEMP%\hcttest-taef.log
+if %taeferror% GEQ 65536 (
+  echo TAEF test harness returned exit code: %taeferror%
+  set testerror=%taeferror%
 )
+type %TEMP%\hcttest-taef.log | findstr /R /C:"^Summary: Total=[0-9][0-9]*, Passed=[0-9][0-9]*, Failed=[0-9][0-9]*, Blocked=[0-9][0-9]*, Not Run=[0-9][0-9]*, Skipped=[0-9][0-9]*" > %TEMP%\hcttest-taef-summary.log
+if errorlevel 1 (
+  echo Unable to parse Summary from TAEF log
+  set testerror=%taeferror%
+)
+findstr /R /C:"Blocked=[1-9][0-9]*" %TEMP%\hcttest-taef-summary.log 1>nul 2>nul
+if %errorlevel%==0 (
+  echo Tests were Blocked
+  set testerror=%taeferror%
+)
+findstr /R /C:"Failed=[1-9][0-9]*" %TEMP%\hcttest-taef-summary.log 1>nul 2>nul
+if %errorlevel%==0 (
+  echo Tests Failed
+  set testerror=%taeferror%
+)
+if not %testerror%==0 (
+  call :showtesample %*
+)
+exit /b %testerror%
 goto :eof
 
 :showtesample

@@ -3948,7 +3948,11 @@ TEST_F(CompilerTest, CodeGenDx12MiniEngineFxaapass2Vdebugcs){
 }
 
 TEST_F(CompilerTest, CodeGenDx12MiniEngineFxaaresolveworkqueuecs){
-  if (!m_CompilerPreservesBBNames) return;
+  if (!m_CompilerPreservesBBNames) {
+    WEX::Logging::Log::Result(WEX::Logging::TestResults::Skipped, L"This test requires name preservation to succeed currently.");
+    return;
+  }
+
   CodeGenTestCheck(L"..\\CodeGenHLSL\\Samples\\MiniEngine\\FXAAResolveWorkQueueCS.hlsl");
 }
 
