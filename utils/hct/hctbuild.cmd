@@ -40,6 +40,13 @@ if "%BUILD_ARCH%"=="" (
   set BUILD_ARCH=Win32
 )
 
+rem MAXCPUCOUNT is for project-level parallelism
+rem LLVM_COMPILER_JOBS is for object-level parallelism
+rem You can set these in your environment to override these defaults.
+rem The goal would be to find the best balance for this project on your build machine.
+if "%MAXCPUCOUNT%"=="" set MAXCPUCOUNT=2
+if "%LLVM_COMPILER_JOBS%"=="" set LLVM_COMPILER_JOBS=4
+
 set BUILD_GENERATOR=Visual Studio 14 2015
 set BUILD_VS_VER=2015
 set BUILD_CONFIG=Debug
@@ -146,6 +153,8 @@ set CMAKE_OPTS=%CMAKE_OPTS% -DLLVM_REQUIRES_RTTI:BOOL=ON
 set CMAKE_OPTS=%CMAKE_OPTS% -DCLANG_CL:BOOL=OFF
 set CMAKE_OPTS=%CMAKE_OPTS% -DCMAKE_SYSTEM_VERSION=10.0.14393.0
 set CMAKE_OPTS=%CMAKE_OPTS% -DDXC_BUILD_ARCH=%BUILD_ARCH%
+
+set CMAKE_OPTS=%CMAKE_OPTS% -DLLVM_COMPILER_JOBS:STRING=%LLVM_COMPILER_JOBS%
 
 rem This parameter is used with vcvarsall to force use of 64-bit build tools
 rem instead of 32-bit tools that run out of memory.
@@ -287,7 +296,7 @@ setlocal
 call "%ProgramFiles(x86)%\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" %BUILD_TOOLS%
 rem Add /ds for a detailed summary at the end.
 echo Logging to %3\msbuild-log.txt
-MSBuild.exe /nologo /property:Configuration=%1 /property:Platform=%2 /maxcpucount:2 %3\LLVM.sln /consoleloggerparameters:Summary;Verbosity=minimal /fileloggerparameters:LogFile=%3\msbuild-log.txt
+MSBuild.exe /nologo /property:Configuration=%1 /property:Platform=%2 /maxcpucount:%MAXCPUCOUNT% %3\LLVM.sln /consoleloggerparameters:Summary;Verbosity=minimal /fileloggerparameters:LogFile=%3\msbuild-log.txt
 if NOT "%ERRORLEVEL%"=="0" (
   exit /b 1
 )

@@ -7,7 +7,7 @@
         "configurationType" : "Debug",
         "buildRoot":  "${env.LOCALAPPDATA}\\CMakeBuild\\DirectXShaderCompiler\\build\\${name}",
         "cmakeCommandArgs":  "",
-        "buildCommandArgs": "-m -v:minimal",
+        "buildCommandArgs": "-m:2 -v:minimal",
         "variables": [
           {
             "name": "CLANG_ENABLE_ARCMT:BOOL",
@@ -84,6 +84,10 @@
           {
             "name": "-DCMAKE_SYSTEM_VERSION",
             "value": "10.0.14393.0"
+          },
+          {
+            "name": "-DLLVM_COMPILER_JOBS:STRING",
+            "value": "4"
           }
         ]
         },
@@ -93,7 +97,7 @@
         "configurationType" : "Release",
         "buildRoot":  "${env.LOCALAPPDATA}\\CMakeBuild\\DirectXShaderCompiler\\build\\${name}",
         "cmakeCommandArgs":  "",
-        "buildCommandArgs": "-m -v:minimal",
+        "buildCommandArgs": "-m:2 -v:minimal",
         "variables": [
           {
             "name": "CLANG_ENABLE_ARCMT:BOOL",
@@ -170,6 +174,10 @@
           {
             "name": "-DCMAKE_SYSTEM_VERSION",
             "value": "10.0.14393.0"
+          },
+          {
+            "name": "-DLLVM_COMPILER_JOBS:STRING",
+            "value": "4"
           }
         ]
         },
@@ -179,7 +187,7 @@
         "configurationType" : "Debug",
         "buildRoot":  "${env.LOCALAPPDATA}\\CMakeBuild\\DirectXShaderCompiler\\build\\${name}",
         "cmakeCommandArgs":  "",
-        "buildCommandArgs": "-m -v:minimal",
+        "buildCommandArgs": "-m:2 -v:minimal",
         "variables": [
           {
             "name": "CLANG_ENABLE_ARCMT:BOOL",
@@ -256,6 +264,10 @@
           {
             "name": "-DCMAKE_SYSTEM_VERSION",
             "value": "10.0.14393.0"
+          },
+          {
+            "name": "-DLLVM_COMPILER_JOBS:STRING",
+            "value": "4"
           }
         ]
         },
@@ -265,7 +277,7 @@
         "configurationType" : "Release",
         "buildRoot":  "${env.LOCALAPPDATA}\\CMakeBuild\\DirectXShaderCompiler\\build\\${name}",
         "cmakeCommandArgs":  "",
-        "buildCommandArgs": "-m -v:minimal",
+        "buildCommandArgs": "-m:2 -v:minimal",
         "variables": [
           {
             "name": "CLANG_ENABLE_ARCMT:BOOL",
@@ -342,6 +354,10 @@
           {
             "name": "-DCMAKE_SYSTEM_VERSION",
             "value": "10.0.14393.0"
+          },
+          {
+            "name": "-DLLVM_COMPILER_JOBS:STRING",
+            "value": "4"
           }
         ]
         }
