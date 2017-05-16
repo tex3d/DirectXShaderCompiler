@@ -6987,7 +6987,10 @@ public:
     BigEndian = false;
     TLSSupported = false;
     LongWidth = LongAlign = 32;
-    LongDoubleWidth = LongDoubleAlign = 64;
+    LongLongWidth = 64;
+    LongLongAlign = 32;
+    LongDoubleWidth = 64;
+    LongDoubleAlign = 32;
     LongDoubleFormat = &llvm::APFloat::IEEEdouble;
     BoolWidth = 32;
     // To avoid member for alignment.
@@ -7034,8 +7037,13 @@ class DXIL_32TargetInfo : public DXILTargetInfo {
 
 public:
   DXIL_32TargetInfo(const llvm::Triple &Triple) : DXILTargetInfo(Triple) {
-    // TODO: Update Description for DXIL
-    DescriptionString = "e-m:e-p:32:32-i64:64-f80:32-n8:16:32-a:0:32-S32";
+    // TODO: Update Description for DXIL - see http://llvm.org/docs/LangRef.html#data-layout
+    // - get rid of f80:32 (no 80-bit FP support)
+    // - add f32:32-f64:32
+    // - consider f16:32 (but 16-bit alignment seems necessary for certain tests)
+    // - change n8:16:32 to n16:32 (should :64 be added?)
+    // - consider using ni:... for non-integral pointers (handles?) in future DXIL?
+    DescriptionString = "e-m:e-p:32:32-i16:16:32-i64:32-f16:16:32-f32:32-f64:32:64-n16:32:64-a:0:32-S0";
   }
 };
 }
