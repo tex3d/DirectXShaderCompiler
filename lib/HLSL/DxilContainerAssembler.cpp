@@ -417,12 +417,6 @@ public:
   : m_Module(module),
     m_PSVInitInfo(PSVVersion)
   {
-    unsigned ValMajor, ValMinor;
-    m_Module.GetValidatorVersion(ValMajor, ValMinor);
-    // Allow PSVVersion to be upgraded
-    if (m_PSVInitInfo.PSVVersion < 1 && (ValMajor > 1 || (ValMajor == 1 && ValMinor >= 1)))
-      m_PSVInitInfo.PSVVersion = 1;
-
     const ShaderModel *SM = m_Module.GetShaderModel();
     UINT uCBuffers = m_Module.GetCBuffers().size();
     UINT uSamplers = m_Module.GetSamplers().size();
@@ -801,10 +795,13 @@ void hlsl::SerializeDxilContainerForModule(DxilModule *pModule,
   DXASSERT_NOMSG(pModuleBitcode != nullptr);
   DXASSERT_NOMSG(pFinalStream != nullptr);
 
+  uint32_t PSVVersion = 1;
   unsigned ValMajor, ValMinor;
   pModule->GetValidatorVersion(ValMajor, ValMinor);
-  if (ValMajor == 1 && ValMinor == 0)
+  if (ValMajor == 1 && ValMinor == 0) {
     Flags &= ~SerializeDxilFlags::IncludeDebugNamePart;
+    PSVVersion = 0;
+  }
 
   DxilProgramSignatureWriter inputSigWriter(pModule->GetInputSignature(),
                                             pModule->GetTessellatorDomain(),
@@ -812,7 +809,8 @@ void hlsl::SerializeDxilContainerForModule(DxilModule *pModule,
   DxilProgramSignatureWriter outputSigWriter(pModule->GetOutputSignature(),
                                              pModule->GetTessellatorDomain(),
                                              /*IsInput*/ false);
-  DxilPSVWriter PSVWriter(*pModule);
+  DxilPSVWriter PSVWriter(*pModule, PSVVersion);
+
   DxilContainerWriter_impl writer;
 
   // Write the feature part.
