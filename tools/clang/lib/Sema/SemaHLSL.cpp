@@ -9004,8 +9004,8 @@ void hlsl::DiagnoseUnusualAnnotationsForHLSL(
         if (other != nullptr &&
           ShaderModelsMatch(other->ShaderProfile, registerAssignment->ShaderProfile) &&
           other->RegisterType == registerAssignment->RegisterType &&
-          (other->RegisterNumber != registerAssignment->RegisterNumber ||
-          other->RegisterOffset != registerAssignment->RegisterOffset)) {
+          (other->RegisterNumber + other->RegisterOffset != registerAssignment->RegisterNumber + registerAssignment->RegisterOffset ||
+            other->RegisterSpace != registerAssignment->RegisterSpace)) {
           // Obvious conflict - report it up front.
           S.Diag(registerAssignment->Loc, diag::err_hlsl_register_semantics_conflicting);
         }
@@ -9883,10 +9883,10 @@ static void ValidateAttributeOnSwitchOrIf(Sema& S, Stmt* St, const AttributeList
   }
 }
 
-static StringRef ValidateAttributeStringArg(Sema& S, const AttributeList &A, _In_opt_z_ const char* values)
+static StringRef ValidateAttributeStringArg(Sema& S, const AttributeList &A, _In_opt_z_ const char* values, unsigned index = 0)
 {
   // values is an optional comma-separated list of potential values.
-  Expr* E = A.getArgAsExpr(0);
+  Expr* E = A.getArgAsExpr(index);
   if (E->isTypeDependent() || E->isValueDependent() || E->getStmtClass() != Stmt::StringLiteralClass)
   {
     S.Diag(E->getLocStart(), diag::err_hlsl_attribute_expects_string_literal)
@@ -10056,6 +10056,21 @@ void hlsl::HandleDeclAttributeForHLSL(Sema &S, Decl *D, const AttributeList &A, 
   case AttributeList::AT_HLSLGloballyCoherent:
     declAttr = ::new (S.Context) HLSLGloballyCoherentAttr(
         A.getRange(), S.Context, A.getAttributeSpellingListIndex());
+    break;
+  case AttributeList::AT_HLSLExtraData:
+    // TODO: Validate on global static const decl
+    {
+      //if (...);
+    }
+    declAttr = ::new (S.Context) HLSLExtraDataAttr(A.getRange(), S.Context,
+      ValidateAttributeStringArg(S, A, nullptr),
+      A.getAttributeSpellingListIndex());
+    break;
+  case AttributeList::AT_HLSLExtension:
+    declAttr = ::new (S.Context) HLSLExtensionAttr(A.getRange(), S.Context,
+      ValidateAttributeStringArg(S, A, nullptr, 0),
+      ValidateAttributeStringArg(S, A, nullptr, 1),
+      A.getAttributeSpellingListIndex());
     break;
 
   default:

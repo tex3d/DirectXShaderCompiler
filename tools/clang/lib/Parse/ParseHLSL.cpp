@@ -195,14 +195,14 @@ void Parser::ParseHLSLAttributeSpecifier(ParsedAttributes &attrs,
 
       attrs.addNew(AttrName, SourceRange(AttrLoc, EndLoc), nullptr,
                    SourceLocation(), ArgExprs.data(), ArgExprs.size(),
-                   AttributeList::AS_CXX11);
+                   AttributeList::AS_HLSLAttr);
     } else {
       ParseGNUAttributeArgs(AttrName, AttrLoc, attrs, endLoc, nullptr,
-                            SourceLocation(), AttributeList::AS_CXX11, nullptr);
+                            SourceLocation(), AttributeList::AS_HLSLAttr, nullptr);
     }
   } else {
     attrs.addNew(AttrName, AttrLoc, nullptr, SourceLocation(), 0, 0,
-                 AttributeList::AS_CXX11);
+                 AttributeList::AS_HLSLAttr);
   }
 
   if (endLoc)

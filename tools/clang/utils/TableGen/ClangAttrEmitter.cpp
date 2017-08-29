@@ -1167,6 +1167,16 @@ writePrettyPrintFunction(Record &R,
         Spelling += Namespace;
         Spelling += " ";
       }
+
+    // HLSL Change Begins: Add HLSLAttr and HLSLBinding spellings
+    } else if (Variety == "HLSLAttr") {
+      Prefix = " [";
+      Suffix = "]";
+    } else if (Variety == "HLSLBinding") {
+      Prefix = " : ";
+      Suffix = "";
+    // HLSL Change Ends
+
     } else {
       llvm_unreachable("Unknown attribute syntax variety!");
     }
@@ -1932,7 +1942,7 @@ static void GenerateHasAttrSpellingStringSwitch(
       // vk namespace
       std::vector<FlattenedSpelling> Spellings = GetFlattenedSpellings(*Attr);
       for (const auto &S : Spellings)
-        if (S.nameSpace() == "vk") {
+        if (S.nameSpace() == "vk" || S.nameSpace() == "dx") { // HLSL Change: add "dx"
           Test = "(LangOpts.HLSL || LangOpts.CPlusPlus11)";
           break;
         }
@@ -1959,6 +1969,7 @@ void EmitClangAttrHasAttrImpl(RecordKeeper &Records, raw_ostream &OS) {
   std::vector<Record *> Attrs = Records.getAllDerivedDefinitions("Attr");
   std::vector<Record *> Declspec, GNU, Pragma;
   std::map<std::string, std::vector<Record *>> CXX;
+  std::vector<Record *> HLSLAttr, HLSLBinding;  // HLSL Change
 
   // Walk over the list of all attributes, and split them out based on the
   // spelling variety.
@@ -1974,6 +1985,12 @@ void EmitClangAttrHasAttrImpl(RecordKeeper &Records, raw_ostream &OS) {
         CXX[SI.nameSpace()].push_back(R);
       else if (Variety == "Pragma")
         Pragma.push_back(R);
+      // HLSL Change Begins
+      else if (Variety == "HLSLAttr")
+        HLSLAttr.push_back(R);
+      else if (Variety == "HLSLBinding")
+        HLSLBinding.push_back(R);
+      // HLSL Change Ends
     }
   }
 
@@ -1987,6 +2004,12 @@ void EmitClangAttrHasAttrImpl(RecordKeeper &Records, raw_ostream &OS) {
   OS << "case AttrSyntax::Pragma:\n";
   OS << "  return llvm::StringSwitch<int>(Name)\n";
   GenerateHasAttrSpellingStringSwitch(Pragma, OS, "Pragma");
+  OS << "case AttrSyntax::HLSLAttr:\n";
+  OS << "  return llvm::StringSwitch<int>(Name)\n";
+  GenerateHasAttrSpellingStringSwitch(HLSLAttr, OS, "HLSLAttr");
+  OS << "case AttrSyntax::HLSLBinding:\n";
+  OS << "  return llvm::StringSwitch<int>(Name)\n";
+  GenerateHasAttrSpellingStringSwitch(HLSLBinding, OS, "HLSLBinding");
   OS << "case AttrSyntax::CXX: {\n";
   // C++11-style attributes are further split out based on the Scope.
   for (std::map<std::string, std::vector<Record *>>::iterator I = CXX.begin(),
@@ -2030,6 +2053,10 @@ void EmitClangAttrSpellingListIndex(RecordKeeper &Records, raw_ostream &OS) {
                 .Case("Declspec", 2)
                 .Case("Keyword", 3)
                 .Case("Pragma", 4)
+                // HLSL Change Begins
+                .Case("HLSLAttr", 5)
+                .Case("HLSLBinding", 6)
+                // HLSL Change Ends
                 .Default(0)
          << " && Scope == \"" << Spellings[I].nameSpace() << "\")\n"
          << "        return " << I << ";\n";
@@ -2678,6 +2705,7 @@ void EmitClangAttrParsedAttrKinds(RecordKeeper &Records, raw_ostream &OS) {
 
   std::vector<Record *> Attrs = Records.getAllDerivedDefinitions("Attr");
   std::vector<StringMatcher::StringPair> GNU, Declspec, CXX11, Keywords, Pragma;
+  std::vector<StringMatcher::StringPair> HLSLAttr, HLSLBinding;  // HLSL Change
   std::set<std::string> Seen;
   for (const auto *A : Attrs) {
     const Record &Attr = *A;
@@ -2722,6 +2750,12 @@ void EmitClangAttrParsedAttrKinds(RecordKeeper &Records, raw_ostream &OS) {
           Matches = &Keywords;
         else if (Variety == "Pragma")
           Matches = &Pragma;
+        // HLSL Change Begins
+        else if (Variety == "HLSLAttr")
+          Matches = &HLSLAttr;
+        else if (Variety == "HLSLBinding")
+          Matches = &HLSLAttr;
+        // HLSL Change Ends
 
         assert(Matches && "Unsupported spelling variety found");
 
@@ -2749,6 +2783,12 @@ void EmitClangAttrParsedAttrKinds(RecordKeeper &Records, raw_ostream &OS) {
   StringMatcher("Name", Keywords, OS).Emit();
   OS << "  } else if (AttributeList::AS_Pragma == Syntax) {\n";
   StringMatcher("Name", Pragma, OS).Emit();
+  // HLSL Change Begins
+  OS << "  } else if (AttributeList::AS_HLSLAttr == Syntax) {\n";
+  StringMatcher("Name", HLSLAttr, OS).Emit();
+  OS << "  } else if (AttributeList::AS_HLSLBinding == Syntax) {\n";
+  StringMatcher("Name", HLSLBinding, OS).Emit();
+  // HLSL Change Ends
   OS << "  }\n";
   OS << "  return AttributeList::UnknownAttribute;\n"
      << "}\n";
@@ -2831,6 +2871,8 @@ enum SpellingKind {
   Declspec = 1 << 2,
   Keyword = 1 << 3,
   Pragma = 1 << 4
+  ,HLSLAttr = 1 << 5,   // HLSL Change
+  HLSLBinding = 1 << 6  // HLSL Change
 };
 
 static void WriteDocumentation(const DocumentationData &Doc,
@@ -2879,7 +2921,9 @@ static void WriteDocumentation(const DocumentationData &Doc,
                             .Case("CXX11", CXX11)
                             .Case("Declspec", Declspec)
                             .Case("Keyword", Keyword)
-                            .Case("Pragma", Pragma);
+                            .Case("Pragma", Pragma)
+                            .Case("HLSLAttr", HLSLAttr)         // HLSL Change
+                            .Case("HLSLBinding", HLSLBinding);  // HLSL Change
 
     // Mask in the supported spelling.
     SupportedSpellings |= Kind;
@@ -2915,7 +2959,7 @@ static void WriteDocumentation(const DocumentationData &Doc,
   // List what spelling syntaxes the attribute supports.
   OS << ".. csv-table:: Supported Syntaxes\n";
   OS << "   :header: \"GNU\", \"C++11\", \"__declspec\", \"Keyword\",";
-  OS << " \"Pragma\"\n\n";
+  OS << " \"Pragma\", \"HLSLAttr\", \"HLSLBinding\"\n\n"; // HLSL Change
   OS << "   \"";
   if (SupportedSpellings & GNU) OS << "X";
   OS << "\",\"";
@@ -2926,6 +2970,10 @@ static void WriteDocumentation(const DocumentationData &Doc,
   if (SupportedSpellings & Keyword) OS << "X";
   OS << "\", \"";
   if (SupportedSpellings & Pragma) OS << "X";
+  OS << "\", \"";
+  if (SupportedSpellings & HLSLAttr) OS << "X";
+  OS << "\", \"";
+  if (SupportedSpellings & HLSLBinding) OS << "X";
   OS << "\"\n\n";
 
   // If the attribute is deprecated, print a message about it, and possibly

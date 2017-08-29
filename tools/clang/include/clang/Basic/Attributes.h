@@ -26,6 +26,10 @@ enum class AttrSyntax {
   CXX,
   // Is the identifier known as a pragma attribute?
   Pragma
+  // HLSL Change Begins
+  ,HLSLAttr,
+  HLSLBinding
+  // HLSL Change Ends
 };
 
 /// \brief Return the version number associated with the attribute if we

@@ -2082,7 +2082,7 @@ uint32_t CGMSHLSLRuntime::AddSampler(VarDecl *samplerDecl) {
     switch (it->getKind()) {
     case hlsl::UnusualAnnotation::UA_RegisterAssignment: {
       hlsl::RegisterAssignment *ra = cast<hlsl::RegisterAssignment>(it);
-      hlslRes->SetLowerBound(ra->RegisterNumber);
+      hlslRes->SetLowerBound(ra->RegisterNumber + ra->RegisterOffset);
       hlslRes->SetSpaceID(ra->RegisterSpace);
       break;
     }
@@ -2345,7 +2345,7 @@ uint32_t CGMSHLSLRuntime::AddUAVSRV(VarDecl *decl,
     switch (it->getKind()) {
     case hlsl::UnusualAnnotation::UA_RegisterAssignment: {
       hlsl::RegisterAssignment *ra = cast<hlsl::RegisterAssignment>(it);
-      hlslRes->SetLowerBound(ra->RegisterNumber);
+      hlslRes->SetLowerBound(ra->RegisterNumber + ra->RegisterOffset);
       hlslRes->SetSpaceID(ra->RegisterSpace);
       break;
     }
@@ -2451,7 +2451,7 @@ void CGMSHLSLRuntime::AddConstant(VarDecl *constDecl, HLCBuffer &CB) {
     case hlsl::UnusualAnnotation::UA_RegisterAssignment: {
       if (isGlobalCB) {
         RegisterAssignment *ra = cast<RegisterAssignment>(it);
-        offset = ra->RegisterNumber << 2;
+        offset = (ra->RegisterNumber + ra->RegisterOffset) << 2;
         // Change to byte.
         offset <<= 2;
         userOffset = true;
@@ -2523,7 +2523,7 @@ uint32_t CGMSHLSLRuntime::AddCBuffer(HLSLBufferDecl *D) {
     switch (it->getKind()) {
     case hlsl::UnusualAnnotation::UA_RegisterAssignment: {
       hlsl::RegisterAssignment *ra = cast<hlsl::RegisterAssignment>(it);
-      uint32_t regNum = ra->RegisterNumber;
+      uint32_t regNum = ra->RegisterNumber + ra->RegisterOffset;
       uint32_t regSpace = ra->RegisterSpace;
       CB->SetSpaceID(regSpace);
       CB->SetLowerBound(regNum);

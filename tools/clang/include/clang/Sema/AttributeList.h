@@ -85,6 +85,13 @@ public:
     AS_ContextSensitiveKeyword,
     /// #pragma ...
     AS_Pragma
+    // HLSL Change Begins: Add HLSL attribute and semantic/binding styles
+    /// [...] - HLSL legacy attribute style
+    ,AS_HLSLAttr,
+    /// : ... - HLSL legacy semantic and binding style
+    AS_HLSLBinding
+    // WARNING: Any more will require more bits in SyntaxUsed below
+    // HLSL Change Ends
   };
 
 private:

@@ -322,7 +322,7 @@ static void ParseSpaceForHLSL(_In_z_ const char *name,
   *diagId = 0;
   *spaceValue = 0;
 
-  if (strncmp(name, "space", strlen("space") != 0)) {
+  if (strncmp(name, "space", strlen("space")) != 0) {
     *diagId = diag::err_hlsl_expected_space;
     return;
   }
@@ -714,6 +714,8 @@ void Parser::ParseGNUAttributeArgs(IdentifierInfo *AttrName,
     case AttributeList::AT_HLSLPatchConstantFunc:
     case AttributeList::AT_HLSLMaxVertexCount:
     case AttributeList::AT_HLSLUnroll:
+    case AttributeList::AT_HLSLExtraData:
+    case AttributeList::AT_HLSLExtension:
     // The following are not accepted in [attribute(param)] syntax:
     //case AttributeList::AT_HLSLCentroid:
     //case AttributeList::AT_HLSLGroupShared:
@@ -3742,7 +3744,7 @@ HLSLReservedKeyword:
           DiagID = diag::err_hlsl_modifier_after_type;
           isInvalid = true;
         } else {
-          DS.getAttributes().addNew(Tok.getIdentifierInfo(), Tok.getLocation(), 0, SourceLocation(), 0, 0, AttributeList::AS_CXX11);
+          DS.getAttributes().addNew(Tok.getIdentifierInfo(), Tok.getLocation(), 0, SourceLocation(), 0, 0, AttributeList::AS_Keyword);
         }
       }
       break;

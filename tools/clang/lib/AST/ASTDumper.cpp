@@ -1025,7 +1025,10 @@ void ASTDumper::dumpHLSLUnusualAnnotations(const ArrayRef<hlsl::UnusualAnnotatio
             OS << "invalid";
           else
             OS << std::string(&(registerAssignment->RegisterType), 1);
-          OS << registerAssignment->RegisterNumber + registerAssignment->RegisterOffset;
+          if (registerAssignment->RegisterOffset)
+            OS << registerAssignment->RegisterNumber << "[" << registerAssignment->RegisterOffset << "]";
+          else
+            OS << registerAssignment->RegisterNumber;
           if (registerAssignment->RegisterSpace)
             OS << ", space" << registerAssignment->RegisterSpace;
           OS << ")";

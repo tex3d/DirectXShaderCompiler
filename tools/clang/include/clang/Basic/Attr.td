@@ -199,6 +199,17 @@ class Pragma<string namespace, string name> : Spelling<name, "Pragma"> {
   string Namespace = namespace;
 }
 
+// HLSL Change Starts: Add HLSL attribute and binding syntax classes
+class HLSLAttr<string name, int version = 1>
+    : Spelling<name, "HLSLAttr"> {
+  int Version = version;
+}
+class HLSLBinding<string name, int version = 1>
+    : Spelling<name, "HLSLBinding"> {
+  int Version = version;
+}
+// HLSL Change Ends
+
 // The GCC spelling implies GNU<name, "GNU"> and CXX11<"gnu", name> and also
 // sets KnownToGCC to 1. This spelling should be used for any GCC-compatible
 // attributes.
@@ -233,6 +244,7 @@ def Borland : LangOpt<"Borland">;
 def CUDA : LangOpt<"CUDA">;
 def COnly : LangOpt<"CPlusPlus", 1>;
 def SPIRV : LangOpt<"SPIRV">; // SPIRV Change
+def HLSL : LangOpt<"HLSL">; // HLSL Change
 
 // Defines targets for target-specific attributes. The list of strings should
 // specify architectures for which the target applies, based off the ArchType
@@ -603,178 +615,211 @@ def CUDAShared : InheritableAttr {
 
 // HLSL Control Flow Attributes
 def HLSLAllowUAVCondition : Attr {
-  let Spellings = [CXX11<"", "allow_uav_condition", 2015>];
+  let Spellings = [HLSLAttr<"allow_uav_condition">, CXX11<"dx", "allow_uav_condition">];
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 def HLSLBranch : Attr {
-  let Spellings = [CXX11<"", "branch", 2015>];
+  let Spellings = [HLSLAttr<"branch">, CXX11<"dx", "branch">];
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 def HLSLCall : Attr {
-  let Spellings = [CXX11<"", "call", 2015>];
+  let Spellings = [HLSLAttr<"call">, CXX11<"dx", "call">];
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 def HLSLFastOpt : Attr {
-  let Spellings = [CXX11<"", "fastopt", 2015>];
+  let Spellings = [HLSLAttr<"fastopt">, CXX11<"dx", "fastopt">];
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 def HLSLFlatten : Attr {
-  let Spellings = [CXX11<"", "flatten", 2015>];
+  let Spellings = [HLSLAttr<"flatten">, CXX11<"dx", "flatten">];
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 def HLSLForceCase : Attr {
-  let Spellings = [CXX11<"", "forcecase", 2015>];
+  let Spellings = [HLSLAttr<"forcecase">, CXX11<"dx", "forcecase">];
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 def HLSLLoop : Attr {
-  let Spellings = [CXX11<"", "loop", 2015>];
+  let Spellings = [HLSLAttr<"loop">, CXX11<"dx", "loop">];
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 def HLSLUnroll : Attr {
-  let Spellings = [CXX11<"", "unroll", 2015>];
+  let Spellings = [HLSLAttr<"unroll">, CXX11<"dx", "unroll">];
   let Args = [IntArgument<"Count", 1>];
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 // HLSL Function Attributes
 def HLSLClipPlanes : InheritableAttr {
-  let Spellings = [CXX11<"", "clipplanes", 2015>];
+  let Spellings = [HLSLAttr<"clipplanes">, CXX11<"dx", "clipplanes">];
   let Args = [ExprArgument<"ClipPlane1">,
               ExprArgument<"ClipPlane2", 1>,
               ExprArgument<"ClipPlane3", 1>,
               ExprArgument<"ClipPlane4", 1>,
               ExprArgument<"ClipPlane5", 1>,
               ExprArgument<"ClipPlane6", 1>];
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 def HLSLDomain : InheritableAttr {
-  let Spellings = [CXX11<"", "domain", 2015>];
+  let Spellings = [HLSLAttr<"domain">, CXX11<"dx", "domain">];
   let Args = [StringArgument<"DomainType">]; // one of tri, quad, isoline
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 def HLSLEarlyDepthStencil : InheritableAttr {
-  let Spellings = [CXX11<"", "earlydepthstencil", 2015>];
+  let Spellings = [HLSLAttr<"earlydepthstencil">, CXX11<"dx", "earlydepthstencil">];
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 def HLSLInstance: InheritableAttr {
-  let Spellings = [CXX11<"", "instance", 2015>];
+  let Spellings = [HLSLAttr<"instance">, CXX11<"dx", "instance">];
   let Args = [IntArgument<"Count">];
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 def HLSLMaxTessFactor: InheritableAttr {
-  let Spellings = [CXX11<"", "maxtessfactor", 2015>];
+  let Spellings = [HLSLAttr<"maxtessfactor">, CXX11<"dx", "maxtessfactor">];
   let Args = [IntArgument<"Factor">];
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 def HLSLNumThreads: InheritableAttr {
-  let Spellings = [CXX11<"", "numthreads", 2015>];
+  let Spellings = [HLSLAttr<"numthreads">, CXX11<"dx", "numthreads">];
   let Args = [IntArgument<"X">, IntArgument<"Y">, IntArgument<"Z">];
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 def HLSLRootSignature: InheritableAttr {
-  let Spellings = [CXX11<"", "RootSignature", 2015>];
+  let Spellings = [HLSLAttr<"RootSignature">, CXX11<"dx", "RootSignature">];
   let Args = [StringArgument<"SignatureName">];
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 def HLSLOutputControlPoints: InheritableAttr {
-  let Spellings = [CXX11<"", "outputcontrolpoints", 2015>];
+  let Spellings = [HLSLAttr<"outputcontrolpoints">, CXX11<"dx", "outputcontrolpoints">];
   let Args = [IntArgument<"Count">];
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 def HLSLOutputTopology: InheritableAttr {
-  let Spellings = [CXX11<"", "outputtopology", 2015>];
+  let Spellings = [HLSLAttr<"outputtopology">, CXX11<"dx", "outputtopology">];
   let Args = [StringArgument<"Topology">]; // one of point, line, triangle_cw or triangle_ccw
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 def HLSLPartitioning: InheritableAttr {
-  let Spellings = [CXX11<"", "partitioning", 2015>];
+  let Spellings = [HLSLAttr<"partitioning">, CXX11<"dx", "partitioning">];
   let Args = [StringArgument<"Scheme">]; // one of integer, fractional_even, fractional_odd or pow2
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 def HLSLPatchConstantFunc: InheritableAttr {
-  let Spellings = [CXX11<"", "patchconstantfunc", 2015>];
+  let Spellings = [HLSLAttr<"patchconstantfunc">, CXX11<"dx", "patchconstantfunc">];
   let Args = [StringArgument<"FunctionName">];
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 def HLSLMaxVertexCount: InheritableAttr {
-  let Spellings = [CXX11<"", "maxvertexcount", 2015>];
+  let Spellings = [HLSLAttr<"maxvertexcount">, CXX11<"dx", "maxvertexcount">];
   let Args = [IntArgument<"Count">];
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 def HLSLIntrinsic: InheritableAttr {
-  let Spellings = [CXX11<"", "intrinsic", 2015>];
+  let Spellings = [HLSLAttr<"intrinsic">, CXX11<"dx", "intrinsic">];
   let Args = [StringArgument<"group">, StringArgument<"lowering">, IntArgument<"opcode">];
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 def HLSLPrecise : InheritableAttr {
-  let Spellings = [CXX11<"", "precise", 2015>];
+  let Spellings = [Keyword<"precise">, CXX11<"dx", "precise">];
   let Subjects = SubjectList<[Function, Var, ParmVar, Field, TypedefName]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLShared : InheritableAttr {
-  let Spellings = [CXX11<"", "shared", 2015>];
+  let Spellings = [Keyword<"shared">, CXX11<"dx", "shared">];
   let Subjects = SubjectList<[Var]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLGroupShared : InheritableAttr {
-  let Spellings = [CXX11<"", "groupshared", 2015>];
+  let Spellings = [Keyword<"groupshared">, CXX11<"dx", "groupshared">];
   let Subjects = SubjectList<[Var]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLUniform : InheritableAttr {
-  let Spellings = [CXX11<"", "uniform", 2015>];
+  let Spellings = [Keyword<"uniform">, CXX11<"dx", "uniform">];
   let Subjects = SubjectList<[Var, ParmVar]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLInOut : InheritableAttr {
-  let Spellings = [CXX11<"", "inout", 2015>];
+  let Spellings = [Keyword<"inout">, CXX11<"dx", "inout">];
   let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLIn : InheritableAttr {
-  let Spellings = [CXX11<"", "in", 2015>];
+  let Spellings = [Keyword<"in">, CXX11<"dx", "in">];
   let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLOut : InheritableAttr {
-  let Spellings = [CXX11<"", "out", 2015>];
+  let Spellings = [Keyword<"out">, CXX11<"dx", "out">];
   let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLLinear : InheritableAttr {
-  let Spellings = [CXX11<"", "linear", 2015>];
+  let Spellings = [Keyword<"linear">, CXX11<"dx", "linear">];
   let Subjects = SubjectList<[Function, ParmVar, Field]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLNoPerspective : InheritableAttr {
-  let Spellings = [CXX11<"", "noperspective", 2015>];
+  let Spellings = [Keyword<"noperspective">, CXX11<"dx", "noperspective">];
   let Subjects = SubjectList<[Function, ParmVar, Field]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLSample : InheritableAttr {
-  let Spellings = [CXX11<"", "sample", 2015>];
+  let Spellings = [Keyword<"sample">, CXX11<"dx", "sample">];
   let Subjects = SubjectList<[Function, ParmVar, Field]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLCentroid : InheritableAttr {
-  let Spellings = [CXX11<"", "centroid", 2015>];
+  let Spellings = [Keyword<"centroid">, CXX11<"dx", "centroid">];
   let Subjects = SubjectList<[Function, ParmVar, Field]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLNoInterpolation : InheritableAttr {
-  let Spellings = [CXX11<"", "nointerpolation", 2015>];
+  let Spellings = [Keyword<"nointerpolation">, CXX11<"dx", "nointerpolation">];
   let Subjects = SubjectList<[Function, ParmVar, Field]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
@@ -782,72 +827,142 @@ def HLSLSemantic : InheritableAttr {
   let Spellings = [];
   let Subjects = SubjectList<[Function, ParmVar, Field]>;
   let Args = [StringArgument<"name">];
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLColumnMajor : InheritableAttr {
-  let Spellings = [CXX11<"", "column_major", 2015>];
+  let Spellings = [Keyword<"column_major">, CXX11<"dx", "column_major">];
   let Subjects = SubjectList<[Function, Var, ParmVar, Field, TypedefName]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLRowMajor : InheritableAttr {
-  let Spellings = [CXX11<"", "row_major", 2015>];
+  let Spellings = [Keyword<"row_major">, CXX11<"dx", "row_major">];
   let Subjects = SubjectList<[Function, Var, ParmVar, Field, TypedefName]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLUnorm : InheritableAttr {
-  let Spellings = [CXX11<"", "unorm", 2015>];
+  let Spellings = [Keyword<"unorm">, CXX11<"dx", "unorm">];
   let Subjects = SubjectList<[Function, Var, ParmVar, Field, TypedefName]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLSnorm : InheritableAttr {
-  let Spellings = [CXX11<"", "snorm", 2015>];
+  let Spellings = [Keyword<"snorm">, CXX11<"dx", "snorm">];
   let Subjects = SubjectList<[Function, Var, ParmVar, Field, TypedefName]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLPoint : InheritableAttr {
-  let Spellings = [CXX11<"", "point", 2015>];
+  let Spellings = [Keyword<"point">, CXX11<"dx", "point">];
   let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLLine : InheritableAttr {
-  let Spellings = [CXX11<"", "line", 2015>];
+  let Spellings = [Keyword<"line">, CXX11<"dx", "line">];
   let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLLineAdj : InheritableAttr {
-  let Spellings = [CXX11<"", "lineadj", 2015>];
+  let Spellings = [Keyword<"lineadj">, CXX11<"dx", "lineadj">];
   let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLTriangle : InheritableAttr {
-  let Spellings = [CXX11<"", "triangle", 2015>];
+  let Spellings = [Keyword<"triangle">, CXX11<"dx", "triangle">];
   let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLTriangleAdj : InheritableAttr {
-  let Spellings = [CXX11<"", "triangleadj", 2015>];
+  let Spellings = [Keyword<"triangleadj">, CXX11<"dx", "triangleadj">];
   let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLGloballyCoherent : InheritableAttr {
-  let Spellings = [CXX11<"", "globallycoherent", 2015>];
-  let Subjects = SubjectList<[Var]>;
+  let Spellings = [Keyword<"globallycoherent">, CXX11<"dx", "globallycoherent">];
+  let Subjects = SubjectList<[Var], ErrorDiag, "ExpectedVariable">;
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 
 def HLSLShader : InheritableAttr {
-  let Spellings = [CXX11<"", "shader", 2017>];
+  let Spellings = [HLSLAttr<"shader", 2017>, CXX11<"dx", "shader", 2017>];
   let Args = [StringArgument<"stage">]; // one of compute, pixel, vertex, hull, domain, geomery
+  let LangOpts = [HLSL];
+  let Documentation = [Undocumented];
+}
+
+def HLSLRegisterAssignmentLegacy : InheritableAttr {
+  // Example:
+  //    : register(cs_6_0, b22[33], space17)
+  let Spellings = [HLSLBinding<"register">, CXX11<"dx", "register">];
+  let HasCustomParsing = 1;
+  let Args = [StringArgument<"ShaderProfile">,          // "cs_6_0" from example
+              IntArgument<"RegisterType">,              // (int)'b' from b22[33]
+              IntArgument<"RegisterNumber">,            // 22 from b22[33]
+              IntArgument<"RegisterSpace">,             // 17 from space17
+              DefaultIntArgument<"RegisterOffset", 0>,  // 33 from b22[33]
+              DefaultBoolArgument<"IsValid", 1>
+              ];
+  let LangOpts = [HLSL];
+  let Documentation = [Undocumented];
+}
+
+def HLSLPackOffsetLegacy : InheritableAttr {
+  // Example:
+  //    : packoffset(c7.y)
+  let Spellings = [HLSLBinding<"packoffset">, CXX11<"dx", "packoffset">];
+  let HasCustomParsing = 1;
+  let Args = [IntArgument<"VectorIndex">,               // 7 from c7.y
+              DefaultIntArgument<"ComponentOffset", 0>, // 1 from .y (from [x,y,z,w])
+              DefaultBoolArgument<"IsValid", 1>
+              ];
+  let LangOpts = [HLSL];
+  let Documentation = [Undocumented];
+}
+
+def HLSLSemanticLegacy : InheritableAttr {
+  // Example:
+  //    : SV_Target1
+  let Spellings = [HLSLBinding<"semantic">, CXX11<"dx", "semantic">];
+  let HasCustomParsing = 1;
+  let Args = [StringArgument<"SemanticName">,         // "SV_Target" from example
+              DefaultIntArgument<"SemanticIndex", 0>  // 1 from SV_Target1
+              ];
+  let LangOpts = [HLSL];
+  let Documentation = [Undocumented];
+}
+
+// Capture global variable to metadata - must be static const
+def HLSLExtraData : InheritableAttr {
+  let Spellings = [HLSLAttr<"extradata", 2017>, CXX11<"dx", "extradata">];
+  let Subjects = SubjectList<[GlobalVar], ErrorDiag, "ExpectedVariable">;
+  let Args = [StringArgument<"name">]; // place in metadata named !dx.extradata.<name>
+  let LangOpts = [HLSL];
+  let Documentation = [Undocumented];
+}
+
+// Captured general purpose attribute with key-value pair for experimental targets
+def HLSLExtension : InheritableAttr {
+  let Spellings = [HLSLAttr<"extra", 2017>, CXX11<"dx", "extra">];
+  let Args = [StringArgument<"key">, StringArgument<"value">];
+  let LangOpts = [HLSL];
   let Documentation = [Undocumented];
 }
 

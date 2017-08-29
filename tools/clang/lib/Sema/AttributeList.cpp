@@ -134,7 +134,8 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo *Name,
   // HLSL Change Starts: - support case-insensitive variant
 #if 1
   AttributeList::Kind Result = ::getAttrKind(FullName, SyntaxUsed);
-  if (Result == AttributeList::UnknownAttribute) {
+  if (Result == AttributeList::UnknownAttribute &&
+      (SyntaxUsed == AS_HLSLAttr || SyntaxUsed == AS_HLSLBinding)) {
     std::string lower = FullName.str().lower();
     Result = ::getAttrKind(StringRef(lower), SyntaxUsed);
   }
