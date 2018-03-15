@@ -677,6 +677,12 @@ protected:
 public:
   DXC_MICROCOM_TM_ADDREF_RELEASE_IMPL()
 
+  // Since DxcDiaTableBase is derived from, and Release() will call OUR destructor,
+  // we must have a virtual destructor so derived destructor will be called.
+  virtual ~DxcDiaTableBase() {
+    m_pSession.Release();
+  }
+
   HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void **ppvObject) {
     return DoBasicQueryInterface<IDiaTable, T, IEnumUnknown>(this, iid, ppvObject);
   }
@@ -1769,8 +1775,8 @@ public:
       m_items[index] = CreateOnMalloc<DxcDiaSourceFile>(m_pMalloc, m_pSession, index);
       if (m_items[index] == nullptr)
         return E_OUTOFMEMORY;
+      m_items[index].p->AddRef();
     }
-    m_items[index].p->AddRef();
     *ppItem = m_items[index];
     (*ppItem)->AddRef();
     return S_OK;
