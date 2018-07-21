@@ -55,6 +55,9 @@ namespace Check {
     CheckDAG,
     CheckLabel,
 
+    ReplaceSource,
+    ReplaceWith,
+
     /// MatchEOF - When set, this pattern only matches the end of file. This is
     /// used for trailing CHECK-NOTs.
     CheckEOF
@@ -1148,16 +1151,21 @@ bool ValidateCheckPrefixes() {
 
 // I don't think there's a way to specify an initial value for cl::list,
 // so if nothing was specified, add the default
-void AddCheckPrefixIfNeeded() {
-  if (CheckPrefixes.empty())
-    CheckPrefixes.push_back("CHECK");
+void AddCheckPrefixIfNeeded(bool ReplaceMode) {
+  if (CheckPrefixes.empty()) {
+    if (ReplaceMode)
+      CheckPrefixes.push_back("REPLACE");
+    else
+      CheckPrefixes.push_back("CHECK");
+  }
 }
 
 /// ReadCheckFile - Read the check file, which specifies the sequence of
 /// expected strings.  The strings are added to the CheckStrings vector.
 /// Returns true in case of an error, false otherwise.
 bool ReadCheckFile(SourceMgr &SM,
-  std::vector<CheckString> &CheckStrings) {
+  std::vector<CheckString> &CheckStrings,
+  bool ReplaceMode) {
   ErrorOr<std::unique_ptr<MemoryBuffer>> FileOrErr =
     MemoryBuffer::getFileOrSTDIN(CheckFilename);
   if (std::error_code EC = FileOrErr.getError()) {
@@ -1312,7 +1320,7 @@ struct GlobalPerThreadSys {
   }
 };
 
-int run_main() {
+int run_main(bool ReplaceMode) {
   // HLSL Change Starts
   GlobalPerThreadSys gpts;
   if (!gpts.success) {
@@ -1333,13 +1341,13 @@ int run_main() {
     return 2;
   }
 
-  AddCheckPrefixIfNeeded();
+  AddCheckPrefixIfNeeded(ReplaceMode);
 
   SourceMgr SM;
 
   // Read the expected strings from the check file.
   std::vector<CheckString> CheckStrings;
-  if (ReadCheckFile(SM, CheckStrings))
+  if (ReadCheckFile(SM, CheckStrings,  ReplaceMode))
     return 2;
 
   // Open the file to check and add it to SourceMgr.
@@ -1355,7 +1363,7 @@ int run_main() {
   std::unique_ptr<MemoryBuffer> &File = FileOrErr.get();
 
   if (File->getBufferSize() == 0 && !AllowEmptyInput) {
-    errs() << "FileCheck error: '" << InputFilename << "' is empty.\n";
+    errs() << (ReplaceMode ? "Replace" : "FileCheck") << " error: '" << InputFilename << "' is empty.\n";
     return 2;
   }
 
@@ -1435,7 +1443,7 @@ FileCheckForTest::FileCheckForTest() {
   NoCanonicalizeWhiteSpace = false;
 }
 
-int FileCheckForTest::Run() {
+int FileCheckForTest::Run(bool ReplaceMode) {
   FileCheckForTestImpl I;
   I.CheckFilename = CheckFilename;
   I.InputFilename = InputFilename;
@@ -1444,7 +1452,7 @@ int FileCheckForTest::Run() {
   I.ImplicitCheckNot = ImplicitCheckNot;
   I.AllowEmptyInput = AllowEmptyInput;
   I.InputForStdin = InputForStdin;
-  int result = I.run_main();
+  int result = I.run_main(ReplaceMode);
   test_outs = I.test_outs.str();
   test_errs = I.test_errs.str();
   return result;

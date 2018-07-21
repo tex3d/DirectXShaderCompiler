@@ -48,7 +48,7 @@ public:
   /// Output stream.
   std::string test_errs;
 
-  int Run();
+  int Run(bool ReplaceMode=false);
 };
 
 class FileRunCommandPart {
@@ -59,6 +59,8 @@ private:
   void RunDxv(const FileRunCommandPart *Prior);
   void RunOpt(const FileRunCommandPart *Prior);
   void RunTee(const FileRunCommandPart *Prior);
+  void RunReplace(const FileRunCommandPart *Prior);
+
 public:
   FileRunCommandPart(const FileRunCommandPart&) = default;
   FileRunCommandPart(const std::string &command, const std::string &arguments, LPCWSTR commandFileName);

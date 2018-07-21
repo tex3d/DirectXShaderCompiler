@@ -104,8 +104,9 @@ static string trim(string value) {
       }
       else if (0 == _stricmp(Command.c_str(), "%opt")) {
         RunOpt(Prior);
-      }
-      else {
+      } else if (0 == _stricmp(Command.c_str(), "%replace")) {
+        RunReplace(Prior);
+      } else {
         RunResult = 1;
         StdErr = "Unrecognized command ";
         StdErr += Command;
@@ -386,6 +387,42 @@ static string trim(string value) {
       StdOut = Prior->StdOut;
       RunResult = Prior->RunResult;
     }
+
+    void FileRunCommandPart::RunReplace(const FileRunCommandPart *Prior) {
+      // Replace text with REPLACE: and WITH:
+      std::string args(strtrim(Arguments));
+      if (args != "%s") {
+        StdErr = "Only supported pattern is a plain input file";
+        RunResult = 1;
+        return;
+      }
+      if (!Prior) {
+        StdErr = "Prior command required to generate stdin";
+        RunResult = 1;
+        return;
+      }
+
+      CW2A fileName(CommandFileName, CP_UTF8);
+      // TODO: Finish replacing code below copied from RunFileChecker
+      FileCheckForTest t;
+      t.CheckFilename = fileName;
+      if (Prior->RunResult)
+        t.InputForStdin = Prior->StdErr;
+      else
+        t.InputForStdin = Prior->StdOut;
+
+      // Do the replacement
+
+
+      StdOut = t.test_outs;
+      StdErr = t.test_errs;
+      // Capture the input as well.
+      if (RunResult != 0 && Prior != nullptr) {
+        StdErr += "\n<full input to FileCheck>\n";
+        StdErr += t.InputForStdin;
+      }
+    }
+
 
 class FileRunTestResultImpl : public FileRunTestResult {
   dxc::DxcDllSupport &m_support;
