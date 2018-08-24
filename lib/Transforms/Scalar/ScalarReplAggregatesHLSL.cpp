@@ -4390,6 +4390,11 @@ void SROA_Parameter_HLSL::flattenGlobal(GlobalVariable *GV) {
 
     // Flat Global vector if no dynamic vector indexing.
     bool bFlatVector = !hasDynamicVectorIndexing(EltGV);
+
+    // Disable scalarization of groupshared vector arrays
+    if (GV->getType()->getAddressSpace() == 3 && Ty->isArrayTy())
+      bFlatVector = false;
+
     std::vector<Value *> Elts;
     bool SROAed = SROA_Helper::DoScalarReplacement(
         EltGV, Elts, Builder, bFlatVector,
@@ -6747,6 +6752,8 @@ private:
   void ReplaceVectorWithArray(Value *Vec, Value *Array);
   void ReplaceVectorArrayWithArray(Value *VecArray, Value *Array);
   void ReplaceStaticIndexingOnVector(Value *V);
+  void ReplaceAddrSpaceCast(ConstantExpr *CE,
+                            Value *A, IRBuilder<> &Builder);
 };
 
 void DynamicIndexingVectorToArray::applyOptions(PassOptions O) {
@@ -6849,13 +6856,23 @@ void DynamicIndexingVectorToArray::ReplaceVecGEP(Value *GEP, ArrayRef<Value *> i
   }
 }
 
+void DynamicIndexingVectorToArray::ReplaceAddrSpaceCast(ConstantExpr *CE,
+                                              Value *A, IRBuilder<> &Builder) {
+  // create new AddrSpaceCast.
+  Value *NewAddrSpaceCast = Builder.CreateAddrSpaceCast(
+    A,
+    PointerType::get(A->getType()->getPointerElementType(),
+                      CE->getType()->getPointerAddressSpace()));
+  ReplaceVectorWithArray(CE, NewAddrSpaceCast);
+}
+
 void DynamicIndexingVectorToArray::ReplaceVectorWithArray(Value *Vec, Value *A) {
   unsigned size = Vec->getType()->getPointerElementType()->getVectorNumElements();
   for (auto U = Vec->user_begin(); U != Vec->user_end();) {
     User *User = (*U++);
 
     // GlobalVariable user.
-    if (isa<ConstantExpr>(User)) {
+    if (ConstantExpr * CE = dyn_cast<ConstantExpr>(User)) {
       if (User->user_empty())
         continue;
       if (GEPOperator *GEP = dyn_cast<GEPOperator>(User)) {
@@ -6863,7 +6880,12 @@ void DynamicIndexingVectorToArray::ReplaceVectorWithArray(Value *Vec, Value *A) 
         SmallVector<Value *, 4> idxList(GEP->idx_begin(), GEP->idx_end());
         ReplaceVecGEP(GEP, idxList, A, Builder);
         continue;
+      } else if (CE->getOpcode() == Instruction::AddrSpaceCast) {
+        IRBuilder<> Builder(Vec->getContext());
+        ReplaceAddrSpaceCast(CE, A, Builder);
+        continue;
       }
+      DXASSERT(0, "not implemented yet");
     }
     // Instrution user.
     Instruction *UserInst = cast<Instruction>(User);
@@ -7070,26 +7092,34 @@ void ReplaceMultiDimGEP(User *GEP, Value *OneDim, IRBuilder<> &Builder) {
 void MultiDimArrayToOneDimArray::lowerUseWithNewValue(Value *MultiDim, Value *OneDim) {
   LLVMContext &Context = MultiDim->getContext();
   // All users should be element type.
-  // Replace users of AI.
+  // Replace users of AI or GV.
   for (auto it = MultiDim->user_begin(); it != MultiDim->user_end();) {
     User *U = *(it++);
     if (U->user_empty())
       continue;
-    // Must be GEP.
-    GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(U);
 
-    if (!GEP) {
-      DXASSERT_NOMSG(isa<GEPOperator>(U));
-      // NewGEP must be GEPOperator too.
-      // No instruction will be build.
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(U)) {
       IRBuilder<> Builder(Context);
-      ReplaceMultiDimGEP(U, OneDim, Builder);
-    } else {
+      if (GEPOperator *GEP = dyn_cast<GEPOperator>(U)) {
+        // NewGEP must be GEPOperator too.
+        // No instruction will be build.
+        ReplaceMultiDimGEP(U, OneDim, Builder);
+      } else if (CE->getOpcode() == Instruction::AddrSpaceCast) {
+        Value *NewAddrSpaceCast = Builder.CreateAddrSpaceCast(
+          OneDim,
+          PointerType::get(OneDim->getType()->getPointerElementType(),
+                           CE->getType()->getPointerAddressSpace()));
+        lowerUseWithNewValue(CE, NewAddrSpaceCast);
+      } else {
+        DXASSERT(0, "not implemented");
+      }
+    } else if (GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(U)) {
       IRBuilder<> Builder(GEP);
       ReplaceMultiDimGEP(U, OneDim, Builder);
-    }
-    if (GEP)
       GEP->eraseFromParent();
+    } else {
+      DXASSERT(0, "not implemented");
+    }
   }
 }
 
