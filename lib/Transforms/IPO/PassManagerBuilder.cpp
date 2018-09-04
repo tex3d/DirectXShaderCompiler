@@ -319,6 +319,9 @@ void PassManagerBuilder::populateModulePassManager(
       MPM.add(createDxilLowerCreateHandleForLibPass());
       MPM.add(createDxilTranslateRawBuffer());
       MPM.add(createDxilLegalizeSampleOffsetPass());
+      // Remove array allocas if possible, as arrays and flow control may have changed
+      MPM.add(createSROAPass());
+      MPM.add(createSimplifyInstPass());
       MPM.add(createDxilFinalizeModulePass());
       MPM.add(createComputeViewIdStatePass());
       MPM.add(createDxilDeadFunctionEliminationPass());
@@ -599,6 +602,9 @@ void PassManagerBuilder::populateModulePassManager(
     MPM.add(createDeadCodeEliminationPass());
     if (DisableUnrollLoops)
       MPM.add(createDxilLegalizeSampleOffsetPass());
+    // Remove array allocas if possible, as arrays and flow control may have changed
+    MPM.add(createSROAPass());
+    MPM.add(createSimplifyInstPass());
     MPM.add(createDxilFinalizeModulePass());
     MPM.add(createComputeViewIdStatePass());
     MPM.add(createDxilDeadFunctionEliminationPass());
