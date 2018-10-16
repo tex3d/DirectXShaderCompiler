@@ -487,7 +487,7 @@ class db_dxil(object):
             db_dxil_param(4, "u8", "component", "component"),
             db_dxil_param(5, "$o", "value", "value to store")])
         next_op_idx += 1
-        self.add_dxil_op("LoadInput", next_op_idx, "LoadInput", "loads the value from shader input", "hfwi", "rn", [
+        opLoadInput = self.add_dxil_op("LoadInput", next_op_idx, "LoadInput", "loads the value from shader input", "hfwi", "rn", [
             db_dxil_param(0, "$o", "", "input value"),
             db_dxil_param(2, "u32", "inputSigId", "input signature element ID"),
             db_dxil_param(3, "u32", "rowIndex", "row index relative to element"),
@@ -890,7 +890,7 @@ class db_dxil(object):
             db_dxil_param(0, "$o", "", "rate of change in value with regards to RenderTarget y direction"),
             db_dxil_param(2, "$o", "value", "input to rate of change")])
         next_op_idx += 1
-        self.add_dxil_op("EvalSnapped", next_op_idx, "EvalSnapped", "evaluates an input attribute at pixel center with an offset", "hf", "rn", [
+        self.add_dxil_op("EvalSnapped", next_op_idx, "EvalSnapped", "evaluates an input attribute at pixel center with an offset", opLoadInput.oload_types, "rn", [
             db_dxil_param(0, "$o", "", "result"),
             db_dxil_param(2, "i32", "inputSigId", "input signature element ID"),
             db_dxil_param(3, "i32", "inputRowIndex", "row index of an input attribute"),
@@ -898,14 +898,14 @@ class db_dxil(object):
             db_dxil_param(5, "i32", "offsetX", "2D offset from the pixel center using a 16x16 grid"),
             db_dxil_param(6, "i32", "offsetY", "2D offset from the pixel center using a 16x16 grid")])
         next_op_idx += 1
-        self.add_dxil_op("EvalSampleIndex", next_op_idx, "EvalSampleIndex", "evaluates an input attribute at a sample location", "hf", "rn", [
+        self.add_dxil_op("EvalSampleIndex", next_op_idx, "EvalSampleIndex", "evaluates an input attribute at a sample location", opLoadInput.oload_types, "rn", [
             db_dxil_param(0, "$o", "", "result"),
             db_dxil_param(2, "i32", "inputSigId", "input signature element ID"),
             db_dxil_param(3, "i32", "inputRowIndex", "row index of an input attribute"),
             db_dxil_param(4, "i8",  "inputColIndex", "column index of an input attribute"),
             db_dxil_param(5, "i32", "sampleIndex", "sample location")])
         next_op_idx += 1
-        self.add_dxil_op("EvalCentroid", next_op_idx, "EvalCentroid", "evaluates an input attribute at pixel center", "hf", "rn", [
+        self.add_dxil_op("EvalCentroid", next_op_idx, "EvalCentroid", "evaluates an input attribute at pixel center", opLoadInput.oload_types, "rn", [
             db_dxil_param(0, "$o", "", "result"),
             db_dxil_param(2, "i32", "inputSigId", "input signature element ID"),
             db_dxil_param(3, "i32", "inputRowIndex", "row index of an input attribute"),
@@ -1151,7 +1151,7 @@ class db_dxil(object):
         # End of DXIL 1.0 opcodes.
         self.set_op_count_for_version(1, 0, next_op_idx)
 
-        self.add_dxil_op("AttributeAtVertex", next_op_idx, "AttributeAtVertex", "returns the values of the attributes at the vertex.", "hf", "rn", [
+        self.add_dxil_op("AttributeAtVertex", next_op_idx, "AttributeAtVertex", "returns the values of the attributes at the vertex.", opLoadInput.oload_types, "rn", [
             db_dxil_param(0, "$o", "", "result"),
             db_dxil_param(2, "i32", "inputSigId", "input signature element ID"),
             db_dxil_param(3, "i32", "inputRowIndex", "row index of an input attribute"),
@@ -2094,10 +2094,14 @@ class db_dxil(object):
         self.enums.append(valrule_enum)
 
     def add_valrule(self, name, desc):
-        self.val_rules.append(db_dxil_valrule(name, len(self.val_rules), err_msg=desc, doc=desc))
+        rule = db_dxil_valrule(name, len(self.val_rules), err_msg=desc, doc=desc)
+        self.val_rules.append(rule)
+        return rule
 
     def add_valrule_msg(self, name, desc, err_msg):
-        self.val_rules.append(db_dxil_valrule(name, len(self.val_rules), err_msg=err_msg, doc=desc))
+        rule = db_dxil_valrule(name, len(self.val_rules), err_msg=err_msg, doc=desc)
+        self.val_rules.append(rule)
+        return rule
 
     def add_llvm_instr(self, kind, llvm_id, name, llvm_name, doc, oload_types, op_params):
         i = db_dxil_inst(name, llvm_id=llvm_id, llvm_name=llvm_name, doc=doc, ops=op_params, oload_types=oload_types)
@@ -2106,6 +2110,7 @@ class db_dxil(object):
         if kind == "MEMORY": i.is_memory=True
         if kind == "CAST": i.is_cast=True
         self.instr.append(i)
+        return i
 
     def add_dxil_op(self, name, code_id, code_class, doc, oload_types, fn_attr, op_params):
         # The return value is parameter 0, insert the opcode as 1.
@@ -2115,6 +2120,7 @@ class db_dxil(object):
                          dxil_op=name, dxil_opid=code_id, doc=doc, ops=op_params, dxil_class=code_class,
                          oload_types=oload_types, fn_attr=fn_attr)
         self.instr.append(i)
+        return i
     def add_dxil_op_reserved(self, name, code_id):
         # The return value is parameter 0, insert the opcode as 1.
         op_params = [db_dxil_param(0, "v", "", "reserved"), self.opcode_param]
@@ -2123,6 +2129,7 @@ class db_dxil(object):
                          dxil_op=name, dxil_opid=code_id, doc="reserved", ops=op_params, dxil_class="Reserved",
                          oload_types="v", fn_attr="")
         self.instr.append(i)
+        return i
 
     def get_instr_by_llvm_name(self, llvm_name):
         "Return the instruction with the given LLVM name"

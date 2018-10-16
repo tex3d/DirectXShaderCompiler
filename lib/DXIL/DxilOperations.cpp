@@ -180,9 +180,9 @@ const OP::OpCodeProperty OP::m_OpCodeProps[(unsigned)OP::OpCode::NumOpCodes] = {
   {  OC::DerivCoarseY,            "DerivCoarseY",             OCC::Unary,                    "unary",                     { false,  true,  true, false, false, false, false, false, false, false, false}, Attribute::ReadNone, },
   {  OC::DerivFineX,              "DerivFineX",               OCC::Unary,                    "unary",                     { false,  true,  true, false, false, false, false, false, false, false, false}, Attribute::ReadNone, },
   {  OC::DerivFineY,              "DerivFineY",               OCC::Unary,                    "unary",                     { false,  true,  true, false, false, false, false, false, false, false, false}, Attribute::ReadNone, },
-  {  OC::EvalSnapped,             "EvalSnapped",              OCC::EvalSnapped,              "evalSnapped",               { false,  true,  true, false, false, false, false, false, false, false, false}, Attribute::ReadNone, },
-  {  OC::EvalSampleIndex,         "EvalSampleIndex",          OCC::EvalSampleIndex,          "evalSampleIndex",           { false,  true,  true, false, false, false, false, false, false, false, false}, Attribute::ReadNone, },
-  {  OC::EvalCentroid,            "EvalCentroid",             OCC::EvalCentroid,             "evalCentroid",              { false,  true,  true, false, false, false, false, false, false, false, false}, Attribute::ReadNone, },
+  {  OC::EvalSnapped,             "EvalSnapped",              OCC::EvalSnapped,              "evalSnapped",               { false,  true,  true, false, false, false,  true,  true, false, false, false}, Attribute::ReadNone, },
+  {  OC::EvalSampleIndex,         "EvalSampleIndex",          OCC::EvalSampleIndex,          "evalSampleIndex",           { false,  true,  true, false, false, false,  true,  true, false, false, false}, Attribute::ReadNone, },
+  {  OC::EvalCentroid,            "EvalCentroid",             OCC::EvalCentroid,             "evalCentroid",              { false,  true,  true, false, false, false,  true,  true, false, false, false}, Attribute::ReadNone, },
   {  OC::SampleIndex,             "SampleIndex",              OCC::SampleIndex,              "sampleIndex",               { false, false, false, false, false, false, false,  true, false, false, false}, Attribute::ReadNone, },
   {  OC::Coverage,                "Coverage",                 OCC::Coverage,                 "coverage",                  { false, false, false, false, false, false, false,  true, false, false, false}, Attribute::ReadNone, },
   {  OC::InnerCoverage,           "InnerCoverage",            OCC::InnerCoverage,            "innerCoverage",             { false, false, false, false, false, false, false,  true, false, false, false}, Attribute::ReadNone, },
@@ -258,7 +258,7 @@ const OP::OpCodeProperty OP::m_OpCodeProps[(unsigned)OP::OpCode::NumOpCodes] = {
   {  OC::WavePrefixBitCount,      "WavePrefixBitCount",       OCC::WavePrefixOp,             "wavePrefixOp",              {  true, false, false, false, false, false, false, false, false, false, false}, Attribute::None,     },
 
   // Pixel shader                                                                                                            void,     h,     f,     d,    i1,    i8,   i16,   i32,   i64,   udt,   obj ,  function attribute
-  {  OC::AttributeAtVertex,       "AttributeAtVertex",        OCC::AttributeAtVertex,        "attributeAtVertex",         { false,  true,  true, false, false, false, false, false, false, false, false}, Attribute::ReadNone, },
+  {  OC::AttributeAtVertex,       "AttributeAtVertex",        OCC::AttributeAtVertex,        "attributeAtVertex",         { false,  true,  true, false, false, false,  true,  true, false, false, false}, Attribute::ReadNone, },
 
   // Graphics shader                                                                                                         void,     h,     f,     d,    i1,    i8,   i16,   i32,   i64,   udt,   obj ,  function attribute
   {  OC::ViewID,                  "ViewID",                   OCC::ViewID,                   "viewID",                    { false, false, false, false, false, false, false,  true, false, false, false}, Attribute::ReadNone, },
