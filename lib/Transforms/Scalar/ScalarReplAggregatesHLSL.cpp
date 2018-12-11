@@ -4201,6 +4201,9 @@ bool SROA_Helper::IsEmptyStructType(Type *Ty, DxilTypeSystem &typeSys) {
 // SROA on function parameters.
 //===----------------------------------------------------------------------===//
 
+static void CastMatrixArguments(Function *F,
+                                DxilFunctionAnnotation *EntryAnnotation,
+                                DxilTypeSystem &typeSys);
 static void LegalizeDxilInputOutputs(Function *F,
                                      DxilFunctionAnnotation *EntryAnnotation,
                                      const DataLayout &DL,
@@ -4224,7 +4227,7 @@ public:
     MemcpySplitter::PatchMemCpyWithZeroIdxGEP(M);
 
     m_pHLModule = &M.GetOrCreateHLModule();
-    const DataLayout &DL = M.getDataLayout();
+    //const DataLayout &DL = M.getDataLayout();
     // Load up debug information, to cross-reference values and the instructions
     // used to load them.
     m_HasDbgInfo = getDebugMetadataVersionFromModule(M) != 0;
@@ -4259,8 +4262,9 @@ public:
       if (&F != m_pHLModule->GetEntryFunction() &&
           !m_pHLModule->IsEntryThatUsesSignatures(&F)) {
         if (!F.isDeclaration())
-          LegalizeDxilInputOutputs(&F, m_pHLModule->GetFunctionAnnotation(&F),
-                                   DL, m_pHLModule->GetTypeSystem());
+          CastMatrixArguments(&F,
+                              m_pHLModule->GetFunctionAnnotation(&F),
+                              m_pHLModule->GetTypeSystem());
         continue;
       }
 
@@ -5884,13 +5888,48 @@ static void InjectReturnAfterNoReturnPreserveOutput(HLModule &HLM) {
   }
 }
 
+static void CastMatrixArguments(Function *F,
+                                DxilFunctionAnnotation *EntryAnnotation,
+                                DxilTypeSystem &typeSys) {
+  Module *M = F->getParent();
+
+  for (Argument &arg : F->args()) {
+    Type *Ty = arg.getType();
+
+    DxilParameterAnnotation &paramAnnotation =
+      EntryAnnotation->GetParameterAnnotation(arg.getArgNo());
+
+    // Skip arg which is not a pointer.
+    if (!Ty->isPointerTy()) {
+      if (HLMatrixLower::IsMatrixType(Ty)) {
+        // Replace matrix arg with cast to vec. It will be lowered in
+        // DxilGenerationPass.
+        bool isColMajor = paramAnnotation.GetMatrixAnnotation().Orientation ==
+                          MatrixOrientation::ColumnMajor;
+        IRBuilder<> Builder(dxilutil::FirstNonAllocaInsertionPt(F));
+
+        HLCastOpcode opcode = isColMajor ? HLCastOpcode::ColMatrixToVecCast
+                                         : HLCastOpcode::RowMatrixToVecCast;
+        Value *undefVal = UndefValue::get(Ty);
+
+        Value *Cast = HLModule::EmitHLOperationCall(
+          Builder, HLOpcodeGroup::HLCast, static_cast<unsigned>(opcode), Ty,
+          { undefVal }, *M);
+        arg.replaceAllUsesWith(Cast);
+        // Set arg as the operand.
+        CallInst *CI = cast<CallInst>(Cast);
+        CI->setArgOperand(HLOperandIndex::kUnaryOpSrc0Idx, &arg);
+      }
+    }
+  }
+}
+
 // Support store to input and load from output.
 static void LegalizeDxilInputOutputs(Function *F,
                                      DxilFunctionAnnotation *EntryAnnotation,
                                      const DataLayout &DL,
                                      DxilTypeSystem &typeSys) {
   BasicBlock &EntryBlk = F->getEntryBlock();
-  Module *M = F->getParent();
   // Map from output to the temp created for it.
   std::unordered_map<Argument *, Value*> outputTempMap;
   for (Argument &arg : F->args()) {
@@ -5899,29 +5938,8 @@ static void LegalizeDxilInputOutputs(Function *F,
     DxilParameterAnnotation &paramAnnotation = EntryAnnotation->GetParameterAnnotation(arg.getArgNo());
     DxilParamInputQual qual = paramAnnotation.GetParamInputQual();
 
-    bool isColMajor = false;
-
     // Skip arg which is not a pointer.
     if (!Ty->isPointerTy()) {
-      if (HLMatrixLower::IsMatrixType(Ty)) {
-        // Replace matrix arg with cast to vec. It will be lowered in
-        // DxilGenerationPass.
-        isColMajor = paramAnnotation.GetMatrixAnnotation().Orientation ==
-                     MatrixOrientation::ColumnMajor;
-        IRBuilder<> Builder(dxilutil::FirstNonAllocaInsertionPt(F));
-
-        HLCastOpcode opcode = isColMajor ? HLCastOpcode::ColMatrixToVecCast
-                                         : HLCastOpcode::RowMatrixToVecCast;
-        Value *undefVal = UndefValue::get(Ty);
-
-        Value *Cast = HLModule::EmitHLOperationCall(
-            Builder, HLOpcodeGroup::HLCast, static_cast<unsigned>(opcode), Ty,
-            {undefVal}, *M);
-        arg.replaceAllUsesWith(Cast);
-        // Set arg as the operand.
-        CallInst *CI = cast<CallInst>(Cast);
-        CI->setArgOperand(HLOperandIndex::kUnaryOpSrc0Idx, &arg);
-      }
       continue;
     }
 
@@ -6209,6 +6227,7 @@ void SROA_Parameter_HLSL::createFlattenedFunction(Function *F) {
     }
     if (!F->isDeclaration()) {
       // Support store to input and load from output.
+      CastMatrixArguments(F, funcAnnotation, typeSys);
       LegalizeDxilInputOutputs(F, funcAnnotation, DL, typeSys);
     }
     return;
@@ -6356,6 +6375,7 @@ void SROA_Parameter_HLSL::createFlattenedFunction(Function *F) {
       }
     }
     // Support store to input and load from output.
+    CastMatrixArguments(flatF, flatFuncAnnotation, typeSys);
     LegalizeDxilInputOutputs(flatF, flatFuncAnnotation, DL, typeSys);
   }
 }

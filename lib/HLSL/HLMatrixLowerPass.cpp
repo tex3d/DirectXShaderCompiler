@@ -2124,10 +2124,8 @@ void HLMatrixLowerPass::TranslateMatArrayGEP(Value *matInst,
             continue;
           }
 
-          Instruction *matInst = cast<Instruction>(matVal);
-
-          DXASSERT(matToVecMap.count(matInst), "must have vec version");
-          Value *vecVal = matToVecMap[matInst];
+          DXASSERT(matToVecMap.count(matVal), "must have vec version");
+          Value *vecVal = matToVecMap[matVal];
           CreateVecMatrixStore(vecVal, vecPtr, matVal->getType(), Builder);
         } break;
         }
@@ -2266,10 +2264,9 @@ void HLMatrixLowerPass::replaceMatWithVec(Value *matVal,
     } else if (isa<StoreInst>(useInst)) {
       DXASSERT(vecToMatMap.count(vecVal) && vecToMatMap[vecVal] == matVal, "matrix store should only be used with preserved matrix values");
     } else {
-      // Must be GEP on mat array alloca.
+      // Must be GEP.
       GetElementPtrInst *GEP = cast<GetElementPtrInst>(useInst);
-      AllocaInst *AI = cast<AllocaInst>(matVal);
-      TranslateMatArrayGEP(AI, vecVal, GEP);
+      TranslateMatArrayGEP(matVal, vecVal, GEP);
     }
   }
 }

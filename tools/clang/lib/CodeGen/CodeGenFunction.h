@@ -1195,6 +1195,11 @@ public:
 
   Destroyer *getDestroyer(QualType::DestructionKind destructionKind);
 
+  // HLSL Change Begins: emit copy out for out or inout param
+  void pushHLSLCopyOut(llvm::Value *addr, llvm::Value *arg, unsigned align);
+  void emitHLSLCopyOut(llvm::Value *addr, llvm::Value *arg, unsigned align);
+  // HLSL Change Ends
+
   /// Determines whether an EH cleanup is required to destroy a type
   /// with the given destruction kind.
   bool needsEHCleanup(QualType::DestructionKind kind) {

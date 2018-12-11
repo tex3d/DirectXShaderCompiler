@@ -7073,9 +7073,11 @@ void CGMSHLSLRuntime::EmitHLSLOutParamConversionInit(
                         CGF.getContext().getTrivialTypeSourceInfo(ParamTy),
                         StorageClass::SC_Auto);
 
+    // For in-only:
     // Aggregate type will be indirect param convert to pointer type.
     // So don't update to ReferenceType, use RValue for it.
-    bool isAggregateType = (ParamTy->isArrayType() || ParamTy->isRecordType()) &&
+    bool isAggregateType = !Param->isModifierOut() &&
+      (ParamTy->isArrayType() || ParamTy->isRecordType()) &&
       !hlsl::IsHLSLVecMatType(ParamTy);
 
     const DeclRefExpr *tmpRef = DeclRefExpr::Create(

@@ -1586,6 +1586,33 @@ static void emitPartialArrayDestroy(CodeGenFunction &CGF,
                        /*checkZeroLength*/ true, /*useEHCleanup*/ false);
 }
 
+// HLSL Change Begins: emit copy out for out or inout param
+namespace {
+  struct HLSLCopyOut : EHScopeStack::Cleanup {
+    HLSLCopyOut(llvm::Value *addr, llvm::Value *arg, unsigned align)
+      : addr(addr), arg(arg), align(align) {}
+
+    llvm::Value *addr;
+    llvm::Value *arg;
+    unsigned align;
+
+    void Emit(CodeGenFunction &CGF, Flags flags) override {
+      CGF.emitHLSLCopyOut(addr, arg, align);
+    }
+  };
+}
+void CodeGenFunction::pushHLSLCopyOut(llvm::Value *addr, llvm::Value *arg, unsigned align) {
+  EHStack.pushCleanup<HLSLCopyOut>(NormalCleanup, addr, arg, align);
+}
+void CodeGenFunction::emitHLSLCopyOut(llvm::Value *addr, llvm::Value *arg, unsigned align) {
+  llvm::Value *size = llvm::ConstantInt::get(SizeTy,
+    CGM.getDataLayout().getTypeAllocSize(arg->getType()->getPointerElementType()));
+  //llvm::Value *bcSrc = Builder.CreateBitCast(addr, Int8Ty->getPointerTo());
+  //llvm::Value *bcDest = Builder.CreateBitCast(arg, Int8Ty->getPointerTo());
+  Builder.CreateMemCpy(arg, addr, size, align);
+}
+// HLSL Change Ends
+
 namespace {
   /// RegularPartialArrayDestroy - a cleanup which performs a partial
   /// array destroy where the end pointer is regularly determined and
@@ -1709,7 +1736,9 @@ void CodeGenFunction::EmitParmDecl(const VarDecl &D, llvm::Value *Arg,
 
   QualType Ty = D.getType();
   // HLSL Change Begin - add noalias for all out param.
+  bool ArgIsOut = false;
   if (Ty.isRestrictQualified() && isa<llvm::Argument>(Arg)) {
+    ArgIsOut = true;
     llvm::Argument *AI = cast<llvm::Argument>(Arg);
     if (!AI->hasNoAliasAttr())
       AI->addAttr(llvm::AttributeSet::get(getLLVMContext(), AI->getArgNo() + 1,
@@ -1760,6 +1789,22 @@ void CodeGenFunction::EmitParmDecl(const VarDecl &D, llvm::Value *Arg,
     llvm::Type *IRTy = ConvertTypeForMem(Ty)->getPointerTo(AS);
     DeclPtr = Arg->getType() == IRTy ? Arg : Builder.CreateBitCast(Arg, IRTy,
                                                                    D.getName());
+
+    // HLSL Change Begins: Copy-In, push Copy-Out
+    // XXX TODO: Prevent copy in if out only!
+    unsigned align = (unsigned)Align.getQuantity();
+    llvm::AllocaInst *Alloc =
+      CreateTempAlloca(ConvertTypeForMem(Ty), D.getName() + ".addr");
+    Alloc->setAlignment(align);
+    DeclPtr = Alloc;
+    DoStore = false;
+    llvm::Value *size = llvm::ConstantInt::get(SizeTy,
+      CGM.getDataLayout().getTypeAllocSize(Arg->getType()->getPointerElementType()));
+    Builder.CreateMemCpy(Alloc, Arg, size, align);
+    if (ArgIsOut)
+      pushHLSLCopyOut(DeclPtr, Arg, align);
+    // HLSL Change Ends
+
     // Push a destructor cleanup for this parameter if the ABI requires it.
     // Don't push a cleanup in a thunk for a method that will also emit a
     // cleanup.
@@ -1777,11 +1822,25 @@ void CodeGenFunction::EmitParmDecl(const VarDecl &D, llvm::Value *Arg,
       // Don't store this pointer, just use the parameter directly.
       if (Ty->isPointerType())
         DoStore = false;
-      // For out parameter, this could happen too.
-      // Because the parameter is reference type.
-      // Just use the Arg directly, not store it to a temp alloca.
-      DoStore = false;
       DeclPtr = Arg;
+
+      if (Ty->isReferenceType()) {
+        Ty = cast<ReferenceType>(Ty)->getPointeeType();
+        // don't use arg directly, must respect copy-in/copy-out
+        unsigned align = (unsigned)Align.getQuantity();
+        llvm::AllocaInst *Alloc =
+          CreateTempAlloca(ConvertTypeForMem(Ty), D.getName() + ".addr");
+        Alloc->setAlignment(align);
+        DeclPtr = Alloc;
+        DoStore = false;
+        // TODO: Don't copy-in for out only.
+        llvm::Value *size = llvm::ConstantInt::get(SizeTy,
+          CGM.getDataLayout().getTypeAllocSize(Arg->getType()->getPointerElementType()));
+        //llvm::Value *bcSrc = Builder.CreateBitCast(Alloc, Int8Ty->getPointerTo());
+        //llvm::Value *bcDest = Builder.CreateBitCast(Arg, Int8Ty->getPointerTo());
+        Builder.CreateMemCpy(Alloc, Arg, size, align);
+        pushHLSLCopyOut(DeclPtr, Arg, align);
+      }
     }
     // HLSL Change Ends
     else {
@@ -1795,7 +1854,7 @@ void CodeGenFunction::EmitParmDecl(const VarDecl &D, llvm::Value *Arg,
   }
 
   LValue lv = MakeAddrLValue(DeclPtr, Ty, Align);
-  if (IsScalar) {
+  if (!getLangOpts().HLSL && IsScalar) {
     Qualifiers qs = Ty.getQualifiers();
     if (Qualifiers::ObjCLifetime lt = qs.getObjCLifetime()) {
       // We honor __attribute__((ns_consumed)) for types with lifetime.

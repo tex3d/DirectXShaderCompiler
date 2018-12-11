@@ -1277,7 +1277,7 @@ void CodeGenFunction::EmitStoreOfScalar(llvm::Value *Value, llvm::Value *Addr,
                                         uint64_t TBAAOffset) {
 
   // Handle vectors differently to get better performance.
-  if (Ty->isVectorType()) {
+  if (!CGM.getLangOpts().HLSL && Ty->isVectorType()) {  // HLSL Change
     llvm::Type *SrcTy = Value->getType();
     auto *VecTy = cast<llvm::VectorType>(SrcTy);
     // Handle vec3 special.
