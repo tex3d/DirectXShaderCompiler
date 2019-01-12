@@ -7045,16 +7045,33 @@ void CGMSHLSLRuntime::EmitHLSLOutParamConversionInit(
       }
     }
 
-    // get original arg
-    LValue argLV = CGF.EmitLValue(Arg);
+    // Skip unbounded array, since we cannot preserve copy-in copy-out
+    // semantics for these.
+    if (ParamTy->isIncompleteArrayType()) {
+      continue;
+    }
 
     if (!Param->isModifierOut() && !RValOnRef) {
-      bool isDefaultAddrSpace = true;
-      if (argLV.isSimple()) {
-        isDefaultAddrSpace =
-            argLV.getAddress()->getType()->getPointerAddressSpace() ==
-            DXIL::kDefaultAddrSpace;
-      }
+      // FIXME: Determine whether we need to translate address space before
+      //        EmitLValue so we can skip the copy if we don't need it.
+      // Currently we can't get the address space without emitting the
+      // expression because HLSL doesn't store the address space in the type
+      // qualifiers.
+      // It is detected only after emitting the code to find the corresponding
+      // llvm pointer being referenced, on which it bases the address space
+      // of the LValue object.
+      // This creates a situation where we can't get the address space before
+      // emitting the expression, but if we don't have to translate the address
+      // space, we don't want to emit the expression, otherwise it will get
+      // emitted twice, or we have to copy to new VarDecl, or make some other
+      // unfortunate changes.
+      // So for now, we skip intrinsics, but always copy input arguments if
+      // they are a pointer, just in case they require address space
+      // translation.
+      // Perhaps we could eliminate the address space translation here,
+      // restore the address space cast in CodeGenModule::GetOrCreateLLVMGlobal,
+      // and translate the address space cast into a copy in a later pass.
+      bool isDefaultAddrSpace = false;
       bool isHLSLIntrinsic = false;
       if (const FunctionDecl *Callee = E->getDirectCallee()) {
         isHLSLIntrinsic = Callee->hasAttr<HLSLIntrinsicAttr>();
@@ -7063,6 +7080,11 @@ void CGMSHLSLRuntime::EmitHLSLOutParamConversionInit(
       if (isDefaultAddrSpace || isHLSLIntrinsic)
         continue;
     }
+
+    // get original arg
+    // FIXME: This will not emit in correct argument order with the other arguments.
+    // FIXME: This should be integrated into the CodeGenFunction::EmitCallArg if possible
+    LValue argLV = CGF.EmitLValue(Arg);
 
     // create temp Var
     VarDecl *tmpArg =
@@ -7096,6 +7118,11 @@ void CGMSHLSLRuntime::EmitHLSLOutParamConversionInit(
 
     // add it to local decl map
     TmpArgMap(tmpArg, tmpArgAddr);
+
+    // Skip copy for empty type, leaving the value undef, which should
+    // be fine for empty struct.
+    if (hlsl::IsEmptyType(Arg->getType()))
+      continue;
 
     LValue tmpLV = LValue::MakeAddr(tmpArgAddr, ParamTy, argLV.getAlignment(),
                                     CGF.getContext());

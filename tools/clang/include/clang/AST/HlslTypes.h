@@ -487,5 +487,8 @@ bool TryParseMatrixOrVectorDimension(
   _Out_opt_ int *colCount,
   _In_      const clang::LangOptions& langOption);
 
+// Detect empty type
+bool IsEmptyType(clang::QualType type);
+
 } // end hlsl namespace
 #endif

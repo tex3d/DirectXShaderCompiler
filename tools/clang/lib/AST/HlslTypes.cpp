@@ -674,4 +674,30 @@ HLSLScalarType MakeUnsigned(HLSLScalarType T) {
     return T;
 }
 
+bool IsEmptyType(clang::QualType type) {
+  type = GetStructuralForm(type);
+  if (!type->isAggregateType())
+    return false;
+  if (type->isArrayType() && !IsArrayConstantStringType(type)) {
+    if (type->isConstantArrayType()) {
+      const ConstantArrayType *arrayType =
+        (const ConstantArrayType *)type->getAsArrayTypeUnsafe();
+      return IsEmptyType(arrayType->getElementType());
+    }
+    return true;
+  } else if (const RecordType *RT = dyn_cast<RecordType>(type.getTypePtr())) {
+    const RecordDecl *RD = RT->getDecl();
+    if (isa<ClassTemplateSpecializationDecl>(RD)) {
+      return false;
+    }
+    for (auto member : RD->fields()) {
+      if (!IsEmptyType(member->getType()))
+        return false;
+    }
+  } else {
+    return false;
+  }
+  return true;
+}
+
 }

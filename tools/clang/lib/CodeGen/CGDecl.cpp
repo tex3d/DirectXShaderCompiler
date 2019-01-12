@@ -29,6 +29,7 @@
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Type.h"
 #include "CGHLSLRuntime.h" // HLSL Change
+#include "clang/AST/HlslTypes.h"
 using namespace clang;
 using namespace CodeGen;
 
@@ -1760,6 +1761,30 @@ void CodeGenFunction::EmitParmDecl(const VarDecl &D, llvm::Value *Arg,
     llvm::Type *IRTy = ConvertTypeForMem(Ty)->getPointerTo(AS);
     DeclPtr = Arg->getType() == IRTy ? Arg : Builder.CreateBitCast(Arg, IRTy,
                                                                    D.getName());
+
+    //// HLSL Change Starts
+    //if (!cast<ParmVarDecl>(&D)->isModifierOut() &&
+    //    !hlsl::IsHLSLInputPatchType(D.getType()) &&
+    //    !hlsl::IsEmptyType(D.getType())) {
+    //  // Copy in-only value so modifications are local
+    //  // copy-in/copy-out for outputs are handled at the call site
+    //  // No need to use EmitHLSLAggregateCopy because types,
+    //  // including matrix orientation, must match
+    //  uint64_t sizeInBytes = CGM.getDataLayout().getTypeAllocSize(
+    //    DeclPtr->getType()->getPointerElementType());
+    //  if (sizeInBytes) {
+    //    // only copy if size is non-zero to avoid unbounded arrays
+    //    // Still need some way to prevent writing to these - perhaps implicit const?
+    //    llvm::Value *size = llvm::ConstantInt::get(SizeTy, sizeInBytes);
+    //    llvm::AllocaInst *Alloc =
+    //      CreateTempAlloca(ConvertTypeForMem(Ty), D.getName() + ".local");
+    //    Alloc->setAlignment(Align.getQuantity());
+    //    Builder.CreateMemCpy(Alloc, DeclPtr, size, Align.getQuantity());
+    //    DeclPtr = Alloc;
+    //  }
+    //}
+    //// HLSL Change Ends
+
     // Push a destructor cleanup for this parameter if the ABI requires it.
     // Don't push a cleanup in a thunk for a method that will also emit a
     // cleanup.
@@ -1795,7 +1820,7 @@ void CodeGenFunction::EmitParmDecl(const VarDecl &D, llvm::Value *Arg,
   }
 
   LValue lv = MakeAddrLValue(DeclPtr, Ty, Align);
-  if (IsScalar) {
+  if (!getLangOpts().HLSL && IsScalar) {  // HLSL Change: not ObjC
     Qualifiers qs = Ty.getQualifiers();
     if (Qualifiers::ObjCLifetime lt = qs.getObjCLifetime()) {
       // We honor __attribute__((ns_consumed)) for types with lifetime.
