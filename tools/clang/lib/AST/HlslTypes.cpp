@@ -20,6 +20,7 @@
 #include "clang/AST/Type.h"
 #include "clang/Sema/AttributeList.h" // conceptually ParsedAttributes
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/RecordLayout.h"
 
 using namespace clang;
 
@@ -676,19 +677,26 @@ HLSLScalarType MakeUnsigned(HLSLScalarType T) {
 
 bool IsEmptyType(clang::QualType type) {
   type = GetStructuralForm(type);
-  if (!type->isAggregateType())
-    return false;
   if (type->isArrayType() && !IsArrayConstantStringType(type)) {
-    if (type->isConstantArrayType()) {
-      const ConstantArrayType *arrayType =
-        (const ConstantArrayType *)type->getAsArrayTypeUnsafe();
+    if (const ConstantArrayType *arrayType =
+            dyn_cast<ConstantArrayType>(type->getAsArrayTypeUnsafe())) {
       return IsEmptyType(arrayType->getElementType());
     }
     return true;
-  } else if (const RecordType *RT = dyn_cast<RecordType>(type.getTypePtr())) {
-    const RecordDecl *RD = RT->getDecl();
+  } else if (const CXXRecordDecl *RD =
+                 type.getTypePtr()->getAsCXXRecordDecl()) {
     if (isa<ClassTemplateSpecializationDecl>(RD)) {
+      // The only templates allowed right now are built-in,
+      // which are not empty.
       return false;
+    }
+    // I wish I could find a better way to detect type with no data!
+    //const ASTRecordLayout &Layout =
+    //    RT->getDecl()->getASTContext().getASTRecordLayout(RT->getDecl());
+    //return Layout.getDataSize().isZero();
+    for (auto &base : RD->bases()) {
+      if (!IsEmptyType(base.getType()))
+        return false;
     }
     for (auto member : RD->fields()) {
       if (!IsEmptyType(member->getType()))

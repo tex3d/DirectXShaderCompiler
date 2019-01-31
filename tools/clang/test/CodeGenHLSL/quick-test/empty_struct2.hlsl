@@ -13,8 +13,14 @@ struct OuterStruct {
   InnerStruct s;
 };
 
-cbuffer Params_cbuffer : register(b0) {
-  OuterStruct constants;
+class Derived : OuterStruct {
+  InnerStruct s2;
 };
 
-float4 main(float4 pos : POSITION) : SV_POSITION { return float4(0, 0, 0, 0); }
+cbuffer Params_cbuffer : register(b0) {
+  Derived constants;
+};
+
+float4 foo(Derived s) { return (float4)0; }
+
+float4 main(float4 pos : POSITION) : SV_POSITION { return foo(constants); }

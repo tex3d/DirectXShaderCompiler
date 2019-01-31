@@ -7056,24 +7056,9 @@ void CGMSHLSLRuntime::EmitHLSLOutParamConversionInit(
     if (!Param->isModifierOut() && !RValOnRef) {
       // FIXME: Determine whether we need to translate address space before
       //        EmitLValue so we can skip the copy if we don't need it.
-      // Currently we can't get the address space without emitting the
-      // expression because HLSL doesn't store the address space in the type
-      // qualifiers.
-      // It is detected only after emitting the code to find the corresponding
-      // llvm pointer being referenced, on which it bases the address space
-      // of the LValue object.
-      // This creates a situation where we can't get the address space before
-      // emitting the expression, but if we don't have to translate the address
-      // space, we don't want to emit the expression, otherwise it will get
-      // emitted twice, or we have to copy to new VarDecl, or make some other
-      // unfortunate changes.
-      // So for now, we skip intrinsics, but always copy input arguments if
-      // they are a pointer, just in case they require address space
-      // translation.
-      // Perhaps we could eliminate the address space translation here,
-      // restore the address space cast in CodeGenModule::GetOrCreateLLVMGlobal,
-      // and translate the address space cast into a copy in a later pass.
-      bool isDefaultAddrSpace = Arg->getType().getAddressSpace() == 0;
+      //        We can't get address space in reliable way for the expression
+      //        Arg, since this could require drilling into the expression.
+      bool isDefaultAddrSpace = false; //Arg->getType().getAddressSpace() == 0;
       bool isHLSLIntrinsic = false;
       if (const FunctionDecl *Callee = E->getDirectCallee()) {
         isHLSLIntrinsic = Callee->hasAttr<HLSLIntrinsicAttr>();
@@ -7084,8 +7069,9 @@ void CGMSHLSLRuntime::EmitHLSLOutParamConversionInit(
     }
 
     // get original arg
-    // FIXME: This will not emit in correct argument order with the other arguments.
-    // FIXME: This should be integrated into the CodeGenFunction::EmitCallArg if possible
+    // FIXME: This will not emit in correct argument order with the other
+    //        arguments. This should be integrated into
+    //        CodeGenFunction::EmitCallArg if possible.
     LValue argLV = CGF.EmitLValue(Arg);
 
     // create temp Var
