@@ -1940,6 +1940,10 @@ void CGMSHLSLRuntime::RemapObsoleteSemantic(DxilParameterAnnotation &paramInfo, 
   hlsl::RemapObsoleteSemantic(paramInfo, sigPointKind, CGM.getLLVMContext());
 }
 
+static GlobalVariable *GetAddrOfGlobalVar(CodeGenModule &CGM, const VarDecl *VD) {
+  return cast<GlobalVariable>(CGM.GetAddrOfGlobalVar(VD)->stripPointerCasts());
+}
+
 void CGMSHLSLRuntime::EmitHLSLFunctionProlog(Function *F, const FunctionDecl *FD) {
   // Support clip plane need debug info which not available when create function attribute.
   if (const HLSLClipPlanesAttr *Attr = FD->getAttr<HLSLClipPlanesAttr>()) {
@@ -2151,7 +2155,7 @@ void CGMSHLSLRuntime::addResource(Decl *D) {
     if (!VD->hasExternalFormalLinkage()) {
       if (VD->hasInit() && VD->getType().isConstQualified()) {
         Expr* InitExp = VD->getInit();
-        GlobalVariable *GV = cast<GlobalVariable>(CGM.GetAddrOfGlobalVar(VD));
+        GlobalVariable *GV = GetAddrOfGlobalVar(CGM, VD);
         // Only save const static global of struct type.
         if (GV->getType()->getElementType()->isStructTy()) {
           staticConstGlobalInitMap[InitExp] = GV;
@@ -2161,7 +2165,7 @@ void CGMSHLSLRuntime::addResource(Decl *D) {
     }
 
     if (D->hasAttr<HLSLGroupSharedAttr>()) {
-      GlobalVariable *GV = cast<GlobalVariable>(CGM.GetAddrOfGlobalVar(VD));
+      GlobalVariable *GV = GetAddrOfGlobalVar(CGM, VD);
       m_pHLModule->AddGroupSharedVariable(GV);
       return;
     }
@@ -2344,8 +2348,7 @@ namespace {
 }
 
 uint32_t CGMSHLSLRuntime::AddSampler(VarDecl *samplerDecl) {
-  llvm::GlobalVariable *val =
-    cast<llvm::GlobalVariable>(CGM.GetAddrOfGlobalVar(samplerDecl));
+  llvm::GlobalVariable *val = GetAddrOfGlobalVar(CGM, samplerDecl);
 
   unique_ptr<DxilSampler> hlslRes(new DxilSampler);
   hlslRes->SetLowerBound(UINT_MAX);
@@ -2735,8 +2738,7 @@ bool CGMSHLSLRuntime::SetUAVSRV(SourceLocation loc,
 
 uint32_t CGMSHLSLRuntime::AddUAVSRV(VarDecl *decl,
                                     hlsl::DxilResourceBase::Class resClass) {
-  llvm::GlobalVariable *val =
-      cast<llvm::GlobalVariable>(CGM.GetAddrOfGlobalVar(decl));
+  llvm::GlobalVariable *val = GetAddrOfGlobalVar(CGM, decl);
 
   unique_ptr<HLResource> hlslRes(new HLResource);
   hlslRes->SetLowerBound(UINT_MAX);
@@ -2835,7 +2837,7 @@ void CGMSHLSLRuntime::AddConstant(VarDecl *constDecl, HLCBuffer &CB) {
     Diags.Report(constDecl->getLocation(), DiagID);
     return;
   }
-  llvm::Constant *constVal = CGM.GetAddrOfGlobalVar(constDecl);
+  llvm::GlobalVariable *constVal = GetAddrOfGlobalVar(CGM, constDecl);
 
   bool isGlobalCB = CB.GetID() == globalCBIndex;
   uint32_t offset = 0;
@@ -2879,7 +2881,7 @@ void CGMSHLSLRuntime::AddConstant(VarDecl *constDecl, HLCBuffer &CB) {
 
   std::unique_ptr<DxilResourceBase> pHlslConst = llvm::make_unique<DxilResourceBase>(DXIL::ResourceClass::Invalid);
   pHlslConst->SetLowerBound(UINT_MAX);
-  pHlslConst->SetGlobalSymbol(cast<llvm::GlobalVariable>(constVal));
+  pHlslConst->SetGlobalSymbol(constVal);
   pHlslConst->SetGlobalName(constDecl->getName());
 
   if (userOffset) {
@@ -7071,7 +7073,7 @@ void CGMSHLSLRuntime::EmitHLSLOutParamConversionInit(
       // Perhaps we could eliminate the address space translation here,
       // restore the address space cast in CodeGenModule::GetOrCreateLLVMGlobal,
       // and translate the address space cast into a copy in a later pass.
-      bool isDefaultAddrSpace = false;
+      bool isDefaultAddrSpace = Arg->getType().getAddressSpace() == 0;
       bool isHLSLIntrinsic = false;
       if (const FunctionDecl *Callee = E->getDirectCallee()) {
         isHLSLIntrinsic = Callee->hasAttr<HLSLIntrinsicAttr>();

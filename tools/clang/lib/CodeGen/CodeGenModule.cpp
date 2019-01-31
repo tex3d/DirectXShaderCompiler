@@ -1810,8 +1810,8 @@ CodeGenModule::GetOrCreateLLVMGlobal(StringRef MangledName,
     if (Entry->getType()->getAddressSpace() != Ty->getAddressSpace()) {
       // HLSL Change Begins
       // TODO: do we put address space in type?
-      if (LangOpts.HLSL) return Entry;
-      else
+      //if (LangOpts.HLSL) return Entry;
+      //else
       // HLSL Change Ends
       return llvm::ConstantExpr::getAddrSpaceCast(Entry, Ty);
     }
@@ -1866,7 +1866,7 @@ CodeGenModule::GetOrCreateLLVMGlobal(StringRef MangledName,
       GV->setSection(".cp.rodata");
   }
 
-  if (AddrSpace != Ty->getAddressSpace() && !LangOpts.HLSL) // HLSL Change -TODO: do we put address space in type?
+  if (AddrSpace != Ty->getAddressSpace()) // && !LangOpts.HLSL) // HLSL Change -TODO: do we put address space in type?
     return llvm::ConstantExpr::getAddrSpaceCast(GV, Ty);
 
 
@@ -1924,14 +1924,25 @@ llvm::Constant *CodeGenModule::GetAddrOfGlobalVar(const VarDecl *D,
                                                   llvm::Type *Ty) {
   assert(D->hasGlobalStorage() && "Not a global variable");
   QualType ASTTy = D->getType();
-  if (!Ty)
+  //bool bDefaultType = !Ty;  // HLSL Change
+  if (!Ty) {
     Ty = getTypes().ConvertTypeForMem(ASTTy);
+  }
 
-  llvm::PointerType *PTy =
-    llvm::PointerType::get(Ty, getContext().getTargetAddressSpace(ASTTy));
+  llvm::PointerType *PTy = llvm::PointerType::get(Ty,
+    getContext().getTargetAddressSpace(ASTTy));
 
   StringRef MangledName = getMangledName(D);
-  return GetOrCreateLLVMGlobal(MangledName, PTy, D);
+  // HLSL Change Begins
+  // If type was not specified, and ASTTy does not contain address space,
+  // don't keep address space conversion that may be generated due to
+  // groupshared attribute
+  llvm::Constant *result = GetOrCreateLLVMGlobal(MangledName, PTy, D);
+  //if (bDefaultType && result && isa<llvm::ConstantExpr>(result)) {
+  //  result = result->stripPointerCasts();
+  //}
+  return result;
+  // HLSL Change Ends
 }
 
 /// CreateRuntimeVariable - Create a new runtime global variable with the

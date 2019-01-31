@@ -130,8 +130,11 @@ HRESULT STDMETHODCALLTYPE DxcAssembler::AssembleToContainer(
     outStream.flush();
 
     CComPtr<IDxcBlob> pResultBlob;
+    SerializeDxilFlags flags = (SerializeDxilFlags)(
+      (unsigned)SerializeDxilFlags::IncludeDebugNamePart |
+      (unsigned)SerializeDxilFlags::IncludeDebugInfoPart);
     dxcutil::AssembleToContainer(std::move(M), pResultBlob,
-                                         TM.p, SerializeDxilFlags::IncludeDebugNamePart,
+                                         TM.p, flags,
                                          pOutputStream);
 
     IFT(DxcOperationResult::CreateFromResultErrorStatus(pResultBlob, nullptr, S_OK, ppResult));
