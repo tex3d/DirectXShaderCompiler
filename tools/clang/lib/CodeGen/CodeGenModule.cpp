@@ -1808,11 +1808,6 @@ CodeGenModule::GetOrCreateLLVMGlobal(StringRef MangledName,
 
     // Make sure the result is of the correct type.
     if (Entry->getType()->getAddressSpace() != Ty->getAddressSpace()) {
-      // HLSL Change Begins
-      // TODO: do we put address space in type?
-      if (LangOpts.HLSL) return Entry;
-      else
-      // HLSL Change Ends
       return llvm::ConstantExpr::getAddrSpaceCast(Entry, Ty);
     }
 
@@ -1866,7 +1861,7 @@ CodeGenModule::GetOrCreateLLVMGlobal(StringRef MangledName,
       GV->setSection(".cp.rodata");
   }
 
-  if (AddrSpace != Ty->getAddressSpace() && !LangOpts.HLSL) // HLSL Change -TODO: do we put address space in type?
+  if (AddrSpace != Ty->getAddressSpace())
     return llvm::ConstantExpr::getAddrSpaceCast(GV, Ty);
 
 
