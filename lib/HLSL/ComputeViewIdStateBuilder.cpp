@@ -658,6 +658,10 @@ void DxilViewIdStateBuilder::CollectReachingDeclsRec(Value *pValue, ValueSetType
   } else if (GEPOperator *pGepOp = dyn_cast<GEPOperator>(pValue)) {
     Value *pPtrValue = pGepOp->getPointerOperand();
     CollectReachingDeclsRec(pPtrValue, ReachingDecls, Visited);
+  } else if (isa<ConstantExpr>(pValue) && cast<ConstantExpr>(pValue)->getOpcode() == Instruction::AddrSpaceCast) {
+    CollectReachingDeclsRec(cast<ConstantExpr>(pValue)->getOperand(0), ReachingDecls, Visited);
+  } else if (AddrSpaceCastInst *pCI = dyn_cast<AddrSpaceCastInst>(pValue)) {
+    CollectReachingDeclsRec(pCI->getOperand(0), ReachingDecls, Visited);
   } else if (dyn_cast<AllocaInst>(pValue)) {
     ReachingDecls.emplace(pValue);
   } else if (PHINode *phi = dyn_cast<PHINode>(pValue)) {
