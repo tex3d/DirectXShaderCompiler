@@ -806,6 +806,7 @@ static void ConvertUsedResource(std::unordered_set<unsigned> &immResID,
 void DxilModule::RemoveFunction(llvm::Function *F) {
   DXASSERT_NOMSG(F != nullptr);
   m_DxilEntryPropsMap.erase(F);
+  m_PatchConstantFunctions.erase(F);
   if (m_pTypeSystem.get()->GetFunctionAnnotation(F))
     m_pTypeSystem.get()->EraseFunctionAnnotation(F);
   m_pOP->RemoveFunction(F);
@@ -1001,8 +1002,7 @@ void DxilModule::SetPatchConstantFunctionForHS(llvm::Function *hullShaderFunc, l
   DXASSERT(props.IsHS(), "else hullShaderFunc is not a Hull Shader");
   auto &HS = props.ShaderProps.HS;
   if (HS.patchConstantFunc != patchConstantFunc) {
-    if (HS.patchConstantFunc)
-      m_PatchConstantFunctions.erase(HS.patchConstantFunc);
+    // HS.patchConstantFunc will be removed from m_PatchConstantFunctions on RemoveFunction.
     HS.patchConstantFunc = patchConstantFunc;
     if (patchConstantFunc)
       m_PatchConstantFunctions.insert(patchConstantFunc);

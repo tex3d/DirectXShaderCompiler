@@ -250,6 +250,7 @@ const vector<unique_ptr<HLResource> > &HLModule::GetUAVs() const {
 void HLModule::RemoveFunction(llvm::Function *F) {
   DXASSERT_NOMSG(F != nullptr);
   m_DxilFunctionPropsMap.erase(F);
+  m_PatchConstantFunctions.erase(F);
   if (m_pTypeSystem.get()->GetFunctionAnnotation(F))
     m_pTypeSystem.get()->EraseFunctionAnnotation(F);
   m_pOP->RemoveFunction(F);
@@ -382,8 +383,7 @@ void HLModule::SetPatchConstantFunctionForHS(llvm::Function *hullShaderFunc, llv
   DXASSERT(propIter != m_DxilFunctionPropsMap.end(), "else Hull Shader missing function props");
   DxilFunctionProps &props = *(propIter->second);
   DXASSERT(props.IsHS(), "else hullShaderFunc is not a Hull Shader");
-  if (props.ShaderProps.HS.patchConstantFunc)
-    m_PatchConstantFunctions.erase(props.ShaderProps.HS.patchConstantFunc);
+  // props.ShaderProps.HS.patchConstantFunc will be removed from m_PatchConstantFunctions on RemoveFunction.
   props.ShaderProps.HS.patchConstantFunc = patchConstantFunc;
   if (patchConstantFunc)
     m_PatchConstantFunctions.insert(patchConstantFunc);
