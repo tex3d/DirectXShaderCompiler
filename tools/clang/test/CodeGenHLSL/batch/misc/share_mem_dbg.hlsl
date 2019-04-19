@@ -1,4 +1,4 @@
-// RUN: %dxc -E main -T cs_6_0 -Zi -Od -DDefineA -DDefineB=0 %s | FileCheck %s
+// RUN: %dxc -E main -T cs_6_0 -Zi -Qembed_debug -Od -DDefineA -DDefineB=0 %s | FileCheck %s
 
 // CHECK: threadId
 // CHECK: groupId
@@ -20,7 +20,7 @@
 // CHECK: share_mem_dbg.hlsl", !"// RUN: %dxc
 // CHECK: !{!"DefineA=1", !"DefineB=0"}
 // CHECK: share_mem_dbg.hlsl"}
-// CHECK: !{!"-E", !"main", !"-T", !"cs_6_0", !"-Zi", !"-Od", !"-D", !"DefineA", !"-D", !"DefineB=0"}
+// CHECK: !{!"-E", !"main", !"-T", !"cs_6_0", !"-Zi", !"-Qembed_debug", !"-Od", !"-D", !"DefineA", !"-D", !"DefineB=0"}
 
 
 struct S {

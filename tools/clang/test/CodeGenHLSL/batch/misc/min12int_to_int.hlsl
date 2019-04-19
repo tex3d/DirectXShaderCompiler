@@ -1,4 +1,4 @@
-// RUN: %dxc -E main -T ps_6_0 -Zi %s | FileCheck %s
+// RUN: %dxc -E main -T ps_6_0 -Zi -Qembed_debug %s | FileCheck %s
 
 // CHECK: warning: min12int is promoted to min16int
 // CHECK: define void @main

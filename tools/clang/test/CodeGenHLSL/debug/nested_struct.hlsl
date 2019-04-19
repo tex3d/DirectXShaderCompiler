@@ -1,4 +1,4 @@
-// RUN: %dxc -Zi -E main -Od -T ps_6_0 %s | FileCheck %s
+// RUN: %dxc -Zi -Qembed_debug -E main -Od -T ps_6_0 %s | FileCheck %s
 
 // Make sure all elements of the struct (even when there are nested structs)
 // are at distinct offsets.

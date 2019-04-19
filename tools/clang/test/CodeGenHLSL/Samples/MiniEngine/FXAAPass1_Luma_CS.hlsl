@@ -1,4 +1,4 @@
-// RUN: %dxc -E main -T cs_6_0 /Zi %s | FileCheck %s
+// RUN: %dxc -E main -T cs_6_0 -Zi -Qembed_debug %s | FileCheck %s
 
 // CHECK: threadIdInGroup
 // CHECK: threadId
