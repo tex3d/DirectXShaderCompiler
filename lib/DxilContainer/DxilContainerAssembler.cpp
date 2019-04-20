@@ -1583,10 +1583,9 @@ void hlsl::SerializeDxilContainerForModule(DxilModule *pModule,
     raw_stream_ostream outStream(pProgramStream.p);
     WriteBitcodeToFile(pModule->GetModule(), outStream, true);
   } else {
-    // If no debug info, we better not be asking for debug name dependent on debug info;
-    DXASSERT(!(Flags & SerializeDxilFlags::IncludeDebugNamePart) ||
-             !(Flags & SerializeDxilFlags::DebugNameDependOnSource),
-             "otherwise, asking for debug name depending on source, but don't have debug info");
+    // If no debug info, clear DebugNameDependOnSource
+    // (it's default, and this scenario can happen)
+    Flags &= ~SerializeDxilFlags::DebugNameDependOnSource;
   }
 
   // Serialize debug name if requested.

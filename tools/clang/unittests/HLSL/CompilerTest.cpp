@@ -830,7 +830,7 @@ public:
 
     VERIFY_SUCCEEDED(CreateCompiler(&pCompiler));
     CreateBlobFromText(hlsl, &pSource);
-    LPCWSTR args[] = { L"/Zi", L"Qembed_debug" };
+    LPCWSTR args[] = { L"/Zi", L"/Qembed_debug" };
     VERIFY_SUCCEEDED(pCompiler->Compile(pSource, L"source.hlsl", L"main",
       L"ps_6_0", args, _countof(args), nullptr, 0, nullptr, &pResult));
     VERIFY_SUCCEEDED(pResult->GetResult(&pProgram));
@@ -1255,7 +1255,7 @@ TEST_F(CompilerTest, CompileWhenDebugWorksThenStripDebug) {
                      "  return local;\r\n"
                      "}",
                      &pSource);
-  LPCWSTR args[] = {L"/Zi", L"Qembed_debug"};
+  LPCWSTR args[] = {L"/Zi", L"/Qembed_debug"};
 
   VERIFY_SUCCEEDED(pCompiler->Compile(pSource, L"source.hlsl", L"main",
                                       L"ps_6_0", args, _countof(args), nullptr,
@@ -1352,7 +1352,7 @@ TEST_F(CompilerTest, CompileThenAddCustomDebugName) {
     "}",
     &pSource);
 
-  LPCWSTR args[] = { L"/Zi", L"Qembed_debug", L"/Zss" };
+  LPCWSTR args[] = { L"/Zi", L"/Qembed_debug", L"/Zss" };
 
   VERIFY_SUCCEEDED(pCompiler->Compile(pSource, L"source.hlsl", L"main",
     L"ps_6_0", args, _countof(args), nullptr, 0,

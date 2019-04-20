@@ -1502,7 +1502,7 @@ TEST_F(DxilContainerTest, DxilContainerUnitTest) {
   VERIFY_SUCCEEDED(CreateCompiler(&pCompiler));
   CreateBlobFromText("float4 main() : SV_Target { return 0; }", &pSource);
   // Test DxilContainer with ShaderDebugInfoDXIL
-  VERIFY_SUCCEEDED(pCompiler->Compile(pSource, L"hlsl.hlsl", L"main", L"ps_6_0", arguments.data(), 1, nullptr, 0, nullptr, &pResult));
+  VERIFY_SUCCEEDED(pCompiler->Compile(pSource, L"hlsl.hlsl", L"main", L"ps_6_0", arguments.data(), arguments.size(), nullptr, 0, nullptr, &pResult));
   VERIFY_SUCCEEDED(pResult->GetResult(&pProgram));
   
   const hlsl::DxilContainerHeader *pHeader = static_cast<const hlsl::DxilContainerHeader *> (pProgram->GetBufferPointer());
