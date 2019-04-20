@@ -1,4 +1,4 @@
-// RUN: %dxc -E main -T vs_6_2 -enable-16bit-types -Zi %s | FileCheck %s
+// RUN: %dxc -E main -T vs_6_2 -enable-16bit-types -Zi -Qembed_debug %s | FileCheck %s
 
 // Check that the clang field offsets (as seen from debug type definitions)
 // and the LLVM field offsets (as seen from SROA'd offsets) are consistent

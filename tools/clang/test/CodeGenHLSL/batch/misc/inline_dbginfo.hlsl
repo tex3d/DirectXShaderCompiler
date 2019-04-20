@@ -1,4 +1,4 @@
-// RUN: %dxc -T ps_6_0 -E main -Zi %s | FileCheck %s
+// RUN: %dxc -T ps_6_0 -E main -Zi -Qembed_debug %s | FileCheck %s
 
 // Make sure llvm.dbg.value exist.
 // CHECK: call void @llvm.dbg.value

@@ -1,4 +1,4 @@
-// RUN: %dxc -E main -T vs_6_2 -enable-16bit-types -Zi %s | FileCheck %s
+// RUN: %dxc -E main -T vs_6_2 -enable-16bit-types -Zi -Qembed_debug %s | FileCheck %s
 
 // Test that debug information for half floats (16-bit type) is preserved.
 

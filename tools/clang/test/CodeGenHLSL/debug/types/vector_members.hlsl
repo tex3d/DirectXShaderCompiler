@@ -1,4 +1,4 @@
-// RUN: %dxc -T vs_6_0 -E main -Od -Zi %s | FileCheck %s
+// RUN: %dxc -T vs_6_0 -E main -Od -Zi -Qembed_debug %s | FileCheck %s
 
 // Test that the debug info for HLSL vectors exposes per-component fields.
 

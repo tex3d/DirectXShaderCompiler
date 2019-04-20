@@ -1,4 +1,4 @@
-// RUN: %dxc -E main -T ps_6_0 %s -Zi -Od | FileCheck %s
+// RUN: %dxc -E main -T ps_6_0 %s -Zi -Qembed_debug -Od | FileCheck %s
 
 // Make sure when there is non-trivial global variable initialization, the
 // inlined initialization instructions have "inlinedAt" property

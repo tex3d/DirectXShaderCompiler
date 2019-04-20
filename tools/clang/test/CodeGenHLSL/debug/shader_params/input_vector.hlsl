@@ -1,4 +1,4 @@
-// RUN: %dxc -E main -T vs_6_0 -Zi %s | FileCheck %s
+// RUN: %dxc -E main -T vs_6_0 -Zi -Qembed_debug %s | FileCheck %s
 
 // Test that an input vector's debug information is preserved,
 // especially through its lowering to per-element loadInputs.

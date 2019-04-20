@@ -1,4 +1,4 @@
-// RUN: %dxc -T vs_6_0 -E main -Od -Zi %s | FileCheck %s
+// RUN: %dxc -T vs_6_0 -E main -Od -Zi -Qembed_debug %s | FileCheck %s
 
 // Test that the debug info for HLSL bool matrices exposes per-component fields
 // in the memory representation of matrices (32-bits)

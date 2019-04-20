@@ -1,4 +1,4 @@
-// RUN: %dxc -E main -T vs_6_0 -Zi -Od %s | FileCheck %s
+// RUN: %dxc -E main -T vs_6_0 -Zi -Qembed_debug -Od %s | FileCheck %s
 
 // Test that local matrices preserve debug info without optimizations
 

@@ -1,4 +1,4 @@
-// RUN: %dxc -E main -T vs_6_0 -Zi %s | FileCheck %s
+// RUN: %dxc -E main -T vs_6_0 -Zi -Qembed_debug %s | FileCheck %s
 
 // Test that debug offsets are correct after lowering a vector
 // input to loadInput calls, when the vector input itself was

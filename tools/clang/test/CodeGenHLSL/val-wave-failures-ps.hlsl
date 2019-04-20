@@ -1,4 +1,4 @@
-// RUN: %dxc -E main -T ps_6_0 %s /Zi | FileCheck %s
+// RUN: %dxc -E main -T ps_6_0 %s -Zi -Qembed_debug | FileCheck %s
 
 // CHECK: val-wave-failures-ps.hlsl:10:9  Gradient operations are not affected by wave-sensitive data or control flow.
 // CHECK: val-wave-failures-ps.hlsl:30:12 Gradient operations are not affected by wave-sensitive data or control flow.

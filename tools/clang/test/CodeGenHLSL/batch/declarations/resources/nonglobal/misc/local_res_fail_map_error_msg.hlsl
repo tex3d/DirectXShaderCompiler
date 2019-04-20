@@ -1,4 +1,4 @@
-// RUN: %dxc -E main -T ps_6_0 -Zi %s | FileCheck %s
+// RUN: %dxc -E main -T ps_6_0 -Zi -Qembed_debug %s | FileCheck %s
 
 // Make sure line number is show for resource failed to map.
 

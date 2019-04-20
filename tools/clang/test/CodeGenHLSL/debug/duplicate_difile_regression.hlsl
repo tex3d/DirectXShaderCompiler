@@ -1,4 +1,4 @@
-// RUN: %dxc -E main -T vs_6_0 -Zi %s | FileCheck %s
+// RUN: %dxc -E main -T vs_6_0 -Zi -Qembed_debug %s | FileCheck %s
 
 // Regression test for a bug where two !DIFile debug metadata
 // entries were created for the same file when a full path was passed in

@@ -1,4 +1,4 @@
-// RUN: %dxc -T vs_6_0 -E main -Zi %s | FileCheck %s
+// RUN: %dxc -T vs_6_0 -E main -Zi -Qembed_debug %s | FileCheck %s
 
 // Test that the debug offset of a numerical type in
 // an SROA'd struct is consistent with the reported
