@@ -44,31 +44,31 @@ using namespace hlsl;
 
 namespace {
 
-void SimplifyGlobalSymbol(GlobalVariable *GV) {
-  Type *Ty = GV->getType()->getElementType();
-  if (!Ty->isArrayTy()) {
-    // Make sure only 1 load of GV in each function.
-    std::unordered_map<Function *, Instruction *> handleMapOnFunction;
-    for (User *U : GV->users()) {
-      if (LoadInst *LI = dyn_cast<LoadInst>(U)) {
-        Function *F = LI->getParent()->getParent();
-        auto it = handleMapOnFunction.find(F);
-        if (it == handleMapOnFunction.end()) {
-          handleMapOnFunction[F] = LI;
-        } else {
-          LI->replaceAllUsesWith(it->second);
-        }
-      }
-    }
-    for (auto it : handleMapOnFunction) {
-      Function *F = it.first;
-      Instruction *I = it.second;
-      IRBuilder<> Builder(dxilutil::FirstNonAllocaInsertionPt(F));
-      Value *headLI = Builder.CreateLoad(GV);
-      I->replaceAllUsesWith(headLI);
-    }
-  }
-}
+//void SimplifyGlobalSymbol(GlobalVariable *GV) {
+//  Type *Ty = GV->getType()->getElementType();
+//  if (!Ty->isArrayTy()) {
+//    // Make sure only 1 load of GV in each function.
+//    std::unordered_map<Function *, Instruction *> handleMapOnFunction;
+//    for (User *U : GV->users()) {
+//      if (LoadInst *LI = dyn_cast<LoadInst>(U)) {
+//        Function *F = LI->getParent()->getParent();
+//        auto it = handleMapOnFunction.find(F);
+//        if (it == handleMapOnFunction.end()) {
+//          handleMapOnFunction[F] = LI;
+//        } else {
+//          LI->replaceAllUsesWith(it->second);
+//        }
+//      }
+//    }
+//    for (auto it : handleMapOnFunction) {
+//      Function *F = it.first;
+//      Instruction *I = it.second;
+//      IRBuilder<> Builder(dxilutil::FirstNonAllocaInsertionPt(F));
+//      Value *headLI = Builder.CreateLoad(GV);
+//      I->replaceAllUsesWith(headLI);
+//    }
+//  }
+//}
 
 void InitResourceBase(const DxilResourceBase *pSource,
                       DxilResourceBase *pDest) {
@@ -82,8 +82,8 @@ void InitResourceBase(const DxilResourceBase *pSource,
   pDest->SetGlobalName(pSource->GetGlobalName());
   pDest->SetHandle(pSource->GetHandle());
 
-  if (GlobalVariable *GV = dyn_cast<GlobalVariable>(pSource->GetGlobalSymbol()))
-    SimplifyGlobalSymbol(GV);
+  //if (GlobalVariable *GV = dyn_cast<GlobalVariable>(pSource->GetGlobalSymbol()))
+  //  SimplifyGlobalSymbol(GV);
 }
 
 void InitResource(const DxilResource *pSource, DxilResource *pDest) {
@@ -437,7 +437,8 @@ void DxilGenerationPass::GenerateDxilCBufferHandles() {
         // Must HLCreateHandle.
         CallInst *CI = cast<CallInst>(*(U++));
         // Put createHandle to entry block.
-        IRBuilder<> Builder(dxilutil::FirstNonAllocaInsertionPt(CI));
+        //IRBuilder<> Builder(dxilutil::FirstNonAllocaInsertionPt(CI));
+        IRBuilder<> Builder(CI);
         Value *V = Builder.CreateLoad(GV);
         CallInst *handle = Builder.CreateCall(createHandle, {opArg, V}, handleName);
         if (m_HasDbgInfo) {
@@ -460,10 +461,10 @@ void DxilGenerationPass::GenerateDxilCBufferHandles() {
         CallInst *CI = cast<CallInst>(*(U++));
         IRBuilder<> Builder(CI);
         Value *CBIndex = CI->getArgOperand(HLOperandIndex::kCreateHandleIndexOpIdx);
-        if (isa<ConstantInt>(CBIndex)) {
-          // Put createHandle to entry block for const index.
-          Builder.SetInsertPoint(dxilutil::FirstNonAllocaInsertionPt(CI));
-        }
+        //if (isa<ConstantInt>(CBIndex)) {
+        //  // Put createHandle to entry block for const index.
+        //  Builder.SetInsertPoint(dxilutil::FirstNonAllocaInsertionPt(CI));
+        //}
         // Add GEP for cbv array use.
         Value *GEP = Builder.CreateGEP(GV, {zeroIdx, CBIndex});
         Value *V = Builder.CreateLoad(GEP);

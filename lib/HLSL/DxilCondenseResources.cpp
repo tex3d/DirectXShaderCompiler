@@ -1818,25 +1818,25 @@ void DxilLowerCreateHandleForLib::TranslateDxilResourceUses(
           DILocation::get(pM->getContext(), DIV->getLine(), 1, DIV->getScope());
   }
 
-  bool isResArray = res.GetRangeSize() > 1;
-  std::unordered_map<Function *, Instruction *> handleMapOnFunction;
+  //bool isResArray = res.GetRangeSize() > 1;
+  //std::unordered_map<Function *, Instruction *> handleMapOnFunction;
 
   Value *createHandleArgs[] = {opArg, resClassArg, resIDArg, resLowerBound,
                                isUniformRes};
 
-  for (iplist<Function>::iterator F : pM->getFunctionList()) {
-    if (!F->isDeclaration()) {
-      if (!isResArray) {
-        IRBuilder<> Builder(dxilutil::FirstNonAllocaInsertionPt(F));
-        if (m_HasDbgInfo) {
-          // TODO: set debug info.
-          // Builder.SetCurrentDebugLocation(DL);
-        }
-        handleMapOnFunction[F] =
-            Builder.CreateCall(createHandle, createHandleArgs, handleName);
-      }
-    }
-  }
+  //for (iplist<Function>::iterator F : pM->getFunctionList()) {
+  //  if (!F->isDeclaration()) {
+  //    if (!isResArray) {
+  //      IRBuilder<> Builder(dxilutil::FirstNonAllocaInsertionPt(F));
+  //      if (m_HasDbgInfo) {
+  //        // TODO: set debug info.
+  //        // Builder.SetCurrentDebugLocation(DL);
+  //      }
+  //      handleMapOnFunction[F] =
+  //          Builder.CreateCall(createHandle, createHandleArgs, handleName);
+  //    }
+  //  }
+  //}
 
   for (auto U = GV->user_begin(), E = GV->user_end(); U != E;) {
     User *user = *(U++);
@@ -1845,9 +1845,10 @@ void DxilLowerCreateHandleForLib::TranslateDxilResourceUses(
       continue;
 
     if (LoadInst *ldInst = dyn_cast<LoadInst>(user)) {
-      Function *userF = ldInst->getParent()->getParent();
-      DXASSERT(handleMapOnFunction.count(userF), "must exist");
-      Value *handle = handleMapOnFunction[userF];
+      //Function *userF = ldInst->getParent()->getParent();
+      //DXASSERT(handleMapOnFunction.count(userF), "must exist");
+      IRBuilder<> Builder(ldInst);
+      Value *handle = Builder.CreateCall(createHandle, createHandleArgs, handleName);
       ReplaceResourceUserWithHandle(ldInst, handle);
     } else {
       DXASSERT(dyn_cast<GEPOperator>(user) != nullptr,
@@ -1922,12 +1923,12 @@ void DxilLowerCreateHandleForLib::TranslateDxilResourceUses(
       }
     }
   }
-  // Erase unused handle.
-  for (auto It : handleMapOnFunction) {
-    Instruction *I = It.second;
-    if (I->user_empty())
-      I->eraseFromParent();
-  }
+  //// Erase unused handle.
+  //for (auto It : handleMapOnFunction) {
+  //  Instruction *I = It.second;
+  //  if (I->user_empty())
+  //    I->eraseFromParent();
+  //}
 }
 
 void DxilLowerCreateHandleForLib::GenerateDxilResourceHandles() {

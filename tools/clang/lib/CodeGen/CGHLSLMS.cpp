@@ -3232,11 +3232,14 @@ static bool CreateCBufferVariable(HLCBuffer &CB,
     IRBuilder<> Builder(F.getEntryBlock().getFirstInsertionPt());
 
     // create HL subscript to make all the use of cbuffer start from it.
-    HandleArgs[HLOperandIndex::kCreateHandleResourceOpIdx] = cbGV;
-    CallInst *Handle = Builder.CreateCall(CreateHandleFunc, HandleArgs);
-    args[HLOperandIndex::kSubscriptObjectOpIdx] = Handle;
-    Instruction *cbSubscript =
-        cast<Instruction>(Builder.CreateCall(subscriptFunc, {args}));
+    //HandleArgs[HLOperandIndex::kCreateHandleResourceOpIdx] = cbGV;
+    //CallInst *Handle = Builder.CreateCall(CreateHandleFunc, HandleArgs);
+    //args[HLOperandIndex::kSubscriptObjectOpIdx] = Handle;
+    //Instruction *cbSubscript =
+    //    cast<Instruction>(Builder.CreateCall(subscriptFunc, {args}));
+
+    auto buildgep = [](DxilResourceBase &C){
+    };
 
     // Replace constant var with GEP pGV
     for (const std::unique_ptr<DxilResourceBase> &C : CB.GetConstants()) {
@@ -3244,34 +3247,40 @@ static bool CreateCBufferVariable(HLCBuffer &CB,
       if (constUsedFuncList[C->GetID()].count(&F) == 0)
         continue;
 
-      Value *idx = indexArray[C->GetID()];
-      if (!isCBArray) {
-        Instruction *GEP = cast<Instruction>(
-            Builder.CreateInBoundsGEP(cbSubscript, {zero, idx}));
-        // TODO: make sure the debug info is synced to GEP.
-        // GEP->setDebugLoc(GV);
-        ReplaceUseInFunction(GV, GEP, &F, Builder);
-        // Delete if no use in F.
-        if (GEP->user_empty())
-          GEP->eraseFromParent();
-      } else {
-        for (auto U = GV->user_begin(); U != GV->user_end();) {
-          User *user = *(U++);
-          if (user->user_empty())
-            continue;
-          Instruction *I = dyn_cast<Instruction>(user);
-          if (I && I->getParent()->getParent() != &F)
-            continue;
+      //Value *idx = indexArray[C->GetID()];
+      //if (!isCBArray) {
+      //  Instruction *GEP = cast<Instruction>(
+      //      Builder.CreateInBoundsGEP(cbSubscript, {zero, idx}));
+      //  // TODO: make sure the debug info is synced to GEP.
+      //  // GEP->setDebugLoc(GV);
+      //  ReplaceUseInFunction(GV, GEP, &F, Builder);
+      //  // Delete if no use in F.
+      //  if (GEP->user_empty())
+      //    GEP->eraseFromParent();
+      //} else {
+      for (auto U = GV->user_begin(); U != GV->user_end();) {
+        User *user = *(U++);
+        if (user->user_empty())
+          continue;
+        Instruction *I = dyn_cast<Instruction>(user);
+        if (!I && isa<Constant>(user)) {
+          // Drill down to constant GEP users:
+          // TODO
+        }
+        if (I && I->getParent()->getParent() != &F)
+          continue;
 
-          IRBuilder<> *instBuilder = &Builder;
-          unique_ptr<IRBuilder<>> B;
-          if (I) {
-            B = llvm::make_unique<IRBuilder<>>(I);
-            instBuilder = B.get();
-          }
+        IRBuilder<> *instBuilder = &Builder;
+        unique_ptr<IRBuilder<>> B;
+        if (I) {
+          B = llvm::make_unique<IRBuilder<>>(I);
+          instBuilder = B.get();
+        }
 
-          GEPOperator *GEPOp = cast<GEPOperator>(user);
-          std::vector<Value *> idxList;
+        std::vector<Value *> idxList;
+        Value *arrayIdx = zeroIdx;
+
+        if (GEPOperator *GEPOp = dyn_cast<GEPOperator>(user)) {
 
           DXASSERT(GEPOp->getNumIndices() >= 1 + cbIndexDepth,
                    "must indexing ConstantBuffer array");
@@ -3279,47 +3288,56 @@ static bool CreateCBufferVariable(HLCBuffer &CB,
 
           gep_type_iterator GI = gep_type_begin(*GEPOp),
                             E = gep_type_end(*GEPOp);
-          idxList.push_back(GI.getOperand());
-          // change array index with 0 for struct index.
-          idxList.push_back(zero);
-          GI++;
-          Value *arrayIdx = GI.getOperand();
-          GI++;
-          for (unsigned curIndex = 1; GI != E && curIndex < cbIndexDepth;
-               ++GI, ++curIndex) {
-            arrayIdx = instBuilder->CreateMul(
-                arrayIdx, Builder.getInt32(GI->getArrayNumElements()));
-            arrayIdx = instBuilder->CreateAdd(arrayIdx, GI.getOperand());
+          if (cbIndexDepth >= 1) {
+            idxList.push_back(GI.getOperand());
+            // change array index with 0 for struct index.
+            idxList.push_back(zero);
+            GI++;
+            arrayIdx = GI.getOperand();
+            GI++;
+            for (unsigned curIndex = 1; GI != E && curIndex < cbIndexDepth;
+                 ++GI, ++curIndex) {
+              arrayIdx = instBuilder->CreateMul(
+                  arrayIdx, Builder.getInt32(GI->getArrayNumElements()));
+              arrayIdx = instBuilder->CreateAdd(arrayIdx, GI.getOperand());
+            }
+          } else {
+            idxList.push_back(zero);
+            idxList.push_back(indexArray[C->GetID()]);
           }
 
           for (; GI != E; ++GI) {
             idxList.push_back(GI.getOperand());
           }
+        }
 
-          HandleArgs[HLOperandIndex::kCreateHandleIndexOpIdx] = arrayIdx;
-          CallInst *Handle =
-              instBuilder->CreateCall(CreateHandleFunc, HandleArgs);
-          args[HLOperandIndex::kSubscriptObjectOpIdx] = Handle;
-          args[HLOperandIndex::kSubscriptIndexOpIdx] = arrayIdx;
+        HandleArgs[HLOperandIndex::kCreateHandleIndexOpIdx] = arrayIdx;
+        CallInst *Handle =
+            instBuilder->CreateCall(CreateHandleFunc, HandleArgs);
+        args[HLOperandIndex::kSubscriptObjectOpIdx] = Handle;
+        args[HLOperandIndex::kSubscriptIndexOpIdx] = arrayIdx;
 
-          Instruction *cbSubscript =
-              cast<Instruction>(instBuilder->CreateCall(subscriptFunc, {args}));
+        Instruction *cbSubscript =
+            cast<Instruction>(instBuilder->CreateCall(subscriptFunc, {args}));
 
-          Instruction *NewGEP = cast<Instruction>(
-              instBuilder->CreateInBoundsGEP(cbSubscript, idxList));
+        Instruction *NewGEP = cast<Instruction>(
+            instBuilder->CreateInBoundsGEP(cbSubscript, idxList));
 
-          ReplaceUseInFunction(GEPOp, NewGEP, &F, *instBuilder);
+        if (LoadInst *LI = dyn_cast<LoadInst>(user)) {
+          LI->setOperand(0, NewGEP);
+        } else {
+          ReplaceUseInFunction(user, NewGEP, &F, *instBuilder);
         }
       }
     }
-    // Delete if no use in F.
-    if (cbSubscript->user_empty()) {
-      cbSubscript->eraseFromParent();
-      Handle->eraseFromParent();
-    } else {
-      // merge GEP use for cbSubscript.
-      HLModule::MergeGepUse(cbSubscript);
-    }
+    //// Delete if no use in F.
+    //if (cbSubscript->user_empty()) {
+    //  cbSubscript->eraseFromParent();
+    //  Handle->eraseFromParent();
+    //} else {
+    //  // merge GEP use for cbSubscript.
+    //  HLModule::MergeGepUse(cbSubscript);
+    //}
   }
   return true;
 }
