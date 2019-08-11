@@ -196,7 +196,10 @@ bool DxilModule::GetMinValidatorVersion(unsigned &ValMajor, unsigned &ValMinor) 
   if (!m_pSM)
     return false;
   m_pSM->GetMinValidatorVersion(ValMajor, ValMinor);
-  if (ValMajor == 1 && ValMinor == 0 &&
+  if (ValMajor == 1 && ValMinor < 4 &&
+      GetSubobjects() && !GetSubobjects()->GetSubobjects().empty())
+    ValMinor = 4;
+  else if (ValMajor == 1 && ValMinor == 0 &&
       (m_ShaderFlags.GetFeatureInfo() & hlsl::DXIL::ShaderFeatureInfo_ViewID))
     ValMinor = 1;
   return true;
