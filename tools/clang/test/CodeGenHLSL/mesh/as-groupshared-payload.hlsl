@@ -5,13 +5,15 @@
 struct MeshPayload
 {
   float4 data;
+  float3x4 mat;
 };
 
 groupshared MeshPayload pld;
 
-[numthreads(4,1,1)]
-void amplification(uint gtid : SV_GroupIndex)
+[numthreads(4,3,1)]
+void amplification(uint3 gtid : SV_GroupThreadID)
 {
-  pld.data[gtid] = gtid;
+  pld.data[gtid.x] = gtid.x;
+  pld.mat[gtid.y][gtid.x] = gtid.x * gtid.y + gtid.x;
   DispatchMesh(1,1,1,pld);
 }

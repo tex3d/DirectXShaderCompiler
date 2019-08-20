@@ -2478,6 +2478,37 @@ void SROA_Helper::RewriteBitCast(BitCastInst *BCI) {
   RewriteForGEP(cast<GEPOperator>(GEP), GEPBuilder);
 }
 
+// Lower type of structure argument passed to intrinsic which isn't flattened
+// to eliminate matrix and vector types.
+static llvm::Type *LowerArgType(llvm::Type *Ty, llvm::Module &M) {
+  if (hlsl::HLMatrixType::isMatrixOrPtrOrArrayPtr(Ty)) {
+    return LowerArgType(hlsl::HLMatrixType::getLoweredType(Ty, true), M);
+  } else if (VectorType *VT = dyn_cast<VectorType>(Ty)) {
+    return ArrayType::get(Ty->getVectorElementType(), Ty->getVectorNumElements());
+  } else if (ArrayType *AT = dyn_cast<ArrayType>(Ty)) {
+    return ArrayType::get(LowerArgType(Ty->getArrayElementType(), M), Ty->getArrayNumElements());
+  } else if (StructType *ST = dyn_cast<StructType>(Ty)) {
+    std::string loweredName = std::string(ST->getName()) + ".lowered";
+    if (StructType *newStruct = M.getTypeByName(loweredName)) {
+      return newStruct;
+    }
+    SmallVector<Type*, 4> loweredElements;
+    loweredElements.reserve(ST->getStructNumElements());
+    bool bChanged = false;
+    for (auto ET : ST->elements()) {
+      Type *newElTy = LowerArgType(ET, M);
+      loweredElements.emplace_back(newElTy);
+      if (newElTy != ET)
+        bChanged = true;
+    }
+    if (!bChanged)
+      return ST;
+    return StructType::create(Ty->getContext(), loweredElements, loweredName);
+  } else {
+    return Ty;
+  }
+}
+
 /// RewriteCallArg - For Functions which don't flat,
 ///                  replace OldVal with alloca and
 ///                  copy in copy out data between alloca and flattened NewElts
@@ -2490,7 +2521,8 @@ void SROA_Helper::RewriteCallArg(CallInst *CI, unsigned ArgIdx, bool bIn,
 
   Value *userTyV = CI->getArgOperand(ArgIdx);
   PointerType *userTy = cast<PointerType>(userTyV->getType());
-  Type *userTyElt = userTy->getElementType();
+  llvm::Module *M = CI->getParent()->getParent()->getParent();
+  Type *userTyElt = LowerArgType(userTy->getElementType(), *M);
   Value *Alloca = AllocaBuilder.CreateAlloca(userTyElt);
   IRBuilder<> Builder(CI);
   if (bIn) {
