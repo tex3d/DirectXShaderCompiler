@@ -624,15 +624,15 @@ TEST_F(DxilContainerTest, CompileWhenDebugSourceThenSourceMatters) {
     return;
 
   // Verify source hash
-  std::string binHash1Zss = CompileToShaderHash(program1, L"main", L"ps_6_0", ZiZss, _countof(ZiZss));
+  std::string binHash1Zss = CompileToShaderHash(program1, L"main", L"ps_6_5", ZiZss, _countof(ZiZss));
   VERIFY_IS_FALSE(binHash1Zss.empty());
 
   // bin hash when compiling with /Zi
-  std::string binHash1 = CompileToShaderHash(program1, L"main", L"ps_6_0", ZiZsb, _countof(ZiZsb));
+  std::string binHash1 = CompileToShaderHash(program1, L"main", L"ps_6_5", ZiZsb, _countof(ZiZsb));
   VERIFY_IS_FALSE(binHash1.empty());
 
   // Without /Zi hash for /Zsb should be the same
-  std::string binHash2 = CompileToShaderHash(program2, L"main", L"ps_6_0", Zsb, _countof(Zsb));
+  std::string binHash2 = CompileToShaderHash(program2, L"main", L"ps_6_5", Zsb, _countof(Zsb));
   VERIFY_IS_FALSE(binHash2.empty());
   VERIFY_ARE_EQUAL_STR(binHash1.c_str(), binHash2.c_str());
 
@@ -658,7 +658,6 @@ TEST_F(DxilContainerTest, CompileWhenOKThenIncludesSignatures) {
     "}";
 
   {
-    std::string s = DisassembleProgram(program, L"VSMain", L"vs_6_0");
     // NOTE: this will change when proper packing is done, and when 'always-reads' is accurately implemented.
     const char expected_1_4[] =
       ";\n"
@@ -692,17 +691,22 @@ TEST_F(DxilContainerTest, CompileWhenOKThenIncludesSignatures) {
       "; -------------------- ----- ------ -------- -------- ------- ------\n"
       "; SV_Position              0   xyzw        0      POS   float   xyzw\n"  // could read SV_POSITION
       "; COLOR                    0   xyzw        1     NONE   float   xyzw\n"; // should read '1' in register
-    if (hlsl::DXIL::CompareVersions(m_ver.m_ValMajor, m_ver.m_ValMinor, 1, 5) < 0) {
+
+    // Validator version is capped at 1.4 for SM <= 6.4
+    {
+      std::string s = DisassembleProgram(program, L"VSMain", L"vs_6_0");
       std::string start(s.c_str(), strlen(expected_1_4));
       VERIFY_ARE_EQUAL_STR(expected_1_4, start.c_str());
-    } else {
+    }
+
+    if (hlsl::DXIL::CompareVersions(m_ver.m_ValMajor, m_ver.m_ValMinor, 1, 4) > 0) {
+      std::string s = DisassembleProgram(program, L"VSMain", L"vs_6_5");
       std::string start(s.c_str(), strlen(expected));
       VERIFY_ARE_EQUAL_STR(expected, start.c_str());
     }
   }
 
   {
-    std::string s = DisassembleProgram(program, L"PSMain", L"ps_6_0");
     // NOTE: this will change when proper packing is done, and when 'always-reads' is accurately implemented.
     const char expected_1_4[] =
       ";\n"
@@ -734,10 +738,16 @@ TEST_F(DxilContainerTest, CompileWhenOKThenIncludesSignatures) {
       "; Name                 Index   Mask Register SysValue  Format   Used\n"
       "; -------------------- ----- ------ -------- -------- ------- ------\n"
       "; SV_Target                0   xyzw        0   TARGET   float   xyzw\n";// could read SV_TARGET
-    if (hlsl::DXIL::CompareVersions(m_ver.m_ValMajor, m_ver.m_ValMinor, 1, 5) < 0) {
+
+    // Validator version is capped at 1.4 for SM <= 6.4
+    {
+      std::string s = DisassembleProgram(program, L"PSMain", L"ps_6_0");
       std::string start(s.c_str(), strlen(expected_1_4));
       VERIFY_ARE_EQUAL_STR(expected_1_4, start.c_str());
-    } else {
+    }
+
+    if (hlsl::DXIL::CompareVersions(m_ver.m_ValMajor, m_ver.m_ValMinor, 1, 4) > 0) {
+      std::string s = DisassembleProgram(program, L"PSMain", L"ps_6_5");
       std::string start(s.c_str(), strlen(expected));
       VERIFY_ARE_EQUAL_STR(expected, start.c_str());
     }

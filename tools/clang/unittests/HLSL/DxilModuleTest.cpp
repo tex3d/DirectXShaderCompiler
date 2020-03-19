@@ -530,12 +530,21 @@ void DxilModuleTest::VerifyValidatorVersionMatches(
 
   if (expectedMajor == UINT_MAX) {
     // Expect current version
-    VERIFY_ARE_EQUAL(vMajor, c.m_ver.m_ValMajor);
-    VERIFY_ARE_EQUAL(vMinor, c.m_ver.m_ValMinor);
-  } else {
-    VERIFY_ARE_EQUAL(vMajor, expectedMajor);
-    VERIFY_ARE_EQUAL(vMinor, expectedMinor);
+    expectedMajor = c.m_ver.m_ValMajor;
+    expectedMinor = c.m_ver.m_ValMinor;
+
+    // Unless dxil is <= 1.4 and val > 1.4, for compatibility.
+    unsigned dxilMajor, dxilMinor;
+    DM.GetDxilVersion(dxilMajor, dxilMinor);
+    if (DXIL::CompareVersions(dxilMajor, dxilMinor, 1, 4) <= 0 &&
+        DXIL::CompareVersions(expectedMajor, expectedMinor, 1, 4) > 0) {
+      expectedMajor = 1;
+      expectedMinor = 4;
+    }
   }
+
+  VERIFY_ARE_EQUAL(vMajor, expectedMajor);
+  VERIFY_ARE_EQUAL(vMinor, expectedMinor);
 }
 
 TEST_F(DxilModuleTest, SetValidatorVersion) {
@@ -546,6 +555,9 @@ TEST_F(DxilModuleTest, SetValidatorVersion) {
   VerifyValidatorVersionMatches(L"ps_6_2", {});
   VerifyValidatorVersionMatches(L"lib_6_3", {});
 
+  // Verify driver compat version
+  VerifyValidatorVersionMatches(L"ps_6_2", {}, 1,4);
+
   // Current version, with validation disabled
   VerifyValidatorVersionMatches(L"ps_6_2", {L"-Vd"});
   VerifyValidatorVersionMatches(L"lib_6_3", {L"-Vd"});
@@ -553,6 +565,8 @@ TEST_F(DxilModuleTest, SetValidatorVersion) {
   // Override validator version
   VerifyValidatorVersionMatches(L"ps_6_2", {L"-validator-version", L"1.2"}, 1,2);
   VerifyValidatorVersionMatches(L"lib_6_3", {L"-validator-version", L"1.3"}, 1,3);
+  VerifyValidatorVersionMatches(L"ps_6_2", {L"-validator-version", L"1.4"}, 1,4);
+  VerifyValidatorVersionMatches(L"ps_6_5", {L"-validator-version", L"1.5"}, 1,5);
 
   // Override validator version, with validation disabled
   VerifyValidatorVersionMatches(L"ps_6_2", {L"-Vd", L"-validator-version", L"1.2"}, 1,2);
@@ -562,6 +576,7 @@ TEST_F(DxilModuleTest, SetValidatorVersion) {
   VerifyValidatorVersionMatches(L"lib_6_1", {L"-Vd"}, 0, 0);
   VerifyValidatorVersionMatches(L"lib_6_2", {L"-Vd"}, 0, 0);
   VerifyValidatorVersionMatches(L"lib_6_2", {L"-Vd", L"-validator-version", L"0.0"}, 0, 0);
+  VerifyValidatorVersionMatches(L"lib_6_3", {L"-Vd", L"-validator-version", L"1.3"}, 1,3);
   VerifyValidatorVersionMatches(L"lib_6_x", {}, 0, 0);
   VerifyValidatorVersionMatches(L"lib_6_x", {L"-validator-version", L"0.0"}, 0, 0);
 
@@ -577,4 +592,23 @@ TEST_F(DxilModuleTest, SetValidatorVersion) {
 
   VerifyValidatorVersionFails(L"lib_6_x", {L"-validator-version", L"1.3"}, {
     "Offline library profile cannot be used with non-zero -validator-version."});
+
+  // Verify 1.5 cases
+  if (DXIL::CompareVersions(c.m_ver.m_DxilMajor, c.m_ver.m_DxilMinor, 1, 5) >= 0 &&
+      DXIL::CompareVersions(c.m_ver.m_ValMajor, c.m_ver.m_ValMinor, 1, 5) >= 0) {
+    // SM 6.5
+    VerifyValidatorVersionMatches(L"ps_6_5", {});
+    VerifyValidatorVersionMatches(L"ps_6_5", {L"-Vd"});
+    VerifyValidatorVersionMatches(L"lib_6_5", {});
+    // clamp to 1.4 for SM <= 6.4:
+    VerifyValidatorVersionMatches(L"ps_6_2", {L"-validator-version", L"1.5"}, 1,4);
+    VerifyValidatorVersionMatches(L"ps_6_4", {L"-validator-version", L"1.5"}, 1,4);
+    VerifyValidatorVersionMatches(L"lib_6_3", {L"-validator-version", L"1.5"}, 1,4);
+    // don't clamp SM 6.5:
+    VerifyValidatorVersionMatches(L"ps_6_5", {L"-validator-version", L"1.5"}, 1,5);
+    VerifyValidatorVersionMatches(L"lib_6_5", {L"-validator-version", L"1.5"}, 1,5);
+    // Override, no clamp:
+    VerifyValidatorVersionMatches(L"ps_6_5", {L"-Vd", L"-validator-version", L"1.5"}, 1,5);
+    VerifyValidatorVersionMatches(L"lib_6_5", {L"-Vd", L"-validator-version", L"1.5"}, 1,5);
+  }
 }

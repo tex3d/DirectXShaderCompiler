@@ -172,9 +172,27 @@ void DxilModule::GetDxilVersion(unsigned &DxilMajor, unsigned &DxilMinor) const 
   DxilMinor = m_DxilMinor;
 }
 
+// For compatibility with certain drivers:
+// set validator version to max of 1.4 if dxil version is <= 1.4
+static bool ClampValidatorVersionFor_1_4(DxilModule &DM) {
+  if (!DM.GetShaderModel())
+    return false;
+  unsigned dxilMajor, dxilMinor;
+  DM.GetDxilVersion(dxilMajor, dxilMinor);
+  unsigned valMajor, valMinor;
+  DM.GetValidatorVersion(valMajor, valMinor);
+  if (DXIL::CompareVersions(valMajor, valMinor, 1, 4) > 0 &&
+      DXIL::CompareVersions(dxilMajor, dxilMinor, 1, 4) <= 0) {
+    DM.SetValidatorVersion(1, 4);
+    return true;
+  }
+  return false;
+}
+
 void DxilModule::SetValidatorVersion(unsigned ValMajor, unsigned ValMinor) {
   m_ValMajor = ValMajor;
   m_ValMinor = ValMinor;
+  ClampValidatorVersionFor_1_4(*this);
 }
 
 bool DxilModule::UpgradeValidatorVersion(unsigned ValMajor, unsigned ValMinor) {
@@ -184,10 +202,11 @@ bool DxilModule::UpgradeValidatorVersion(unsigned ValMajor, unsigned ValMinor) {
   }
   if (ValMajor > m_ValMajor || (ValMajor == m_ValMajor && ValMinor > m_ValMinor)) {
     // Module requires higher validator version than previously set
+    unsigned oldMajor = m_ValMajor, oldMinor = m_ValMinor;
     SetValidatorVersion(ValMajor, ValMinor);
-    return true;
+    return (oldMajor != m_ValMajor || oldMinor != m_ValMinor);
   }
-  return false;
+  return ClampValidatorVersionFor_1_4(*this);
 }
 
 void DxilModule::GetValidatorVersion(unsigned &ValMajor, unsigned &ValMinor) const {
