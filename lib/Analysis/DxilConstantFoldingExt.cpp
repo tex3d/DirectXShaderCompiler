@@ -18,12 +18,24 @@
 #include "llvm/IR/Constant.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "dxc/DXIL/DxilExtension.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/LLVMContext.h"
 using namespace llvm;
 
 Constant *hlsl::ConstantFoldScalarCallExt(StringRef Name, Type *Ty, ArrayRef<Constant *> RawOperands) {
+  llvm::LLVMContext &Ctx = Ty->getContext();
+  hlsl::DxilExtension *pExt = Ctx.getDxilExtension();
+  if (pExt)
+    return pExt->ConstantFoldScalarCall(Name, Ty, RawOperands);
   return nullptr;
 }
 
 bool hlsl::CanConstantFoldCallToExt(const Function *F) {
+  llvm::LLVMContext &Ctx = F->getContext();
+  hlsl::DxilExtension *pExt = Ctx.getDxilExtension();
+  if (pExt)
+    return pExt->CanConstantFoldCall(F);
   return false;
 }

@@ -34,6 +34,10 @@
 #include "llvm/IR/ValueHandle.h"
 #include <vector>
 
+namespace hlsl {
+class DxilExtension;
+}
+
 namespace llvm {
 
 class ConstantInt;
@@ -1052,6 +1056,8 @@ public:
 
   /// Destroy the ConstantArrays if they are not used.
   void dropTriviallyDeadConstantArrays();
+
+  hlsl::DxilExtension *m_pDxilExtension = nullptr;
 };
 
 }

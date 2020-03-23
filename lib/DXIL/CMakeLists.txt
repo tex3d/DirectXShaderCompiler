@@ -20,6 +20,7 @@ add_llvm_library(LLVMDXIL
   DxilTypeSystem.cpp
   DxilUtil.cpp
   DxilPDB.cpp
+  DxilExtension.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${LLVM_MAIN_INCLUDE_DIR}/llvm/IR

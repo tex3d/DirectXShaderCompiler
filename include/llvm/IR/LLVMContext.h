@@ -20,6 +20,10 @@
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Options.h"
 
+namespace hlsl {
+class DxilExtension;
+}
+
 namespace llvm {
 
 class LLVMContextImpl;
@@ -182,6 +186,9 @@ public:
   ValT getOption() const {
     return OptionRegistry::instance().template get<ValT, Base, Mem>();
   }
+
+  void setDxilExtension(hlsl::DxilExtension *pExtension);
+  hlsl::DxilExtension *getDxilExtension();
 
 private:
   LLVMContext(LLVMContext&) = delete;

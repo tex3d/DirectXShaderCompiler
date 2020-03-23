@@ -41,6 +41,7 @@
 #include "dxc/Support/FileIOHelper.h"
 #include "dxc/Support/dxcapi.impl.h"
 #include "dxc/Support/DxcLangExtensionsHelper.h"
+#include "dxc/DXIL/DxilExtension.h"
 #include "dxc/Support/HLSLOptions.h"
 #ifdef _WIN32
 #include "dxcetw.h"
@@ -68,6 +69,7 @@ using namespace hlsl;
 using std::string;
 
 DEFINE_CROSS_PLATFORM_UUIDOF(IDxcLangExtensions)
+DEFINE_CROSS_PLATFORM_UUIDOF(IDxcLangExtensions2)
 
 // This declaration is used for the locally-linked validator.
 HRESULT CreateDxcValidator(_In_ REFIID riid, _Out_ LPVOID *ppv);
@@ -392,7 +394,7 @@ static void CreateDefineStrings(
 }
 
 class DxcCompiler : public IDxcCompiler3,
-                    public IDxcLangExtensions,
+                    public IDxcLangExtensions2,
                     public IDxcContainerEvent,
 #ifdef SUPPORT_QUERY_GIT_COMMIT_INFO
                     public IDxcVersionInfo2
@@ -405,6 +407,7 @@ private:
   DxcLangExtensionsHelper m_langExtensionsHelper;
   CComPtr<IDxcContainerEventsHandler> m_pDxcContainerEventsHandler;
   DxcCompilerAdapter m_DxcCompilerAdapter;
+  CComPtr<IDxcConstantFoldingExtension> m_pConstantFoldingExtension;
 
 public:
   DxcCompiler(IMalloc *pMalloc) : m_dwRef(0), m_pMalloc(pMalloc), m_DxcCompilerAdapter(this, pMalloc) {}
@@ -428,6 +431,7 @@ public:
     HRESULT hr = DoBasicQueryInterface<
       IDxcCompiler3,
       IDxcLangExtensions,
+      IDxcLangExtensions2,
       IDxcContainerEvent,
       IDxcVersionInfo
 #ifdef SUPPORT_QUERY_GIT_COMMIT_INFO
@@ -590,6 +594,7 @@ public:
 
       // Setup a compiler instance.
       raw_stream_ostream outStream(pOutputStream.p);
+      DxilExtension dxilExtension(m_pConstantFoldingExtension);
       llvm::LLVMContext llvmContext; // LLVMContext should outlive CompilerInstance
       CompilerInstance compiler;
       std::unique_ptr<TextDiagnosticPrinter> diagPrinter =
@@ -758,6 +763,8 @@ public:
       // SPIRV change ends
       else if (!isPreprocessing) {
         EmitBCAction action(&llvmContext);
+        if (m_pConstantFoldingExtension)
+          llvmContext.setDxilExtension(&dxilExtension);
         FrontendInputFile file(pUtf8SourceName, IK_HLSL);
         bool compileOK;
         if (action.BeginSourceFile(compiler, file)) {
@@ -1198,6 +1205,15 @@ public:
 #endif
     return S_OK;
   }
+
+  HRESULT STDMETHODCALLTYPE SetConstantFoldingExtension(_In_ IDxcConstantFoldingExtension* pExtension) override {
+    if (pExtension == nullptr)
+      return E_POINTER;
+
+    m_pConstantFoldingExtension = pExtension;
+    return S_OK;
+  }
+
 };
 
 //////////////////////////////////////////////////////////////

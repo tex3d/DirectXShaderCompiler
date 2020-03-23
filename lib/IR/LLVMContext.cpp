@@ -110,6 +110,14 @@ LLVMContext::LLVMContext() : pImpl(new LLVMContextImpl(*this)) {
 }
 LLVMContext::~LLVMContext() { delete pImpl; }
 
+void llvm::LLVMContext::setDxilExtension(hlsl::DxilExtension *pExtension) {
+  pImpl->m_pDxilExtension = pExtension;
+}
+
+hlsl::DxilExtension *llvm::LLVMContext::getDxilExtension() {
+  return pImpl->m_pDxilExtension;
+}
+
 void LLVMContext::addModule(Module *M) {
   pImpl->OwnedModules.insert(M);
 }

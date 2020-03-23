@@ -183,6 +183,50 @@ public:
   DECLARE_CROSS_PLATFORM_UUIDOF(IDxcLangExtensions)
 };
 
+struct DXIL_SCALAR_TYPE {
+  uint8_t BitsPow2 : 3; // bits = 1 << BitsPow2
+  uint8_t Reserved : 4;
+  uint8_t IsFloat : 1;
+};
+
+struct DXIL_SCALAR_CONSTANT {
+  union {
+    uint64_t i64;
+    uint32_t i32;
+    uint16_t i16;
+    uint8_t i8;
+    bool i1;
+  };
+  DXIL_SCALAR_TYPE Ty;
+};
+
+struct __declspec(uuid("e4c0c806-e950-4545-97fd-0964a6a20a85"))
+IDxcConstantFoldingExtension : public IUnknown
+{
+public:
+  /// <summary>TRUE if possible to constant fold call to function.</summary>
+  virtual BOOL STDMETHODCALLTYPE CanConstantFoldCall(LPCSTR FunctionName) = 0;
+  /// <summary>Attemt to constant fold call to function.</summary>
+  virtual HRESULT STDMETHODCALLTYPE ConstantFoldScalarCall(
+    _In_z_ LPCSTR FunctionName,
+    _In_ DXIL_SCALAR_TYPE Ty,
+    _In_reads(RawOperandCount) DXIL_SCALAR_CONSTANT *RawOperands,
+    _In_ UINT32 RawOperandCount,
+    _Out_opt_ DXIL_SCALAR_CONSTANT *Result) = 0;
+
+  DECLARE_CROSS_PLATFORM_UUIDOF(IDxcConstantFoldingExtension)
+};
+
+struct __declspec(uuid("30b181ea-d7cb-42d8-9428-2c4f4000d94a"))
+IDxcLangExtensions2 : public IDxcLangExtensions
+{
+public:
+  /// <summary>Interface for constant folding extended intrinsics.</summary>
+  virtual HRESULT STDMETHODCALLTYPE SetConstantFoldingExtension(_In_ IDxcConstantFoldingExtension* pExtension) = 0;
+
+  DECLARE_CROSS_PLATFORM_UUIDOF(IDxcLangExtensions2)
+};
+
 struct __declspec(uuid("454b764f-3549-475b-958c-a7a6fcd05fbc"))
 IDxcSystemAccess : public IUnknown
 {
