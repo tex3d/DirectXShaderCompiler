@@ -43,7 +43,7 @@ using namespace llvm;
 // This declaration is used for the locally-linked validator.
 HRESULT CreateDxcValidator(_In_ REFIID riid, _Out_ LPVOID *ppv);
 
-class DxcLinker : public IDxcLinker, public IDxcContainerEvent {
+class DxcLinker : public IDxcLinker2, public IDxcContainerEvent {
 public:
   DXC_MICROCOM_TM_ADDREF_RELEASE_IMPL()
   DXC_MICROCOM_TM_CTOR(DxcLinker)
@@ -69,6 +69,10 @@ public:
           *ppResult // Linker output status, buffer, and errors
   ) override;
 
+  HRESULT RenameResourcesInLibrary(
+    _In_ LPCWSTR pLibName               // Library in which to rename resources
+  ) override;
+
   HRESULT STDMETHODCALLTYPE RegisterDxilContainerEventHandler(
       IDxcContainerEventsHandler *pHandler, UINT64 *pCookie) override {
     DxcThreadMalloc TM(m_pMalloc);
@@ -88,7 +92,9 @@ public:
   }
 
   HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObject) {
-    return DoBasicQueryInterface<IDxcLinker>(this, riid, ppvObject);
+    return DoBasicQueryInterface<IDxcLinker,
+                                 IDxcLinker2,
+                                 IDxcContainerEvent>(this, riid, ppvObject);
   }
 
   void Initialize() {
@@ -236,6 +242,9 @@ HRESULT STDMETHODCALLTYPE DxcLinker::Link(
     dxilutil::ExportMap exportMap;
     bSuccess = exportMap.ParseExports(opts.Exports, DiagStream);
 
+    // Set whether to merge globals during linking
+    exportMap.SetMergeGlobals(!opts.NoMergeGlobals);
+
     bool hasErrorOccurred = !bSuccess;
     if (bSuccess) {
       std::unique_ptr<Module> pM = m_pLinker->Link(
@@ -300,6 +309,21 @@ HRESULT STDMETHODCALLTYPE DxcLinker::Link(
     CComPtr<IStream> pStream = pDiagStream;
     dxcutil::CreateOperationResultFromOutputs(pOutputBlob, pStream, warnings,
                                               hasErrorOccurred, ppResult);
+  }
+  CATCH_CPP_ASSIGN_HRESULT();
+  return hr;
+}
+
+HRESULT DxcLinker::RenameResourcesInLibrary(
+  _In_ LPCWSTR pLibName               // Library in which to rename resources
+) {
+  if (!pLibName)
+    return E_INVALIDARG;
+  DxcThreadMalloc TM(m_pMalloc);
+  HRESULT hr = S_OK;
+  try {
+    CW2A pUtf8LibName(pLibName, CP_UTF8);
+    m_pLinker->RenameResourcesInLib(pUtf8LibName.m_psz);
   }
   CATCH_CPP_ASSIGN_HRESULT();
   return hr;

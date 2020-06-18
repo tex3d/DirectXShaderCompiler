@@ -128,6 +128,9 @@ public:
   void CollectUsedInitFunctions(SetVector<StringRef> &addedFunctionSet,
                                 SmallVector<StringRef, 4> &workList);
 
+  // Rename resources to prevent resources with the same name
+  // being merged as the same resource during linking.
+  void RenameResources();
   void FixIntrinsicOverloads();
 
 private:
@@ -139,6 +142,7 @@ private:
   llvm::MapVector<const llvm::Constant *, DxilResourceBase *> m_resourceMap;
   // Set of initialize functions for global variable. SetVector for deterministic iteration.
   llvm::SetVector<llvm::Function *> m_initFuncSet;
+  bool m_bResourcesRenamed;
 };
 
 struct DxilLinkJob;
@@ -156,6 +160,8 @@ public:
 
   std::unique_ptr<llvm::Module>
   Link(StringRef entry, StringRef profile, dxilutil::ExportMap &exportMap) override;
+
+  void RenameResourcesInLib(llvm::StringRef name) override;
 
 private:
   bool AttachLib(DxilLib *lib);
@@ -188,7 +194,8 @@ DxilFunctionLinkInfo::DxilFunctionLinkInfo(Function *F) : func(F) {
 //
 
 DxilLib::DxilLib(std::unique_ptr<llvm::Module> pModule)
-    : m_pModule(std::move(pModule)), m_DM(m_pModule->GetOrCreateDxilModule()) {
+    : m_pModule(std::move(pModule)), m_DM(m_pModule->GetOrCreateDxilModule()),
+      m_bResourcesRenamed(false) {
   Module &M = *m_pModule;
   const std::string MID = (Twine(M.getModuleIdentifier()) + ".").str();
 
@@ -224,6 +231,19 @@ void DxilLib::FixIntrinsicOverloads() {
   // when those types may have had the same name in the original
   // modules.
   m_DM.GetOP()->FixOverloadNames();
+}
+
+void DxilLib::RenameResources() {
+  if (m_bResourcesRenamed)
+    return;
+
+  Module &M = *m_pModule;
+  const std::string MID = (Twine(M.getModuleIdentifier()) + ".").str();
+
+  // Prevent merging of resources from this library.
+  m_DM.RenameResourcesWithPrefix(MID);
+
+  m_bResourcesRenamed = true;
 }
 
 void DxilLib::LazyLoadFunction(Function *F) {
@@ -1116,6 +1136,12 @@ bool DxilLinkerImpl::RegisterLib(StringRef name,
       llvm::make_unique<DxilLib>(std::move(pM));
   m_LibMap[name] = std::move(pLib);
   return true;
+}
+
+void DxilLinkerImpl::RenameResourcesInLib(llvm::StringRef name) {
+  auto iter = m_LibMap.find(name);
+  if (iter != m_LibMap.end())
+    iter->second->RenameResources();
 }
 
 bool DxilLinkerImpl::AttachLib(StringRef name) {

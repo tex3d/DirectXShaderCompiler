@@ -1044,6 +1044,25 @@ void DxilModule::RemoveResourcesWithUnusedSymbols() {
 
 namespace {
 template <typename TResource>
+static void RenameResources(std::vector<std::unique_ptr<TResource>> &vec, const std::string &prefix) {
+  for (auto &res : vec) {
+    res->SetGlobalName(prefix + res->GetGlobalName());
+    if (GlobalVariable *GV = dyn_cast<GlobalVariable>(res->GetGlobalSymbol())) {
+      GV->setName(prefix + GV->getName());
+    }
+  }
+}
+}
+
+void DxilModule::RenameResourcesWithPrefix(const std::string &prefix) {
+  RenameResources(m_SRVs, prefix);
+  RenameResources(m_UAVs, prefix);
+  RenameResources(m_CBuffers, prefix);
+  RenameResources(m_Samplers, prefix);
+}
+
+namespace {
+template <typename TResource>
 static void RenameGlobalsWithBinding(std::vector<std::unique_ptr<TResource>> &vec, llvm::StringRef prefix, bool bKeepName) {
   for (auto &res : vec) {
     if (res->IsAllocated()) {

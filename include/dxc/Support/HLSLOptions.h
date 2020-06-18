@@ -190,6 +190,7 @@ public:
   unsigned long ValVerMajor = UINT_MAX, ValVerMinor = UINT_MAX; // OPT_validator_version
   unsigned ScanLimit = 0; // OPT_memdep_block_scan_limit
   hlsl::OptimizationOptions DxcOptimizationOptions; // OPT_opt_disable
+  bool NoMergeGlobals = false; // OPT_no_merge_globals
 
   // Rewriter Options
   RewriterOpts RWOpt;

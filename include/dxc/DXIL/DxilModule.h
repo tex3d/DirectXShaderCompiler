@@ -114,6 +114,7 @@ public:
   void RemoveResourcesWithUnusedSymbols();
   void RemoveFunction(llvm::Function *F);
 
+  void RenameResourcesWithPrefix(const std::string &prefix);
   void RenameResourceGlobalsWithBinding(bool bKeepName = true);
 
   // Signatures.

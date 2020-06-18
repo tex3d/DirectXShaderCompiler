@@ -49,6 +49,8 @@ public:
   virtual std::unique_ptr<llvm::Module>
   Link(llvm::StringRef entry, llvm::StringRef profile, dxilutil::ExportMap &exportMap) = 0;
 
+  virtual void RenameResourcesInLib(llvm::StringRef name) = 0;
+
 protected:
   DxilLinker(llvm::LLVMContext &Ctx, unsigned valMajor, unsigned valMinor) : m_ctx(Ctx), m_valMajor(valMajor), m_valMinor(valMinor) {}
   llvm::LLVMContext &m_ctx;

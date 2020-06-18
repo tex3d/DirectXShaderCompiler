@@ -439,6 +439,12 @@ def nologo : Flag<["-", "/"], "nologo">, Group<hlslcore_Group>, Flags<[DriverOpt
   HelpText<"Suppress copyright message">;
 
 //////////////////////////////////////////////////////////////////////////////
+// Linker Options
+def no_merge_globals : Flag<["-", "/"], "no-merge-globals">,
+  Flags<[CoreOption]>, Group<hlslcore_Group>,
+  HelpText<"Don't merge globals with same name when linking">;
+
+//////////////////////////////////////////////////////////////////////////////
 // Rewriter Options
 
 def rw_unchanged : Flag<["-", "/"], "unchanged">, Group<hlslrewrite_Group>, Flags<[RewriteOption]>,

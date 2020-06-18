@@ -47,6 +47,9 @@ static cl::opt<std::string> OutputFilename("Fo",
                                            cl::desc("Override output filename"),
                                            cl::value_desc("filename"));
 
+static cl::opt<bool> NoMergeGlobals("no-merge-globals", cl::desc("Don't merge globals with same name when linking"));
+
+
 
 class DxlContext {
 
@@ -88,8 +91,11 @@ int DxlContext::Link() {
 
   CComPtr<IDxcOperationResult> pLinkResult;
 
+  LPCWSTR opts[] = {L"-no-merge-globals"};
+
   IFT(pLinker->Link(StringRefUtf16(entry), StringRefUtf16(profile),
-                wpInputFiles.data(), wpInputFiles.size(), nullptr, 0,
+                wpInputFiles.data(), wpInputFiles.size(),
+                opts, NoMergeGlobals ? 1 : 0,
                 &pLinkResult));
 
   HRESULT status;

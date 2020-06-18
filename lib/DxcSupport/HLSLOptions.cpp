@@ -913,6 +913,9 @@ int ReadDxcOpts(const OptTable *optionTable, unsigned flagsToInclude,
     }
   }
 
+  // Linker Options
+  opts.NoMergeGlobals = Args.hasFlag(OPT_no_merge_globals, OPT_INVALID, false);
+
   opts.Args = std::move(Args);
   return 0;
 }

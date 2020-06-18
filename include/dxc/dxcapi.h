@@ -365,6 +365,19 @@ public:
   DECLARE_CROSS_PLATFORM_UUIDOF(IDxcLinker)
 };
 
+#define DXC_RENAME_RESOURCES_BY_LIBNAME 1
+#define DXC_RENAME_RESOURCES_BY_BINDING 2
+
+struct __declspec(uuid("AC9A0461-BDCD-4A7F-93A2-667E3F602BDD"))
+  IDxcLinker2 : public IDxcLinker {
+public:
+  // Normally global symbols, such as resources are merged by name
+  // Rename resources in this library to prevent name collisions
+  virtual HRESULT RenameResourcesInLibrary(
+    _In_ LPCWSTR pLibName               // Library in which to rename resources
+  ) = 0;
+};
+
 /////////////////////////
 // Latest interfaces. Please use these
 ////////////////////////

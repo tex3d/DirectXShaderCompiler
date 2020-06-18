@@ -89,6 +89,10 @@ namespace dxilutil {
     // GetRenames gets the map of mangled renames by function pointer
     const RenameMap &GetFunctionRenames() const { return m_RenameMap; }
 
+    // Flag for whether to merge globals during linking
+    void SetMergeGlobals(bool bMerge) { m_bMergeGlobals = bMerge; }
+    bool GetMergeGlobals() const { return m_bMergeGlobals; }
+
   private:
     // {"internalname": ("export1", "export2", ...), ...}
     ExportMapByString m_ExportMap;
@@ -100,6 +104,9 @@ namespace dxilutil {
     NameSet m_ExportNames;
     NameSet m_NameCollisions;
     NameSet m_UnusedExports;
+
+    // Flag for whether to merge globals during linking
+    bool m_bMergeGlobals = true;
   };
 }
 
