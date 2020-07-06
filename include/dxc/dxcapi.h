@@ -320,6 +320,9 @@ IDxcCompiler : public IUnknown {
 struct __declspec(uuid("A005A9D9-B8BB-4594-B5C9-0E633BEC4D37"))
 IDxcCompiler2 : public IDxcCompiler {
   // Compile a single entry point to the target shader model with debug information.
+  // Note: if provided, the string pointer pointed to by ppDebugBlobName
+  //  is allocated on the COM heap, and must be freed with CoTaskMemFree().
+  //  CComHeapPtr<WCHAR> can also be used to automatically manage this memory.
   virtual HRESULT STDMETHODCALLTYPE CompileWithDebug(
     _In_ IDxcBlob *pSource,                       // Source text to compile
     _In_opt_z_ LPCWSTR pSourceName,               // Optional file name for pSource. Used in errors and include handlers.
@@ -332,7 +335,7 @@ IDxcCompiler2 : public IDxcCompiler {
     _In_ UINT32 defineCount,                      // Number of defines
     _In_opt_ IDxcIncludeHandler *pIncludeHandler, // user-provided interface to handle #include directives (optional)
     _COM_Outptr_ IDxcOperationResult **ppResult,  // Compiler output status, buffer, and errors
-    _Outptr_opt_result_z_ LPWSTR *ppDebugBlobName,// Suggested file name for debug blob. (Must be HeapFree()'d!)
+    _Outptr_opt_result_z_ LPWSTR *ppDebugBlobName,// Suggested file name for debug blob. Free with CoTaskMemFree().
     _COM_Outptr_opt_ IDxcBlob **ppDebugBlob       // Debug blob
   ) = 0;
 
