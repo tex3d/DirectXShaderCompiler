@@ -1208,18 +1208,18 @@ class db_dxil(object):
 
         self.add_dxil_op("RawBufferLoad", next_op_idx, "RawBufferLoad", "reads from a raw buffer and structured buffer", "hfwidl", "ro", [
             db_dxil_param(0, "$r", "", "the loaded value"),
-            db_dxil_param(2, "res", "srv", "handle of TypedBuffer SRV to sample"),
-            db_dxil_param(3, "i32", "index", "element index for StructuredBuffer, or byte offset for ByteAddressBuffer"),
-            db_dxil_param(4, "i32", "elementOffset", "offset into element for StructuredBuffer, or undef for ByteAddressBuffer"),
-            db_dxil_param(5, "i8", "mask", "loading value mask", is_const=True),
+            db_dxil_param(2, "res", "srv", "handle for ByteAddressBuffer or StructuredBuffer"),
+            db_dxil_param(3, "i32", "index", "StructuredBuffer: element index; ByteAddressBuffer: byte offset"),
+            db_dxil_param(4, "i32", "elementOffset", "StructuredBuffer: byte offset into element; ByteAddressBuffer: undef"),
+            db_dxil_param(5, "i8", "mask", "component mask for load (x=1,y=2,z=4,w=8)", is_const=True),
             db_dxil_param(6, "i32", "alignment", "relative load access alignment", is_const=True)])
         next_op_idx += 1
 
         self.add_dxil_op("RawBufferStore", next_op_idx, "RawBufferStore", "writes to a RWByteAddressBuffer or RWStructuredBuffer", "hfwidl", "", [
             db_dxil_param(0, "v", "", ""),
-            db_dxil_param(2, "res", "uav", "handle of UAV to store to"),
-            db_dxil_param(3, "i32", "index", "element index for StructuredBuffer, or byte offset for ByteAddressBuffer"),
-            db_dxil_param(4, "i32", "elementOffset", "offset into element for StructuredBuffer, or undef for ByteAddressBuffer"),
+            db_dxil_param(2, "res", "uav", "handle for ByteAddressBuffer or StructuredBuffer"),
+            db_dxil_param(3, "i32", "index", "StructuredBuffer: element index; ByteAddressBuffer: byte offset"),
+            db_dxil_param(4, "i32", "elementOffset", "StructuredBuffer: byte offset into element; ByteAddressBuffer: undef"),
             db_dxil_param(5, "$o", "value0", "value"),
             db_dxil_param(6, "$o", "value1", "value"),
             db_dxil_param(7, "$o", "value2", "value"),

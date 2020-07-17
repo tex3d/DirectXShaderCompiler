@@ -1751,23 +1751,28 @@ The following signature shows the operation syntax::
 
   ; overloads: SM5.1: f32|i32,  SM6.0: f32|i32, SM6.2: f16|f32|i16|i32
   ; returns: status
-  declare %dx.types.ResRet.f32 @dx.op.bufferLoad.f32(
+  declare %dx.types.ResRet.f32 @dx.op.rawBufferLoad.f32(
       i32,                  ; opcode
       %dx.types.Handle,     ; resource handle
-      i32,                  ; coordinate c0 (index)
-      i32,                  ; coordinate c1 (elementOffset)
-      i8,                   ; mask
+      i32,                  ; index
+      i32,                  ; elementOffset
+      i8,                   ; read mask
       i32,                  ; alignment
   )
 
 The call respects SM5.1 OOB and alignment rules.
 
-====================  =====================================================
-Valid resource type   # of active coordinates
-====================  =====================================================
-[RW]RawBuffer         1 (c0 in bytes)
-[RW]StructuredBuffer  2 (c0 in elements, c1 = byte offset into the element)
-====================  =====================================================
+Argument interpretation depend on resource type as follows:
+
+=============  ===================================  ===========================
+Argument use   [RW]StructuredBuffer                 [RW]ByteAddressBuffer
+=============  ===================================  ===========================
+index          index in elements                    offset in bytes
+elementOffset  byte offset into element             undef (unused)
+alignment      alignment of elementOffset in bytes  alignment of index in bytes
+=============  ===================================  ===========================
+
+The read mask indicates which components are read (x - 1, y - 2, z - 4, w - 8), similar to DXBC. Valid masks are: x, xy, xyz, xyzw.
 
 BufferStore
 ~~~~~~~~~~~
@@ -1804,28 +1809,31 @@ RawBufferStore
 The following signature shows the operation syntax::
 
   ; overloads: SM5.1: f32|i32,  SM6.0: f32|i32, SM6.2: f16|f32|i16|i32
-  declare void @dx.op.bufferStore.f32(
+  declare void @dx.op.rawBufferStore.f32(
       i32,                  ; opcode
       %dx.types.Handle,     ; resource handle
-      i32,                  ; coordinate c0 (index)
-      i32,                  ; coordinate c1 (elementOffset)
+      i32,                  ; index
+      i32,                  ; elementOffset
       float,                ; value v0
       float,                ; value v1
       float,                ; value v2
       float,                ; value v3
-      i8,                   ; write mask
+      i8,                   ; mask
       i32)                  ; alignment
 
 The call respects SM5.1 OOB and alignment rules.
 
-The write mask indicates which components are written (x - 1, y - 2, z - 4, w - 8), similar to DXBC. For RWTypedBuffer, the mask must cover all resource components. For RWRawBuffer and RWStructuredBuffer, valid masks are: x, xy, xyz, xyzw.
+Argument interpretation depend on resource type as follows:
 
-==================== =====================================================
-Valid resource type  # of active coordinates
-==================== =====================================================
-RWRawbuffer          1 (c0 in bytes)
-RWStructuredbuffer   2 (c0 in elements, c1 = byte offset into the element)
-==================== =====================================================
+=============  ===================================  ===========================
+Argument use   [RW]StructuredBuffer                 [RW]ByteAddressBuffer
+=============  ===================================  ===========================
+index          index in elements                    offset in bytes
+elementOffset  byte offset into element             undef (unused)
+alignment      alignment of elementOffset in bytes  alignment of index in bytes
+=============  ===================================  ===========================
+
+The write mask indicates which components are written (x - 1, y - 2, z - 4, w - 8), similar to DXBC. Valid masks are: x, xy, xyz, xyzw.
 
 BufferUpdateCounter
 ~~~~~~~~~~~~~~~~~~~
