@@ -135,6 +135,26 @@ DXIL 1.2 Changes
 * RawBufferLoad and RawBufferStore DXIL operations for ByteAddressBuffer and StructuredBuffer
 * Denorm mode as a function attribute for float32 "fp32-denorm-mode"=<value>
 
+DXIL 1.3 Changes
+----------------
+* RawBufferLoad and RawBufferStore DXIL operations support f64 and i64 overloads - support required with associated int64/double feature support at shader model 6.3 and above.
+* [optional] Runtime-supported library target lib_6_3 for DirectX Raytracing
+* [optional] DirectX Raytracing intrinsics, CreateHandleForLib
+
+DXIL 1.4 Changes
+----------------
+* Dot2AddHalf - Dot product of two half2 vectors, summed in floating point precision with a float accumulator
+* Dot4AddI8Packed, Dot4AddU8Packed - dot product of two 4 component i8 vectors packed into i32 values, summed with i32 accumulator (signed, and unsigned versions)
+
+DXIL 1.5 Changes
+----------------
+* WaveMatch and WaveMultiPrefix* operations
+* [optional] Mesh shader and Amplification shader stages, plus associated intrinsics
+* [optional] WriteSamplerFeedback* intrinsics
+* [optional] RayQuery intrinsics
+* New Container Part - HASH - contains hash computed from shader binary
+* New Container Part - STAT - contains reflection data
+
 LLVM Bitcode version
 --------------------
 
