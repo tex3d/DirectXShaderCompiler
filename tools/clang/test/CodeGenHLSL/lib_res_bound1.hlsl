@@ -8,7 +8,8 @@ RWByteAddressBuffer b : register(u0);
 
 float Extern(uint dtid);
 
-[numthreads(31, 1, 1)]
+[shader("compute")]
+[numthreads(32, 1, 1)]
 void main(uint dtid : SV_DispatchThreadId)
 {
     b.Store2(dtid * 4, float2(Extern(dtid), g_buf.values));

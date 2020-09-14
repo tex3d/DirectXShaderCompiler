@@ -168,7 +168,7 @@ private:
   std::unordered_set<DxilLib *> m_attachedLibs;
   // Owner of all DxilLib.
   StringMap<std::unique_ptr<DxilLib>> m_LibMap;
-  llvm::StringMap<std::pair<DxilFunctionLinkInfo *, DxilLib *>>
+  std::map<StringRef, std::pair<DxilFunctionLinkInfo *, DxilLib *>>
       m_functionNameMap;
 };
 
@@ -340,6 +340,101 @@ DxilResourceBase *DxilLib::GetResource(const llvm::Constant *GV) {
 
 
 namespace {
+
+struct ResourceBinding {
+  hlsl::DXIL::ResourceClass Class;
+  uint32_t Space;
+  uint32_t LowerBound;
+  uint32_t RangeSize;
+  ResourceBinding(const DxilResourceBase *pResource)
+      : Class(pResource->GetClass()), Space(pResource->GetSpaceID()),
+        LowerBound(pResource->GetLowerBound()),
+        RangeSize(pResource->GetRangeSize()) {}
+  bool IsAllocated() const { return LowerBound != UINT_MAX; }
+  bool IsUnbounded() const { return RangeSize == UINT_MAX; }
+  uint32_t GetUpperBound() const { return RangeSize != UINT_MAX ? LowerBound + (RangeSize - 1) : UINT_MAX; }
+  int cmp(const ResourceBinding &other) const {
+    if (Class < other.Class) return -1;
+    if (Class > other.Class) return 1;
+
+    // TBD: Is this ultimately how we want unbound to sort?
+    // Unallocated is less than Allocated.
+    // All unallocated resources of same class are treated as the same.
+    if (!IsAllocated()) return other.IsAllocated() ? -1 : 0;
+    if (!other.IsAllocated()) return 1;
+
+    if (Space < other.Space) return -1;
+    if (Space > other.Space) return 1;
+    if (GetUpperBound() < other.LowerBound) return -1;
+    if (LowerBound > other.GetUpperBound()) return 1;
+    // Return 0 for overlap.
+    return 0;
+  }
+  bool operator<(const ResourceBinding &other) const { return cmp(other) < 0; }
+  bool operator>(const ResourceBinding &other) const { return cmp(other) > 0; }
+  bool operator==(const ResourceBinding &other) const {
+    return Class      == other.Class &&
+            Space      == other.Space &&
+            LowerBound == other.LowerBound &&
+            RangeSize  == other.RangeSize;
+  }
+};
+struct ResourceType {
+  hlsl::DXIL::ResourceClass Class = hlsl::DXIL::ResourceClass::SRV;
+  hlsl::DXIL::ResourceKind Kind = hlsl::DXIL::ResourceKind::Invalid;
+  llvm::StringRef TypeName;
+  ResourceType(const DxilResourceBase *pResource)
+      : Class(pResource->GetClass()),
+        Kind(pResource->GetKind()) {
+    Type *pType = pResource->GetGlobalSymbol()->getType()->getPointerElementType();
+    while (pType->isArrayTy())
+      pType = pType->getArrayElementType();
+    TypeName = pType->getStructName();
+  }
+  int cmp(const ResourceType &other) const {
+    if (Class < other.Class) return -1;
+    if (Class > other.Class) return 1;
+    if (Kind < other.Kind) return -1;
+    if (Kind > other.Kind) return 1;
+    if (TypeName < other.TypeName) return -1;
+    if (TypeName > other.TypeName) return 1;
+    return 0;
+  }
+  bool operator<(const ResourceType &other) const { return cmp(other) < 0; }
+  bool operator>(const ResourceType &other) const { return cmp(other) > 0; }
+  bool operator==(const ResourceType &other) const {
+    return Class    == other.Class &&
+            Kind     == other.Kind &&
+            TypeName == other.TypeName;
+  }
+};
+struct ResourceKey {
+  llvm::StringRef Name;
+  ResourceType Type;
+  ResourceBinding Binding;
+
+  ResourceKey(const DxilResourceBase *pResource)
+      : Name(pResource->GetGlobalName()),
+        Type(pResource),
+        Binding(pResource) {}
+  int cmp(const ResourceKey &other) const {
+    if (Name < other.Name) return -1;
+    if (Name > other.Name) return 1;
+    if (Type < other.Type) return -1;
+    if (Type > other.Type) return 1;
+    if (Binding < other.Binding) return -1;
+    if (Binding > other.Binding) return 1;
+    return 0;
+  }
+  bool operator<(const ResourceKey &other) const { return cmp(other) < 0; }
+  bool operator>(const ResourceKey &other) const { return cmp(other) > 0; }
+  bool operator==(const ResourceKey &other) const {
+    return Name     == other.Name &&
+            Type     == other.Type &&
+            Binding  == other.Binding;
+  }
+};
+
 // Create module from link defines.
 struct DxilLinkJob {
   DxilLinkJob(LLVMContext &Ctx, dxilutil::ExportMap &exportMap,
@@ -354,16 +449,19 @@ struct DxilLinkJob {
   void RunPreparePass(llvm::Module &M);
   void AddFunction(std::pair<DxilFunctionLinkInfo *, DxilLib *> &linkPair);
   void AddFunction(llvm::Function *F);
+  void AddResourcesFromLib(DxilLib* pLib);
 
 private:
   void LinkNamedMDNodes(Module *pM, ValueToValueMapTy &vmap);
   void AddFunctionDecls(Module *pM);
+  GlobalVariable *AddGlobal(DxilModule &DM, GlobalVariable *GV);
   bool AddGlobals(DxilModule &DM, ValueToValueMapTy &vmap);
   void EmitCtorListForLib(Module *pM);
   void CloneFunctions(ValueToValueMapTy &vmap);
   void AddFunctions(DxilModule &DM, ValueToValueMapTy &vmap);
-  bool AddResource(DxilResourceBase *res, llvm::GlobalVariable *GV);
-  void AddResourceToDM(DxilModule &DM);
+  DxilResourceBase *FindMatchingResource(DxilResourceBase *res);
+  //bool AddResource(DxilResourceBase *res, llvm::GlobalVariable *GV);
+  void AddResourceToDM(DxilModule &DM, ValueToValueMapTy &vmap);
   llvm::MapVector<DxilFunctionLinkInfo *, DxilLib *> m_functionDefs;
 
   // Function decls, in order added.
@@ -375,13 +473,10 @@ private:
   // New created functions, in order added.
   llvm::MapVector<llvm::StringRef, llvm::Function *> m_newFunctions;
 
-  // New created globals, in order added.
-  llvm::MapVector<llvm::StringRef, llvm::GlobalVariable *> m_newGlobals;
-
-  // Map for resource, ordered by name.
-  std::map<llvm::StringRef,
-           std::pair<DxilResourceBase *, llvm::GlobalVariable *>>
-    m_resourceMap;
+  // Resources to link by (name,type,binding)
+  std::multimap<ResourceKey, DxilResourceBase *> m_resourcesToLink;
+  // All resource map used to map unallocated resources, or fail on ambiguities.
+  std::multimap<ResourceKey, DxilResourceBase *> m_allResources;
 
   LLVMContext &m_ctx;
   dxilutil::ExportMap &m_exportMap;
@@ -401,6 +496,10 @@ const char kNoEntryProps[] =
     "Cannot find function property for entry function ";
 const char kRedefineResource[] =
     "Resource already exists as ";
+const char kAmbiguousAllocatedResources[] =
+    "Ambiguous resource matches found trying to map unallocated resource: ";
+const char kMismatchAllocatedResources[] =
+    "Mismatched allocated resource found trying to map unallocated resource: ";
 const char kInvalidValidatorVersion[] = "Validator version does not support target profile ";
 const char kExportNameCollision[] = "Export name collides with another export: ";
 const char kExportFunctionMissing[] = "Could not find target for export: ";
@@ -476,30 +575,21 @@ bool IsMatchedType(Type *Ty0, Type *Ty) {
 }
 } // namespace
 
-bool DxilLinkJob::AddResource(DxilResourceBase *res, llvm::GlobalVariable *GV) {
-  if (m_resourceMap.count(res->GetGlobalName())) {
-    DxilResourceBase *res0 = m_resourceMap[res->GetGlobalName()].first;
-    Type *Ty0 = res0->GetGlobalSymbol()->getType()->getPointerElementType();
-    Type *Ty = res->GetGlobalSymbol()->getType()->getPointerElementType();
-    // Make sure res0 match res.
-    bool bMatch = IsMatchedType(Ty0, Ty);
-    if (!bMatch) {
-      // Report error.
-      dxilutil::EmitErrorOnGlobalVariable(dyn_cast<GlobalVariable>(res->GetGlobalSymbol()),
-                                          Twine(kRedefineResource) + res->GetResClassName() + " for " +
-                                          res->GetGlobalName());
-      return false;
-    }
-  } else {
-    m_resourceMap[res->GetGlobalName()] = std::make_pair(res, GV);
+DxilResourceBase *DxilLinkJob::FindMatchingResource(DxilResourceBase *res) {
+  ResourceKey key(res);
+  for (auto it = m_resourcesToLink.find(key);
+       it != m_resourcesToLink.end() && !(it->first > key);
+       it++) {
+    if (it->first == key)
+      return it->second;
   }
-  return true;
+  return nullptr;
 }
 
-void DxilLinkJob::AddResourceToDM(DxilModule &DM) {
-  for (auto &it : m_resourceMap) {
-    DxilResourceBase *res = it.second.first;
-    GlobalVariable *GV = it.second.second;
+void DxilLinkJob::AddResourceToDM(DxilModule &DM, ValueToValueMapTy &vmap) {
+  for (auto &it : m_resourcesToLink) {
+    DxilResourceBase *res = it.second;
+    GlobalVariable *GV = cast<GlobalVariable>(vmap[it.second->GetGlobalSymbol()]);
     unsigned ID = 0;
     DxilResourceBase *basePtr = nullptr;
     switch (res->GetClass()) {
@@ -608,59 +698,146 @@ void DxilLinkJob::AddFunctionDecls(Module *pM) {
   }
 }
 
+void DxilLinkJob::AddResourcesFromLib(DxilLib* pLib) {
+  DxilModule &DM = pLib->GetDxilModule();
+  for (auto &it : DM.GetCBuffers())
+    m_allResources.emplace(it.get(), it.get());
+  for (auto &it : DM.GetSRVs())
+    m_allResources.emplace(it.get(), it.get());
+  for (auto &it : DM.GetUAVs())
+    m_allResources.emplace(it.get(), it.get());
+  for (auto &it : DM.GetSamplers())
+    m_allResources.emplace(it.get(), it.get());
+}
+
+GlobalVariable *DxilLinkJob::AddGlobal(DxilModule &DM, GlobalVariable *GV) {
+  Type *Ty = GV->getType()->getElementType();
+  GlobalVariable *NewGV = new GlobalVariable(
+      *DM.GetModule(), Ty, GV->isConstant(), GV->getLinkage(),
+      GV->hasInitializer() ? GV->getInitializer() : nullptr,
+      GV->getName(),
+      /*InsertBefore*/ nullptr, GV->getThreadLocalMode(),
+      GV->getType()->getAddressSpace(), GV->isExternallyInitialized());
+  DM.GetTypeSystem().CopyTypeAnnotation(Ty, GV->getParent()->GetDxilModule().GetTypeSystem());
+  return NewGV;
+}
+
 bool DxilLinkJob::AddGlobals(DxilModule &DM, ValueToValueMapTy &vmap) {
-  DxilTypeSystem &typeSys = DM.GetTypeSystem();
   Module *pM = DM.GetModule();
+  SmallVector<DxilResourceBase *, 4> unallocatedResources;
   bool bSuccess = true;
   for (auto &it : m_functionDefs) {
     DxilFunctionLinkInfo *linkInfo = it.first;
     DxilLib *pLib = it.second;
-    DxilModule &tmpDM = pLib->GetDxilModule();
-    DxilTypeSystem &tmpTypeSys = tmpDM.GetTypeSystem();
     for (GlobalVariable *GV : linkInfo->usedGVs) {
       // Skip added globals.
-      if (m_newGlobals.count(GV->getName())) {
-        if (vmap.find(GV) == vmap.end()) {
-          if (DxilResourceBase *res = pLib->GetResource(GV)) {
-            // For resource of same name, if class and type match, just map to
-            // same NewGV.
-            GlobalVariable *NewGV = m_newGlobals[GV->getName()];
-            if (AddResource(res, NewGV)) {
-              vmap[GV] = NewGV;
-            } else {
-              bSuccess = false;
-            }
-            continue;
-          }
-
-          // Redefine of global.
-          dxilutil::EmitErrorOnGlobalVariable(GV, Twine(kRedefineGlobal) + GV->getName());
-          bSuccess = false;
-        }
+      if (vmap.find(GV) != vmap.end())
         continue;
-      }
-      Constant *Initializer = nullptr;
-      if (GV->hasInitializer())
-        Initializer = GV->getInitializer();
-
-      Type *Ty = GV->getType()->getElementType();
-      GlobalVariable *NewGV = new GlobalVariable(
-          *pM, Ty, GV->isConstant(), GV->getLinkage(), Initializer,
-          GV->getName(),
-          /*InsertBefore*/ nullptr, GV->getThreadLocalMode(),
-          GV->getType()->getAddressSpace(), GV->isExternallyInitialized());
-
-      m_newGlobals[GV->getName()] = NewGV;
-
-      vmap[GV] = NewGV;
-
-      typeSys.CopyTypeAnnotation(Ty, tmpTypeSys);
 
       if (DxilResourceBase *res = pLib->GetResource(GV)) {
-        bSuccess &= AddResource(res, NewGV);
+        if (!res->IsAllocated()) {
+          // defer for later search for a match
+          unallocatedResources.emplace_back(res);
+          continue;
+        }
+        if (DxilResourceBase *foundRes = FindMatchingResource(res)) {
+          // found exact match, merge resource
+          vmap[GV] = vmap[foundRes->GetGlobalSymbol()];
+          continue;
+        } else if (!m_exportMap.GetAllowResOverlap()) {
+          // Did not find a matching resource to link to, so if a global
+          // already exists, it's a conflicting redefinition.
+          if (pM->getGlobalVariable(GV->getName(), /*AllowLocal*/true)) {
+            dxilutil::EmitErrorOnGlobalVariable(
+                GV, Twine(kRedefineResource) + res->GetResClassName() +
+                        " for " + GV->getName());
+            bSuccess = false;
+            continue;
+          }
+        }
+        m_resourcesToLink.emplace(res, res);
+      } else {  // not a resource
+        if (pM->getGlobalVariable(GV->getName(), /*AllowLocal*/true)) {
+          // Matching name, not resource, and not mapped: redefinition
+          dxilutil::EmitErrorOnGlobalVariable(GV, Twine(kRedefineGlobal) + GV->getName());
+          bSuccess = false;
+          continue;
+        }
       }
+      vmap[GV] = AddGlobal(DM, GV);
     }
   }
+
+  // Look for matches for unallocated resources
+  for (auto res : unallocatedResources) {
+    ResourceKey key(res);
+    GlobalVariable *GV = cast<GlobalVariable>(res->GetGlobalSymbol());
+    DxilResourceBase *foundRes = nullptr;
+    // needToAdd set to false if foundRes is already in m_resourcesToLink.
+    bool needToAdd = true;
+    for (auto it = m_allResources.lower_bound(key);
+          it != m_allResources.end() && it->first.Name == key.Name;
+          it++) {
+      auto &cur = it->first;
+      if (cur.Binding.IsAllocated()) {
+        if (foundRes) {
+          if (ResourceKey(foundRes) == cur) {
+            // Already found one, identical to cur, so first one will do.
+            continue;
+          } else {
+            // Already found one, not identical to cur, so it's ambiguous which to map to.
+            dxilutil::EmitErrorOnGlobalVariable(
+                GV, Twine(kAmbiguousAllocatedResources) +
+                        res->GetResClassName() + " for " +
+                        res->GetGlobalName());
+            foundRes = nullptr;
+            bSuccess = false;
+            break;
+          }
+        }
+        if (!(cur.Type == key.Type) ||
+            (cur.Binding.RangeSize != key.Binding.RangeSize)) {
+          dxilutil::EmitErrorOnGlobalVariable(
+              GV, Twine(kMismatchAllocatedResources) + res->GetResClassName() +
+                      " for " + res->GetGlobalName());
+          bSuccess = false;
+          break;
+        }
+        foundRes = it->second;
+        // Prefer match in current m_resourcesToLink, so we don't add duplicate.
+        DxilResourceBase *match = FindMatchingResource(foundRes);
+        if (match) {
+          foundRes = match;
+          needToAdd = false;
+        }
+      }
+    }
+    if (foundRes) {
+      if (needToAdd) {
+        m_resourcesToLink.emplace(foundRes, foundRes);
+        GlobalVariable *NewGV = AddGlobal(DM, cast<GlobalVariable>(foundRes->GetGlobalSymbol()));
+        vmap[foundRes->GetGlobalSymbol()] = NewGV;
+        vmap[GV] = NewGV;
+      } else {
+        vmap[GV] = vmap[foundRes->GetGlobalSymbol()];
+      }
+    } else {
+      if (!m_exportMap.GetAllowResOverlap()) {
+        // Did not find a matching resource to link to, so if a global
+        // already exists, it's a conflicting redefinition.
+        if (pM->getGlobalVariable(GV->getName(), /*AllowLocal*/true)) {
+          dxilutil::EmitErrorOnGlobalVariable(
+              GV, Twine(kRedefineResource) + res->GetResClassName() +
+                      " for " + GV->getName());
+          bSuccess = false;
+          continue;
+        }
+      }
+      vmap[GV] = AddGlobal(DM, cast<GlobalVariable>(GV));
+      m_resourcesToLink.emplace(res, res);
+    }
+  }
+
   return bSuccess;
 }
 
@@ -809,7 +986,7 @@ DxilLinkJob::Link(std::pair<DxilFunctionLinkInfo *, DxilLib *> &entryLinkPair,
 
   // Add resource to DM.
   // This should be after functions cloned.
-  AddResourceToDM(DM);
+  AddResourceToDM(DM, vmap);
 
   // Link metadata like debug info.
   LinkNamedMDNodes(pM.get(), vmap);
@@ -922,7 +1099,7 @@ DxilLinkJob::LinkToLib(const ShaderModel *pSM) {
 
   // Add resource to DM.
   // This should be after functions cloned.
-  AddResourceToDM(DM);
+  AddResourceToDM(DM, vmap);
 
   // Link metadata like debug info.
   LinkNamedMDNodes(pM.get(), vmap);
@@ -1319,6 +1496,13 @@ DxilLinkerImpl::Link(StringRef entry, StringRef profile, dxilutil::ExportMap &ex
 
   DxilLinkJob linkJob(m_ctx, exportMap, m_valMajor, m_valMinor);
 
+  // Add all resources to linkJob, in deterministic order
+  std::map<StringRef, DxilLib*> sortedLibs;
+  for (auto it : m_attachedLibs)
+    sortedLibs[it->GetDxilModule().GetModule()->getModuleIdentifier()] = it;
+  for (auto &it : sortedLibs)
+    linkJob.AddResourcesFromLib(it.second);
+
   SetVector<DxilLib *> libSet;
   SetVector<StringRef> addedFunctionSet;
 
@@ -1336,7 +1520,7 @@ DxilLinkerImpl::Link(StringRef entry, StringRef profile, dxilutil::ExportMap &ex
     if (exportMap.empty()) {
       // Add every function for lib profile.
       for (auto &it : m_functionNameMap) {
-        StringRef name = it.getKey();
+        StringRef name = it.first;
         std::pair<DxilFunctionLinkInfo *, DxilLib *> &linkPair = it.second;
         DxilFunctionLinkInfo *linkInfo = linkPair.first;
         DxilLib *pLib = linkPair.second;
@@ -1368,7 +1552,7 @@ DxilLinkerImpl::Link(StringRef entry, StringRef profile, dxilutil::ExportMap &ex
 
       // Only add exported functions.
       for (auto &it : m_functionNameMap) {
-        StringRef name = it.getKey();
+        StringRef name = it.first;
         // Only add names exist in exportMap.
         if (exportMap.IsExported(name))
           workList.emplace_back(name);

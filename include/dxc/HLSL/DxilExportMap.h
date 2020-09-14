@@ -89,6 +89,11 @@ namespace dxilutil {
     // GetRenames gets the map of mangled renames by function pointer
     const RenameMap &GetFunctionRenames() const { return m_RenameMap; }
 
+    bool GetAllowResOverlap() const { return m_bAllowResOverlap; }
+    void SetAllowResOverlap(bool AllowResOverlap) {
+      m_bAllowResOverlap = AllowResOverlap;
+    }
+
   private:
     // {"internalname": ("export1", "export2", ...), ...}
     ExportMapByString m_ExportMap;
@@ -100,6 +105,8 @@ namespace dxilutil {
     NameSet m_ExportNames;
     NameSet m_NameCollisions;
     NameSet m_UnusedExports;
+
+    bool m_bAllowResOverlap = false;
   };
 }
 

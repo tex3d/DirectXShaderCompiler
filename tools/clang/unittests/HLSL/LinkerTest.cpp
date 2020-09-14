@@ -40,6 +40,7 @@ public:
 
   TEST_METHOD(RunLinkResource);
   TEST_METHOD(RunLinkResourceWithBinding);
+  TEST_METHOD(AllowResOverlap);
   TEST_METHOD(RunLinkAllProfiles);
   TEST_METHOD(RunLinkFailNoDefine);
   TEST_METHOD(RunLinkFailReDefine);
@@ -237,6 +238,156 @@ TEST_F(LinkerTest, RunLinkResourceWithBinding) {
   Link(L"main", L"cs_6_0", pLinker, {lib1Name, lib2Name}, {} ,{});
 }
 
+TEST_F(LinkerTest, AllowResOverlap) {
+  // Test -rename-resource-conflicts.
+  // If linking libraries that contain resources with the same name:
+  //  - if they are identical in type and binding, they will merge, as usual.
+  //  - if they have a different binding than the previous resource,
+  //    they will be renamed with the binding appended (.<b|t|u|s>#.space#)
+  //  - if they still conflict and have a different type,
+  //    they will be renamed with an incrementing number (.#)
+  CComPtr<IDxcBlob> pLib1;
+  CompileLib(L"..\\CodeGenHLSL\\lib_res_bound1.hlsl", &pLib1);
+
+  // Lib3 has a function called by Lib2, using the conflicting resource,
+  // so it would still be illegal to use the two resources if
+  // they differe in type, and still collide in binding.
+  CComPtr<IDxcBlob> pLib3_match;
+  CompileLib(L"..\\CodeGenHLSL\\lib_res_bound3.hlsl", &pLib3_match);
+  CComPtr<IDxcBlob> pLib3_BINDING_MISMATCH;
+  CompileLib(L"..\\CodeGenHLSL\\lib_res_bound3.hlsl", &pLib3_BINDING_MISMATCH, {L"-DBINDING_MISMATCH"});
+  CComPtr<IDxcBlob> pLib3_STRUCT_NAME_MISMATCH;
+  CompileLib(L"..\\CodeGenHLSL\\lib_res_bound3.hlsl", &pLib3_STRUCT_NAME_MISMATCH, {L"-DSTRUCT_NAME_MISMATCH"});
+  CComPtr<IDxcBlob> pLib3_TYPE_MISMATCH;
+  CompileLib(L"..\\CodeGenHLSL\\lib_res_bound3.hlsl", &pLib3_TYPE_MISMATCH, {L"-DTYPE_MISMATCH"});
+
+  // Lib4 has an independent entry point, using the conflicting resource,
+  // so it is legal to use the conflicting resource in all cases.
+  CComPtr<IDxcBlob> pLib4_match;
+  CompileLib(L"..\\CodeGenHLSL\\lib_res_bound4.hlsl", &pLib4_match);
+  CComPtr<IDxcBlob> pLib4_BINDING_MISMATCH;
+  CompileLib(L"..\\CodeGenHLSL\\lib_res_bound4.hlsl", &pLib4_BINDING_MISMATCH, {L"-DBINDING_MISMATCH"});
+  CComPtr<IDxcBlob> pLib4_STRUCT_NAME_MISMATCH;
+  CompileLib(L"..\\CodeGenHLSL\\lib_res_bound4.hlsl", &pLib4_STRUCT_NAME_MISMATCH, {L"-DSTRUCT_NAME_MISMATCH"});
+  CComPtr<IDxcBlob> pLib4_TYPE_MISMATCH;
+  CompileLib(L"..\\CodeGenHLSL\\lib_res_bound4.hlsl", &pLib4_TYPE_MISMATCH, {L"-DTYPE_MISMATCH"});
+  //CComPtr<IDxcBlob> pLib3_;
+  //CompileLib(L"..\\CodeGenHLSL\\lib_res_bound3.hlsl", &pLib3_, {L"-D"});
+
+  CComPtr<IDxcLinker> pLinker;
+  CreateLinker(&pLinker);
+  LPCWSTR lib1Name = L"lib1";
+  RegisterDxcModule(lib1Name, pLib1, pLinker);
+
+  LPCWSTR lib3_match_Name = L"lib3_match";
+  RegisterDxcModule(lib3_match_Name, pLib3_match, pLinker);
+  LPCWSTR lib3_BINDING_MISMATCH_Name = L"lib3_BINDING_MISMATCH";
+  RegisterDxcModule(lib3_BINDING_MISMATCH_Name, pLib3_BINDING_MISMATCH, pLinker);
+  LPCWSTR lib3_STRUCT_NAME_MISMATCH_Name = L"lib3_STRUCT_NAME_MISMATCH";
+  RegisterDxcModule(lib3_STRUCT_NAME_MISMATCH_Name, pLib3_STRUCT_NAME_MISMATCH, pLinker);
+  LPCWSTR lib3_TYPE_MISMATCH_Name = L"lib3_TYPE_MISMATCH";
+  RegisterDxcModule(lib3_TYPE_MISMATCH_Name, pLib3_TYPE_MISMATCH, pLinker);
+
+  LPCWSTR lib4_match_Name = L"lib4_match";
+  RegisterDxcModule(lib4_match_Name, pLib4_match, pLinker);
+  LPCWSTR lib4_BINDING_MISMATCH_Name = L"lib4_BINDING_MISMATCH";
+  RegisterDxcModule(lib4_BINDING_MISMATCH_Name, pLib4_BINDING_MISMATCH, pLinker);
+  LPCWSTR lib4_STRUCT_NAME_MISMATCH_Name = L"lib4_STRUCT_NAME_MISMATCH";
+  RegisterDxcModule(lib4_STRUCT_NAME_MISMATCH_Name, pLib4_STRUCT_NAME_MISMATCH, pLinker);
+  LPCWSTR lib4_TYPE_MISMATCH_Name = L"lib4_TYPE_MISMATCH";
+  RegisterDxcModule(lib4_TYPE_MISMATCH_Name, pLib4_TYPE_MISMATCH, pLinker);
+
+  // Linking with lib3 produces a "main" cs entry that uses both resources
+
+
+  // Without option:
+  Link(L"main", L"lib_6_3", pLinker, {lib1Name, lib3_match_Name}, {}, {},
+    {L"-Vd"});
+  LinkCheckMsg(L"main", L"lib_6_3", pLinker, {lib1Name, lib3_BINDING_MISMATCH_Name},
+    { "Resource already exists as cbuffer for g_buf" },
+    {L"-Vd"});
+  LinkCheckMsg(L"main", L"lib_6_3", pLinker, {lib1Name, lib3_STRUCT_NAME_MISMATCH_Name},
+    { "Resource already exists as cbuffer for g_buf" },
+    {L"-Vd"});
+  LinkCheckMsg(L"main", L"lib_6_3", pLinker, {lib1Name, lib3_TYPE_MISMATCH_Name},
+    { "Resource already exists as cbuffer for g_buf" },
+    {L"-Vd"});
+
+  Link(L"main", L"cs_6_3", pLinker, {lib1Name, lib3_match_Name}, {}, {},
+    {L"-Vd"});
+  LinkCheckMsg(L"main", L"cs_6_3", pLinker, {lib1Name, lib3_BINDING_MISMATCH_Name},
+    { "Resource already exists as cbuffer for g_buf" },
+    {L"-Vd"});
+  LinkCheckMsg(L"main", L"cs_6_3", pLinker, {lib1Name, lib3_STRUCT_NAME_MISMATCH_Name},
+    { "Resource already exists as cbuffer for g_buf" },
+    {L"-Vd"});
+  LinkCheckMsg(L"main", L"cs_6_3", pLinker, {lib1Name, lib3_TYPE_MISMATCH_Name},
+    { "Resource already exists as cbuffer for g_buf" },
+    {L"-Vd"});
+
+  Link(L"main", L"lib_6_3", pLinker, {lib1Name, lib4_match_Name}, {}, {},
+    {L"-Vd"});
+  LinkCheckMsg(L"main", L"lib_6_3", pLinker, {lib1Name, lib4_BINDING_MISMATCH_Name},
+    { "Resource already exists as cbuffer for g_buf" },
+    {L"-Vd"});
+  LinkCheckMsg(L"main", L"lib_6_3", pLinker, {lib1Name, lib4_STRUCT_NAME_MISMATCH_Name},
+    { "Resource already exists as cbuffer for g_buf" },
+    {L"-Vd"});
+  LinkCheckMsg(L"main", L"lib_6_3", pLinker, {lib1Name, lib4_TYPE_MISMATCH_Name},
+    { "Resource already exists as cbuffer for g_buf" },
+    {L"-Vd"});
+
+  // With option:
+  Link(L"main", L"lib_6_3", pLinker, {lib1Name, lib3_match_Name}, {}, {},
+    {L"-allow-res-overlap", L"-Vd"});
+  Link(L"main", L"lib_6_3", pLinker, {lib1Name, lib3_BINDING_MISMATCH_Name},
+    { // two constants of same type, disambiguated by .1
+      "@g_buf = external constant %g_buf\n", "@g_buf.1 = external constant %g_buf\n",
+      // resource table entries for both buffers, same name
+      "!{i32 0, %g_buf* @g_buf.1,", "!{i32 1, %g_buf* @g_buf,"
+    }, {},
+    {L"-allow-res-overlap", L"-Vd"});
+  Link(L"main", L"lib_6_3", pLinker, {lib1Name, lib3_STRUCT_NAME_MISMATCH_Name},
+    { // two constants of two types, disambiguated by .<num>
+      "@g_buf = external constant %g_buf.", "@g_buf.1 = external constant %g_buf\n",
+      // resource table entries for both buffers, same name
+      "!{i32 0, %g_buf* @g_buf.1, !\"g_buf\",", "!{i32 1, %g_buf.8* @g_buf, !\"g_buf\","
+    }, {},
+    {L"-allow-res-overlap", L"-Vd"});
+  Link(L"main", L"lib_6_3", pLinker, {lib1Name, lib3_TYPE_MISMATCH_Name},
+    { // two constants of two types, disambiguated by .<num>
+      "@g_buf = external constant %g_buf.", "@g_buf.1 = external constant %g_buf\n",
+      // resource table entries for both buffers, same name
+      "!{i32 0, %g_buf* @g_buf.1, !\"g_buf\",", "!{i32 1, %g_buf.12* @g_buf, !\"g_buf\","
+    }, {},
+    {L"-allow-res-overlap", L"-Vd"});
+
+  Link(L"main", L"cs_6_3", pLinker, {lib1Name, lib3_match_Name}, {}, {},
+    {L"-allow-res-overlap", L"-Vd"});
+  Link(L"main", L"cs_6_3", pLinker, {lib1Name, lib3_BINDING_MISMATCH_Name},
+    { // two constants of same type, disambiguated by .1
+      "@g_buf = external constant %g_buf\n", "@g_buf.1 = external constant %g_buf\n",
+      // resource table entries for both buffers, same name
+      "!{i32 0, %g_buf* undef, !\"g_buf\",", "!{i32 1, %g_buf* undef, !\"g_buf\","
+    }, {},
+    {L"-allow-res-overlap", L"-Vd"});
+  LinkCheckMsg(L"main", L"cs_6_3", pLinker, {lib1Name, lib3_STRUCT_NAME_MISMATCH_Name},
+    { "error: resource g_buf at register 0 overlaps with resource g_buf at register 0, space 0", },
+    {L"-allow-res-overlap", L"-Vd"});
+  LinkCheckMsg(L"main", L"cs_6_3", pLinker, {lib1Name, lib3_TYPE_MISMATCH_Name},
+    { "error: resource g_buf at register 0 overlaps with resource g_buf at register 0, space 0", },
+    {L"-allow-res-overlap", L"-Vd"});
+
+  Link(L"main", L"lib_6_3", pLinker, {lib1Name, lib4_match_Name}, {}, {},
+    {L"-allow-res-overlap", L"-Vd"});
+  Link(L"main", L"lib_6_3", pLinker, {lib1Name, lib4_BINDING_MISMATCH_Name}, {}, {},
+    {L"-allow-res-overlap", L"-Vd"});
+  Link(L"main", L"lib_6_3", pLinker, {lib1Name, lib4_STRUCT_NAME_MISMATCH_Name}, {}, {},
+    {L"-allow-res-overlap", L"-Vd"});
+  Link(L"main", L"lib_6_3", pLinker, {lib1Name, lib4_TYPE_MISMATCH_Name}, {}, {},
+    {L"-allow-res-overlap", L"-Vd"});
+}
+
 TEST_F(LinkerTest, RunLinkAllProfiles) {
   CComPtr<IDxcLinker> pLinker;
   CreateLinker(&pLinker);
@@ -328,7 +479,7 @@ TEST_F(LinkerTest, RunLinkFailReDefineGlobal) {
   RegisterDxcModule(libName2, pLib1, pLinker);
 
   LinkCheckMsg(L"entry", L"cs_6_0", pLinker, {libName, libName1, libName2},
-               {"Definition already exists for global variable", "Resource already exists"});
+               {"Definition already exists for global variable"});
 }
 
 TEST_F(LinkerTest, RunLinkFailProfileMismatch) {

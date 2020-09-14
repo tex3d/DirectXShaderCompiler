@@ -235,6 +235,7 @@ HRESULT STDMETHODCALLTYPE DxcLinker::Link(
 
     dxilutil::ExportMap exportMap;
     bSuccess = exportMap.ParseExports(opts.Exports, DiagStream);
+    exportMap.SetAllowResOverlap(opts.AllowResOverlap);
 
     bool hasErrorOccurred = !bSuccess;
     if (bSuccess) {
@@ -296,6 +297,7 @@ HRESULT STDMETHODCALLTYPE DxcLinker::Link(
         hasErrorOccurred = true;
       }
     }
+    hasErrorOccurred |= DiagContext.HasErrors();
     DiagStream.flush();
     CComPtr<IStream> pStream = pDiagStream;
     dxcutil::CreateOperationResultFromOutputs(pOutputBlob, pStream, warnings,

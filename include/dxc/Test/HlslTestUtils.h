@@ -215,10 +215,7 @@ inline std::vector<std::string> GetRunLines(const LPCWSTR name) {
   while (std::getline(infile, line)) {
     if (!HasRunLine(line))
       continue;
-    char runline[runlinesize];
-    memset(runline, 0, runlinesize);
-    memcpy(runline, line.c_str(), min(runlinesize, line.size()));
-    runlines.emplace_back(runline);
+    runlines.emplace_back(line);
   }
   return runlines;
 }

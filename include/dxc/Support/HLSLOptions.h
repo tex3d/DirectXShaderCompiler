@@ -195,6 +195,7 @@ public:
   std::map<std::string, std::string> DxcOptimizationSelects; // OPT_opt_select
 
   bool PrintAfterAll; // OPT_print_after_all
+  bool AllowResOverlap = false; // OPT_allow_res_overlap
 
   // Rewriter Options
   RewriterOpts RWOpt;
