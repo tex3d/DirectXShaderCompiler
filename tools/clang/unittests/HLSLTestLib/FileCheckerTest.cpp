@@ -1155,13 +1155,14 @@ class FileRunTestResultImpl : public FileRunTestResult {
       // If there is IDxcResult, save named output blobs to Files.
       AddOutputsToFileMap(result.OpResult, &Files);
 
-      if (result.ExitCode) {
-        // Prepend stderror with the command that produced it
-        // to help identify the specific failure in longer chains.
+      // When current failing stage is FileCheck, print prior command,
+      // as well as FileCheck command that failed, to help identify
+      // failing commands in longer run chains.
+      if (result.ExitCode &&
+          (0 == _stricmp(part.Command.c_str(), "FileCheck") ||
+           0 == _stricmp(part.Command.c_str(), "%FileCheck"))) {
         std::ostringstream oss;
-        if (pPrior && (0 == _stricmp(part.Command.c_str(), "FileCheck") ||
-                       0 == _stricmp(part.Command.c_str(), "%FileCheck"))) {
-          // When current failing stage is FileCheck, print prior command as well.
+        if (pPrior) {
           oss << "Prior (" << priorExitCode << "): "
               << pPrior->Command << pPrior->Arguments << endl;
         }
