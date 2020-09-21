@@ -742,7 +742,9 @@ bool DxilLinkJob::AddGlobals(DxilModule &DM, ValueToValueMapTy &vmap) {
         }
         if (DxilResourceBase *foundRes = FindMatchingResource(res)) {
           // found exact match, merge resource
-          vmap[GV] = vmap[foundRes->GetGlobalSymbol()];
+          auto &target = vmap[foundRes->GetGlobalSymbol()];
+          GlobalVariable* foundGV = cast<GlobalVariable>(target);
+          vmap[GV] = foundGV;
           continue;
         } else if (!m_exportMap.GetAllowResOverlap()) {
           // Did not find a matching resource to link to, so if a global
@@ -819,7 +821,9 @@ bool DxilLinkJob::AddGlobals(DxilModule &DM, ValueToValueMapTy &vmap) {
         vmap[foundRes->GetGlobalSymbol()] = NewGV;
         vmap[GV] = NewGV;
       } else {
-        vmap[GV] = vmap[foundRes->GetGlobalSymbol()];
+        auto &target = vmap[foundRes->GetGlobalSymbol()];
+        GlobalVariable* foundGV = cast<GlobalVariable>(target);
+        vmap[GV] = foundGV;
       }
     } else {
       if (!m_exportMap.GetAllowResOverlap()) {
