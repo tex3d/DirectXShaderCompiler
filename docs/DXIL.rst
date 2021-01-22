@@ -2092,232 +2092,266 @@ Opcodes are defined on a dense range and will be provided as enum in a header fi
 .. <py::lines('OPCODES-RST')>hctdb_instrhelp.get_opcodes_rst()</py>
 .. OPCODES-RST:BEGIN
 
-=== ===================================================== =======================================================================================================================================================================================================================
-ID  Name                                                  Description
-=== ===================================================== =======================================================================================================================================================================================================================
-0   TempRegLoad_                                          Helper load operation
-1   TempRegStore_                                         Helper store operation
-2   MinPrecXRegLoad_                                      Helper load operation for minprecision
-3   MinPrecXRegStore_                                     Helper store operation for minprecision
-4   LoadInput_                                            Loads the value from shader input
-5   StoreOutput_                                          Stores the value to shader output
-6   FAbs_                                                 returns the absolute value of the input value.
-7   Saturate_                                             clamps the result of a single or double precision floating point value to [0.0f...1.0f]
-8   IsNaN_                                                Returns true if x is NAN or QNAN, false otherwise.
-9   IsInf_                                                Returns true if x is +INF or -INF, false otherwise.
-10  IsFinite_                                             Returns true if x is finite, false otherwise.
-11  IsNormal_                                             returns IsNormal
-12  Cos_                                                  returns cosine(theta) for theta in radians.
-13  Sin_                                                  returns sine(theta) for theta in radians.
-14  Tan_                                                  returns tan(theta) for theta in radians.
-15  Acos_                                                 Returns the arccosine of the specified value. Input should be a floating-point value within the range of -1 to 1.
-16  Asin_                                                 Returns the arccosine of the specified value. Input should be a floating-point value within the range of -1 to 1
-17  Atan_                                                 Returns the arctangent of the specified value. The return value is within the range of -PI/2 to PI/2.
-18  Hcos_                                                 returns the hyperbolic cosine of the specified value.
-19  Hsin_                                                 returns the hyperbolic sine of the specified value.
-20  Htan_                                                 returns the hyperbolic tangent of the specified value.
-21  Exp_                                                  returns 2^exponent
-22  Frc_                                                  extract fracitonal component.
-23  Log_                                                  returns log base 2.
-24  Sqrt_                                                 returns square root
-25  Rsqrt_                                                returns reciprocal square root (1 / sqrt(src)
-26  Round_ne_                                             floating-point round to integral float.
-27  Round_ni_                                             floating-point round to integral float.
-28  Round_pi_                                             floating-point round to integral float.
-29  Round_z_                                              floating-point round to integral float.
-30  Bfrev_                                                Reverses the order of the bits.
-31  Countbits_                                            Counts the number of bits in the input integer.
-32  FirstbitLo_                                           Returns the location of the first set bit starting from the lowest order bit and working upward.
-33  FirstbitHi_                                           Returns the location of the first set bit starting from the highest order bit and working downward.
-34  FirstbitSHi_                                          Returns the location of the first set bit from the highest order bit based on the sign.
-35  FMax_                                                 returns a if a >= b, else b
-36  FMin_                                                 returns a if a < b, else b
-37  IMax_                                                 IMax(a,b) returns a if a > b, else b
-38  IMin_                                                 IMin(a,b) returns a if a < b, else b
-39  UMax_                                                 unsigned integer maximum. UMax(a,b) = a > b ? a : b
-40  UMin_                                                 unsigned integer minimum. UMin(a,b) = a < b ? a : b
-41  IMul_                                                 multiply of 32-bit operands to produce the correct full 64-bit result.
-42  UMul_                                                 multiply of 32-bit operands to produce the correct full 64-bit result.
-43  UDiv_                                                 unsigned divide of the 32-bit operand src0 by the 32-bit operand src1.
-44  UAddc_                                                unsigned add of 32-bit operand with the carry
-45  USubb_                                                unsigned subtract of 32-bit operands with the borrow
-46  FMad_                                                 floating point multiply & add
-47  Fma_                                                  fused multiply-add
-48  IMad_                                                 Signed integer multiply & add
-49  UMad_                                                 Unsigned integer multiply & add
-50  Msad_                                                 masked Sum of Absolute Differences.
-51  Ibfe_                                                 Integer bitfield extract
-52  Ubfe_                                                 Unsigned integer bitfield extract
-53  Bfi_                                                  Given a bit range from the LSB of a number, places that number of bits in another number at any offset
-54  Dot2_                                                 Two-dimensional vector dot-product
-55  Dot3_                                                 Three-dimensional vector dot-product
-56  Dot4_                                                 Four-dimensional vector dot-product
-57  CreateHandle                                          creates the handle to a resource
-58  CBufferLoad                                           loads a value from a constant buffer resource
-59  CBufferLoadLegacy                                     loads a value from a constant buffer resource
-60  Sample                                                samples a texture
-61  SampleBias                                            samples a texture after applying the input bias to the mipmap level
-62  SampleLevel                                           samples a texture using a mipmap-level offset
-63  SampleGrad                                            samples a texture using a gradient to influence the way the sample location is calculated
-64  SampleCmp                                             samples a texture and compares a single component against the specified comparison value
-65  SampleCmpLevelZero                                    samples a texture and compares a single component against the specified comparison value
-66  TextureLoad                                           reads texel data without any filtering or sampling
-67  TextureStore                                          reads texel data without any filtering or sampling
-68  BufferLoad                                            reads from a TypedBuffer
-69  BufferStore                                           writes to a RWTypedBuffer
-70  BufferUpdateCounter                                   atomically increments/decrements the hidden 32-bit counter stored with a Count or Append UAV
-71  CheckAccessFullyMapped                                determines whether all values from a Sample, Gather, or Load operation accessed mapped tiles in a tiled resource
-72  GetDimensions                                         gets texture size information
-73  TextureGather                                         gathers the four texels that would be used in a bi-linear filtering operation
-74  TextureGatherCmp                                      same as TextureGather, except this instrution performs comparison on texels, similar to SampleCmp
-75  Texture2DMSGetSamplePosition                          gets the position of the specified sample
-76  RenderTargetGetSamplePosition                         gets the position of the specified sample
-77  RenderTargetGetSampleCount                            gets the number of samples for a render target
-78  AtomicBinOp                                           performs an atomic operation on two operands
-79  AtomicCompareExchange                                 atomic compare and exchange to memory
-80  Barrier                                               inserts a memory barrier in the shader
-81  CalculateLOD                                          calculates the level of detail
-82  Discard                                               discard the current pixel
-83  DerivCoarseX_                                         computes the rate of change per stamp in x direction.
-84  DerivCoarseY_                                         computes the rate of change per stamp in y direction.
-85  DerivFineX_                                           computes the rate of change per pixel in x direction.
-86  DerivFineY_                                           computes the rate of change per pixel in y direction.
-87  EvalSnapped                                           evaluates an input attribute at pixel center with an offset
-88  EvalSampleIndex                                       evaluates an input attribute at a sample location
-89  EvalCentroid                                          evaluates an input attribute at pixel center
-90  SampleIndex                                           returns the sample index in a sample-frequency pixel shader
-91  Coverage                                              returns the coverage mask input in a pixel shader
-92  InnerCoverage                                         returns underestimated coverage input from conservative rasterization in a pixel shader
-93  ThreadId                                              reads the thread ID
-94  GroupId                                               reads the group ID (SV_GroupID)
-95  ThreadIdInGroup                                       reads the thread ID within the group (SV_GroupThreadID)
-96  FlattenedThreadIdInGroup                              provides a flattened index for a given thread within a given group (SV_GroupIndex)
-97  EmitStream                                            emits a vertex to a given stream
-98  CutStream                                             completes the current primitive topology at the specified stream
-99  EmitThenCutStream                                     equivalent to an EmitStream followed by a CutStream
-100 GSInstanceID                                          GSInstanceID
-101 MakeDouble                                            creates a double value
-102 SplitDouble                                           splits a double into low and high parts
-103 LoadOutputControlPoint                                LoadOutputControlPoint
-104 LoadPatchConstant                                     LoadPatchConstant
-105 DomainLocation                                        DomainLocation
-106 StorePatchConstant                                    StorePatchConstant
-107 OutputControlPointID                                  OutputControlPointID
-108 PrimitiveID                                           PrimitiveID
-109 CycleCounterLegacy                                    CycleCounterLegacy
-110 WaveIsFirstLane                                       returns 1 for the first lane in the wave
-111 WaveGetLaneIndex                                      returns the index of the current lane in the wave
-112 WaveGetLaneCount                                      returns the number of lanes in the wave
-113 WaveAnyTrue                                           returns 1 if any of the lane evaluates the value to true
-114 WaveAllTrue                                           returns 1 if all the lanes evaluate the value to true
-115 WaveActiveAllEqual                                    returns 1 if all the lanes have the same value
-116 WaveActiveBallot                                      returns a struct with a bit set for each lane where the condition is true
-117 WaveReadLaneAt                                        returns the value from the specified lane
-118 WaveReadLaneFirst                                     returns the value from the first lane
-119 WaveActiveOp                                          returns the result the operation across waves
-120 WaveActiveBit                                         returns the result of the operation across all lanes
-121 WavePrefixOp                                          returns the result of the operation on prior lanes
-122 QuadReadLaneAt                                        reads from a lane in the quad
-123 QuadOp                                                returns the result of a quad-level operation
-124 BitcastI16toF16                                       bitcast between different sizes
-125 BitcastF16toI16                                       bitcast between different sizes
-126 BitcastI32toF32                                       bitcast between different sizes
-127 BitcastF32toI32                                       bitcast between different sizes
-128 BitcastI64toF64                                       bitcast between different sizes
-129 BitcastF64toI64                                       bitcast between different sizes
-130 LegacyF32ToF16                                        legacy fuction to convert float (f32) to half (f16) (this is not related to min-precision)
-131 LegacyF16ToF32                                        legacy fuction to convert half (f16) to float (f32) (this is not related to min-precision)
-132 LegacyDoubleToFloat                                   legacy fuction to convert double to float
-133 LegacyDoubleToSInt32                                  legacy fuction to convert double to int32
-134 LegacyDoubleToUInt32                                  legacy fuction to convert double to uint32
-135 WaveAllBitCount                                       returns the count of bits set to 1 across the wave
-136 WavePrefixBitCount                                    returns the count of bits set to 1 on prior lanes
-137 AttributeAtVertex_                                    returns the values of the attributes at the vertex.
-138 ViewID                                                returns the view index
-139 RawBufferLoad                                         reads from a raw buffer and structured buffer
-140 RawBufferStore                                        writes to a RWByteAddressBuffer or RWStructuredBuffer
-141 InstanceID                                            The user-provided InstanceID on the bottom-level acceleration structure instance within the top-level structure
-142 InstanceIndex                                         The autogenerated index of the current instance in the top-level structure
-143 HitKind                                               Returns the value passed as HitKind in ReportIntersection().  If intersection was reported by fixed-function triangle intersection, HitKind will be one of HIT_KIND_TRIANGLE_FRONT_FACE or HIT_KIND_TRIANGLE_BACK_FACE.
-144 RayFlags                                              uint containing the current ray flags.
-145 DispatchRaysIndex                                     The current x and y location within the Width and Height
-146 DispatchRaysDimensions                                The Width and Height values from the D3D12_DISPATCH_RAYS_DESC structure provided to the originating DispatchRays() call.
-147 WorldRayOrigin                                        The world-space origin for the current ray.
-148 WorldRayDirection                                     The world-space direction for the current ray.
-149 ObjectRayOrigin                                       Object-space origin for the current ray.
-150 ObjectRayDirection                                    Object-space direction for the current ray.
-151 ObjectToWorld                                         Matrix for transforming from object-space to world-space.
-152 WorldToObject                                         Matrix for transforming from world-space to object-space.
-153 RayTMin                                               float representing the parametric starting point for the ray.
-154 RayTCurrent                                           float representing the current parametric ending point for the ray
-155 IgnoreHit                                             Used in an any hit shader to reject an intersection and terminate the shader
-156 AcceptHitAndEndSearch                                 Used in an any hit shader to abort the ray query and the intersection shader (if any). The current hit is committed and execution passes to the closest hit shader with the closest hit recorded so far
-157 TraceRay                                              initiates raytrace
-158 ReportHit                                             returns true if hit was accepted
-159 CallShader                                            Call a shader in the callable shader table supplied through the DispatchRays() API
-160 CreateHandleForLib                                    create resource handle from resource struct for library
-161 PrimitiveIndex                                        PrimitiveIndex for raytracing shaders
-162 Dot2AddHalf                                           2D half dot product with accumulate to float
-163 Dot4AddI8Packed                                       signed dot product of 4 x i8 vectors packed into i32, with accumulate to i32
-164 Dot4AddU8Packed                                       unsigned dot product of 4 x u8 vectors packed into i32, with accumulate to i32
-165 WaveMatch                                             returns the bitmask of active lanes that have the same value
-166 WaveMultiPrefixOp                                     returns the result of the operation on groups of lanes identified by a bitmask
-167 WaveMultiPrefixBitCount                               returns the count of bits set to 1 on groups of lanes identified by a bitmask
-168 SetMeshOutputCounts                                   Mesh shader intrinsic SetMeshOutputCounts
-169 EmitIndices                                           emit a primitive's vertex indices in a mesh shader
-170 GetMeshPayload                                        get the mesh payload which is from amplification shader
-171 StoreVertexOutput                                     stores the value to mesh shader vertex output
-172 StorePrimitiveOutput                                  stores the value to mesh shader primitive output
-173 DispatchMesh                                          Amplification shader intrinsic DispatchMesh
-174 WriteSamplerFeedback                                  updates a feedback texture for a sampling operation
-175 WriteSamplerFeedbackBias                              updates a feedback texture for a sampling operation with a bias on the mipmap level
-176 WriteSamplerFeedbackLevel                             updates a feedback texture for a sampling operation with a mipmap-level offset
-177 WriteSamplerFeedbackGrad                              updates a feedback texture for a sampling operation with explicit gradients
-178 AllocateRayQuery                                      allocates space for RayQuery and return handle
-179 RayQuery_TraceRayInline                               initializes RayQuery for raytrace
-180 RayQuery_Proceed                                      advances a ray query
-181 RayQuery_Abort                                        aborts a ray query
-182 RayQuery_CommitNonOpaqueTriangleHit                   commits a non opaque triangle hit
-183 RayQuery_CommitProceduralPrimitiveHit                 commits a procedural primitive hit
-184 RayQuery_CommittedStatus                              returns uint status (COMMITTED_STATUS) of the committed hit in a ray query
-185 RayQuery_CandidateType                                returns uint candidate type (CANDIDATE_TYPE) of the current hit candidate in a ray query, after Proceed() has returned true
-186 RayQuery_CandidateObjectToWorld3x4                    returns matrix for transforming from object-space to world-space for a candidate hit.
-187 RayQuery_CandidateWorldToObject3x4                    returns matrix for transforming from world-space to object-space for a candidate hit.
-188 RayQuery_CommittedObjectToWorld3x4                    returns matrix for transforming from object-space to world-space for a Committed hit.
-189 RayQuery_CommittedWorldToObject3x4                    returns matrix for transforming from world-space to object-space for a Committed hit.
-190 RayQuery_CandidateProceduralPrimitiveNonOpaque        returns if current candidate procedural primitive is non opaque
-191 RayQuery_CandidateTriangleFrontFace                   returns if current candidate triangle is front facing
-192 RayQuery_CommittedTriangleFrontFace                   returns if current committed triangle is front facing
-193 RayQuery_CandidateTriangleBarycentrics                returns candidate triangle hit barycentrics
-194 RayQuery_CommittedTriangleBarycentrics                returns committed triangle hit barycentrics
-195 RayQuery_RayFlags                                     returns ray flags
-196 RayQuery_WorldRayOrigin                               returns world ray origin
-197 RayQuery_WorldRayDirection                            returns world ray direction
-198 RayQuery_RayTMin                                      returns float representing the parametric starting point for the ray.
-199 RayQuery_CandidateTriangleRayT                        returns float representing the parametric point on the ray for the current candidate triangle hit.
-200 RayQuery_CommittedRayT                                returns float representing the parametric point on the ray for the current committed hit.
-201 RayQuery_CandidateInstanceIndex                       returns candidate hit instance index
-202 RayQuery_CandidateInstanceID                          returns candidate hit instance ID
-203 RayQuery_CandidateGeometryIndex                       returns candidate hit geometry index
-204 RayQuery_CandidatePrimitiveIndex                      returns candidate hit geometry index
-205 RayQuery_CandidateObjectRayOrigin                     returns candidate hit object ray origin
-206 RayQuery_CandidateObjectRayDirection                  returns candidate object ray direction
-207 RayQuery_CommittedInstanceIndex                       returns committed hit instance index
-208 RayQuery_CommittedInstanceID                          returns committed hit instance ID
-209 RayQuery_CommittedGeometryIndex                       returns committed hit geometry index
-210 RayQuery_CommittedPrimitiveIndex                      returns committed hit geometry index
-211 RayQuery_CommittedObjectRayOrigin                     returns committed hit object ray origin
-212 RayQuery_CommittedObjectRayDirection                  returns committed object ray direction
-213 GeometryIndex                                         The autogenerated index of the current geometry in the bottom-level structure
-214 RayQuery_CandidateInstanceContributionToHitGroupIndex returns candidate hit InstanceContributionToHitGroupIndex
-215 RayQuery_CommittedInstanceContributionToHitGroupIndex returns committed hit InstanceContributionToHitGroupIndex
-216 CreateHandleFromHeap                                  create resource handle from heap
-217 AnnotateHandle                                        annotate handle with resource properties
-=== ===================================================== =======================================================================================================================================================================================================================
+=== ====================================================== =======================================================================================================================================================================================================================
+ID  Name                                                   Description
+=== ====================================================== =======================================================================================================================================================================================================================
+--- DXIL 1.0                                               Beginning of DXIL 1.0 operations
+0   TempRegLoad_                                           Helper load operation
+1   TempRegStore_                                          Helper store operation
+2   MinPrecXRegLoad_                                       Helper load operation for minprecision
+3   MinPrecXRegStore_                                      Helper store operation for minprecision
+4   LoadInput_                                             Loads the value from shader input
+5   StoreOutput_                                           Stores the value to shader output
+6   FAbs_                                                  returns the absolute value of the input value.
+7   Saturate_                                              clamps the result of a single or double precision floating point value to [0.0f...1.0f]
+8   IsNaN_                                                 Returns true if x is NAN or QNAN, false otherwise.
+9   IsInf_                                                 Returns true if x is +INF or -INF, false otherwise.
+10  IsFinite_                                              Returns true if x is finite, false otherwise.
+11  IsNormal_                                              returns IsNormal
+12  Cos_                                                   returns cosine(theta) for theta in radians.
+13  Sin_                                                   returns sine(theta) for theta in radians.
+14  Tan_                                                   returns tan(theta) for theta in radians.
+15  Acos_                                                  Returns the arccosine of the specified value. Input should be a floating-point value within the range of -1 to 1.
+16  Asin_                                                  Returns the arccosine of the specified value. Input should be a floating-point value within the range of -1 to 1
+17  Atan_                                                  Returns the arctangent of the specified value. The return value is within the range of -PI/2 to PI/2.
+18  Hcos_                                                  returns the hyperbolic cosine of the specified value.
+19  Hsin_                                                  returns the hyperbolic sine of the specified value.
+20  Htan_                                                  returns the hyperbolic tangent of the specified value.
+21  Exp_                                                   returns 2^exponent
+22  Frc_                                                   extract fracitonal component.
+23  Log_                                                   returns log base 2.
+24  Sqrt_                                                  returns square root
+25  Rsqrt_                                                 returns reciprocal square root (1 / sqrt(src)
+26  Round_ne_                                              floating-point round to integral float.
+27  Round_ni_                                              floating-point round to integral float.
+28  Round_pi_                                              floating-point round to integral float.
+29  Round_z_                                               floating-point round to integral float.
+30  Bfrev_                                                 Reverses the order of the bits.
+31  Countbits_                                             Counts the number of bits in the input integer.
+32  FirstbitLo_                                            Returns the location of the first set bit starting from the lowest order bit and working upward.
+33  FirstbitHi_                                            Returns the location of the first set bit starting from the highest order bit and working downward.
+34  FirstbitSHi_                                           Returns the location of the first set bit from the highest order bit based on the sign.
+35  FMax_                                                  returns a if a >= b, else b
+36  FMin_                                                  returns a if a < b, else b
+37  IMax_                                                  IMax(a,b) returns a if a > b, else b
+38  IMin_                                                  IMin(a,b) returns a if a < b, else b
+39  UMax_                                                  unsigned integer maximum. UMax(a,b) = a > b ? a : b
+40  UMin_                                                  unsigned integer minimum. UMin(a,b) = a < b ? a : b
+41  IMul_                                                  multiply of 32-bit operands to produce the correct full 64-bit result.
+42  UMul_                                                  multiply of 32-bit operands to produce the correct full 64-bit result.
+43  UDiv_                                                  unsigned divide of the 32-bit operand src0 by the 32-bit operand src1.
+44  UAddc_                                                 unsigned add of 32-bit operand with the carry
+45  USubb_                                                 unsigned subtract of 32-bit operands with the borrow
+46  FMad_                                                  floating point multiply & add
+47  Fma_                                                   fused multiply-add
+48  IMad_                                                  Signed integer multiply & add
+49  UMad_                                                  Unsigned integer multiply & add
+50  Msad_                                                  masked Sum of Absolute Differences.
+51  Ibfe_                                                  Integer bitfield extract
+52  Ubfe_                                                  Unsigned integer bitfield extract
+53  Bfi_                                                   Given a bit range from the LSB of a number, places that number of bits in another number at any offset
+54  Dot2_                                                  Two-dimensional vector dot-product
+55  Dot3_                                                  Three-dimensional vector dot-product
+56  Dot4_                                                  Four-dimensional vector dot-product
+57  CreateHandle_                                          creates the handle to a resource
+58  CBufferLoad_                                           loads a value from a constant buffer resource
+59  CBufferLoadLegacy_                                     loads a value from a constant buffer resource
+60  Sample_                                                samples a texture
+61  SampleBias_                                            samples a texture after applying the input bias to the mipmap level
+62  SampleLevel_                                           samples a texture using a mipmap-level offset
+63  SampleGrad_                                            samples a texture using a gradient to influence the way the sample location is calculated
+64  SampleCmp_                                             samples a texture and compares a single component against the specified comparison value
+65  SampleCmpLevelZero_                                    samples a texture and compares a single component against the specified comparison value
+66  TextureLoad_                                           reads texel data without any filtering or sampling
+67  TextureStore_                                          reads texel data without any filtering or sampling
+68  BufferLoad_                                            reads from a TypedBuffer
+69  BufferStore_                                           writes to a RWTypedBuffer
+70  BufferUpdateCounter_                                   atomically increments/decrements the hidden 32-bit counter stored with a Count or Append UAV
+71  CheckAccessFullyMapped_                                determines whether all values from a Sample, Gather, or Load operation accessed mapped tiles in a tiled resource
+72  GetDimensions_                                         gets texture size information
+73  TextureGather_                                         gathers the four texels that would be used in a bi-linear filtering operation
+74  TextureGatherCmp_                                      same as TextureGather, except this instrution performs comparison on texels, similar to SampleCmp
+75  Texture2DMSGetSamplePosition_                          gets the position of the specified sample
+76  RenderTargetGetSamplePosition_                         gets the position of the specified sample
+77  RenderTargetGetSampleCount_                            gets the number of samples for a render target
+78  AtomicBinOp_                                           performs an atomic operation on two operands
+79  AtomicCompareExchange_                                 atomic compare and exchange to memory
+80  Barrier_                                               inserts a memory barrier in the shader
+81  CalculateLOD_                                          calculates the level of detail
+82  Discard_                                               discard the current pixel
+83  DerivCoarseX_                                          computes the rate of change per stamp in x direction.
+84  DerivCoarseY_                                          computes the rate of change per stamp in y direction.
+85  DerivFineX_                                            computes the rate of change per pixel in x direction.
+86  DerivFineY_                                            computes the rate of change per pixel in y direction.
+87  EvalSnapped_                                           evaluates an input attribute at pixel center with an offset
+88  EvalSampleIndex_                                       evaluates an input attribute at a sample location
+89  EvalCentroid_                                          evaluates an input attribute at pixel center
+90  SampleIndex_                                           returns the sample index in a sample-frequency pixel shader
+91  Coverage_                                              returns the coverage mask input in a pixel shader
+92  InnerCoverage_                                         returns underestimated coverage input from conservative rasterization in a pixel shader
+93  ThreadId_                                              reads the thread ID
+94  GroupId_                                               reads the group ID (SV_GroupID)
+95  ThreadIdInGroup_                                       reads the thread ID within the group (SV_GroupThreadID)
+96  FlattenedThreadIdInGroup_                              provides a flattened index for a given thread within a given group (SV_GroupIndex)
+97  EmitStream_                                            emits a vertex to a given stream
+98  CutStream_                                             completes the current primitive topology at the specified stream
+99  EmitThenCutStream_                                     equivalent to an EmitStream followed by a CutStream
+100 GSInstanceID_                                          GSInstanceID
+101 MakeDouble_                                            creates a double value
+102 SplitDouble_                                           splits a double into low and high parts
+103 LoadOutputControlPoint_                                LoadOutputControlPoint
+104 LoadPatchConstant_                                     LoadPatchConstant
+105 DomainLocation_                                        DomainLocation
+106 StorePatchConstant_                                    StorePatchConstant
+107 OutputControlPointID_                                  OutputControlPointID
+108 PrimitiveID_                                           PrimitiveID
+109 CycleCounterLegacy_                                    CycleCounterLegacy
+110 WaveIsFirstLane_                                       returns 1 for the first lane in the wave
+111 WaveGetLaneIndex_                                      returns the index of the current lane in the wave
+112 WaveGetLaneCount_                                      returns the number of lanes in the wave
+113 WaveAnyTrue_                                           returns 1 if any of the lane evaluates the value to true
+114 WaveAllTrue_                                           returns 1 if all the lanes evaluate the value to true
+115 WaveActiveAllEqual_                                    returns 1 if all the lanes have the same value
+116 WaveActiveBallot_                                      returns a struct with a bit set for each lane where the condition is true
+117 WaveReadLaneAt_                                        returns the value from the specified lane
+118 WaveReadLaneFirst_                                     returns the value from the first lane
+119 WaveActiveOp_                                          returns the result the operation across waves
+120 WaveActiveBit_                                         returns the result of the operation across all lanes
+121 WavePrefixOp_                                          returns the result of the operation on prior lanes
+122 QuadReadLaneAt_                                        reads from a lane in the quad
+123 QuadOp_                                                returns the result of a quad-level operation
+124 BitcastI16toF16_                                       bitcast between different sizes
+125 BitcastF16toI16_                                       bitcast between different sizes
+126 BitcastI32toF32_                                       bitcast between different sizes
+127 BitcastF32toI32_                                       bitcast between different sizes
+128 BitcastI64toF64_                                       bitcast between different sizes
+129 BitcastF64toI64_                                       bitcast between different sizes
+130 LegacyF32ToF16_                                        legacy fuction to convert float (f32) to half (f16) (this is not related to min-precision)
+131 LegacyF16ToF32_                                        legacy fuction to convert half (f16) to float (f32) (this is not related to min-precision)
+132 LegacyDoubleToFloat_                                   legacy fuction to convert double to float
+133 LegacyDoubleToSInt32_                                  legacy fuction to convert double to int32
+134 LegacyDoubleToUInt32_                                  legacy fuction to convert double to uint32
+135 WaveAllBitCount_                                       returns the count of bits set to 1 across the wave
+136 WavePrefixBitCount_                                    returns the count of bits set to 1 on prior lanes
+--- DXIL 1.1                                               Beginning of DXIL 1.1 operations
+137 AttributeAtVertex_                                     returns the values of the attributes at the vertex.
+138 ViewID_                                                returns the view index
+--- DXIL 1.2                                               Beginning of DXIL 1.2 operations
+139 RawBufferLoad_                                         reads from a raw buffer and structured buffer
+140 RawBufferStore_                                        writes to a RWByteAddressBuffer or RWStructuredBuffer
+--- DXIL 1.3                                               Beginning of DXIL 1.3 operations
+141 InstanceID_                                            The user-provided InstanceID on the bottom-level acceleration structure instance within the top-level structure
+142 InstanceIndex_                                         The autogenerated index of the current instance in the top-level structure
+143 HitKind_                                               Returns the value passed as HitKind in ReportIntersection().  If intersection was reported by fixed-function triangle intersection, HitKind will be one of HIT_KIND_TRIANGLE_FRONT_FACE or HIT_KIND_TRIANGLE_BACK_FACE.
+144 RayFlags_                                              uint containing the current ray flags.
+145 DispatchRaysIndex_                                     The current x and y location within the Width and Height
+146 DispatchRaysDimensions_                                The Width and Height values from the D3D12_DISPATCH_RAYS_DESC structure provided to the originating DispatchRays() call.
+147 WorldRayOrigin_                                        The world-space origin for the current ray.
+148 WorldRayDirection_                                     The world-space direction for the current ray.
+149 ObjectRayOrigin_                                       Object-space origin for the current ray.
+150 ObjectRayDirection_                                    Object-space direction for the current ray.
+151 ObjectToWorld_                                         Matrix for transforming from object-space to world-space.
+152 WorldToObject_                                         Matrix for transforming from world-space to object-space.
+153 RayTMin_                                               float representing the parametric starting point for the ray.
+154 RayTCurrent_                                           float representing the current parametric ending point for the ray
+155 IgnoreHit_                                             Used in an any hit shader to reject an intersection and terminate the shader
+156 AcceptHitAndEndSearch_                                 Used in an any hit shader to abort the ray query and the intersection shader (if any). The current hit is committed and execution passes to the closest hit shader with the closest hit recorded so far
+157 TraceRay_                                              initiates raytrace
+158 ReportHit_                                             returns true if hit was accepted
+159 CallShader_                                            Call a shader in the callable shader table supplied through the DispatchRays() API
+160 CreateHandleForLib_                                    create resource handle from resource struct for library
+161 PrimitiveIndex_                                        PrimitiveIndex for raytracing shaders
+--- DXIL 1.4                                               Beginning of DXIL 1.4 operations
+162 Dot2AddHalf_                                           2D half dot product with accumulate to float
+163 Dot4AddI8Packed_                                       signed dot product of 4 x i8 vectors packed into i32, with accumulate to i32
+164 Dot4AddU8Packed_                                       unsigned dot product of 4 x u8 vectors packed into i32, with accumulate to i32
+--- DXIL 1.5                                               Beginning of DXIL 1.5 operations
+165 WaveMatch_                                             returns the bitmask of active lanes that have the same value
+166 WaveMultiPrefixOp_                                     returns the result of the operation on groups of lanes identified by a bitmask
+167 WaveMultiPrefixBitCount_                               returns the count of bits set to 1 on groups of lanes identified by a bitmask
+168 SetMeshOutputCounts_                                   Mesh shader intrinsic SetMeshOutputCounts
+169 EmitIndices_                                           emit a primitive's vertex indices in a mesh shader
+170 GetMeshPayload_                                        get the mesh payload which is from amplification shader
+171 StoreVertexOutput_                                     stores the value to mesh shader vertex output
+172 StorePrimitiveOutput_                                  stores the value to mesh shader primitive output
+173 DispatchMesh_                                          Amplification shader intrinsic DispatchMesh
+174 WriteSamplerFeedback_                                  updates a feedback texture for a sampling operation
+175 WriteSamplerFeedbackBias_                              updates a feedback texture for a sampling operation with a bias on the mipmap level
+176 WriteSamplerFeedbackLevel_                             updates a feedback texture for a sampling operation with a mipmap-level offset
+177 WriteSamplerFeedbackGrad_                              updates a feedback texture for a sampling operation with explicit gradients
+178 AllocateRayQuery_                                      allocates space for RayQuery and return handle
+179 RayQuery_TraceRayInline_                               initializes RayQuery for raytrace
+180 RayQuery_Proceed_                                      advances a ray query
+181 RayQuery_Abort_                                        aborts a ray query
+182 RayQuery_CommitNonOpaqueTriangleHit_                   commits a non opaque triangle hit
+183 RayQuery_CommitProceduralPrimitiveHit_                 commits a procedural primitive hit
+184 RayQuery_CommittedStatus_                              returns uint status (COMMITTED_STATUS) of the committed hit in a ray query
+185 RayQuery_CandidateType_                                returns uint candidate type (CANDIDATE_TYPE) of the current hit candidate in a ray query, after Proceed() has returned true
+186 RayQuery_CandidateObjectToWorld3x4_                    returns matrix for transforming from object-space to world-space for a candidate hit.
+187 RayQuery_CandidateWorldToObject3x4_                    returns matrix for transforming from world-space to object-space for a candidate hit.
+188 RayQuery_CommittedObjectToWorld3x4_                    returns matrix for transforming from object-space to world-space for a Committed hit.
+189 RayQuery_CommittedWorldToObject3x4_                    returns matrix for transforming from world-space to object-space for a Committed hit.
+190 RayQuery_CandidateProceduralPrimitiveNonOpaque_        returns if current candidate procedural primitive is non opaque
+191 RayQuery_CandidateTriangleFrontFace_                   returns if current candidate triangle is front facing
+192 RayQuery_CommittedTriangleFrontFace_                   returns if current committed triangle is front facing
+193 RayQuery_CandidateTriangleBarycentrics_                returns candidate triangle hit barycentrics
+194 RayQuery_CommittedTriangleBarycentrics_                returns committed triangle hit barycentrics
+195 RayQuery_RayFlags_                                     returns ray flags
+196 RayQuery_WorldRayOrigin_                               returns world ray origin
+197 RayQuery_WorldRayDirection_                            returns world ray direction
+198 RayQuery_RayTMin_                                      returns float representing the parametric starting point for the ray.
+199 RayQuery_CandidateTriangleRayT_                        returns float representing the parametric point on the ray for the current candidate triangle hit.
+200 RayQuery_CommittedRayT_                                returns float representing the parametric point on the ray for the current committed hit.
+201 RayQuery_CandidateInstanceIndex_                       returns candidate hit instance index
+202 RayQuery_CandidateInstanceID_                          returns candidate hit instance ID
+203 RayQuery_CandidateGeometryIndex_                       returns candidate hit geometry index
+204 RayQuery_CandidatePrimitiveIndex_                      returns candidate hit geometry index
+205 RayQuery_CandidateObjectRayOrigin_                     returns candidate hit object ray origin
+206 RayQuery_CandidateObjectRayDirection_                  returns candidate object ray direction
+207 RayQuery_CommittedInstanceIndex_                       returns committed hit instance index
+208 RayQuery_CommittedInstanceID_                          returns committed hit instance ID
+209 RayQuery_CommittedGeometryIndex_                       returns committed hit geometry index
+210 RayQuery_CommittedPrimitiveIndex_                      returns committed hit geometry index
+211 RayQuery_CommittedObjectRayOrigin_                     returns committed hit object ray origin
+212 RayQuery_CommittedObjectRayDirection_                  returns committed object ray direction
+213 GeometryIndex_                                         The autogenerated index of the current geometry in the bottom-level structure
+214 RayQuery_CandidateInstanceContributionToHitGroupIndex_ returns candidate hit InstanceContributionToHitGroupIndex
+215 RayQuery_CommittedInstanceContributionToHitGroupIndex_ returns committed hit InstanceContributionToHitGroupIndex
+--- DXIL 1.6                                               Beginning of DXIL 1.6 operations
+216 CreateHandleFromHeap_                                  create resource handle from heap
+217 AnnotateHandle_                                        annotate handle with resource properties
+=== ====================================================== =======================================================================================================================================================================================================================
+
+
+AcceptHitAndEndSearch
+~~~~~~~~~~~~~~~~~~~~~
+
+  void AcceptHitAndEndSearch(i32 156)
+
+Category: AnyHit Terminals
+Shader Stages: anyhit
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.3      6.3
+======== ======
 
 
 Acos
 ~~~~
+
+  <overload> Acos(i32 15, <overload> value)
+
+Category: Unary float
+Shader Stages: All
+
+======== ====== ===== ===========
+Min Dxil Min SM Class Overloads
+======== ====== ===== ===========
+1.0      6.0    Unary half, float
+======== ====== ===== ===========
+
 
 The return value is within the range of -PI/2 to PI/2.
 
@@ -2327,8 +2361,50 @@ The return value is within the range of -PI/2 to PI/2.
 | acos(src)|  NaN | (-PI/2,+PI/2)|    PI/2 | PI/2 | PI/2 |    PI/2 |  NaN | NaN |
 +----------+------+--------------+---------+------+------+---------+------+-----+
 
+AllocateRayQuery
+~~~~~~~~~~~~~~~~
+
+  i32 AllocateRayQuery(i32 178, const i32 constRayFlags)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.5      6.5
+======== ======
+
+
+AnnotateHandle
+~~~~~~~~~~~~~~
+
+  %dx.types.Handle AnnotateHandle(i32 217, %dx.types.Handle res, const i8 resourceClass, const i8 resourceKind, dx.types.ResProps props)
+
+Category: Get handle from heap
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.6      6.6
+======== ======
+
+
 Asin
 ~~~~
+
+  <overload> Asin(i32 16, <overload> value)
+
+Category: Unary float
+Shader Stages: All
+
+======== ====== ===== ===========
+Min Dxil Min SM Class Overloads
+======== ====== ===== ===========
+1.0      6.0    Unary half, float
+======== ====== ===== ===========
+
 
 The return value is within the range of -PI/2 to PI/2.
 
@@ -2341,6 +2417,18 @@ The return value is within the range of -PI/2 to PI/2.
 Atan
 ~~~~
 
+  <overload> Atan(i32 17, <overload> value)
+
+Category: Unary float
+Shader Stages: All
+
+======== ====== ===== ===========
+Min Dxil Min SM Class Overloads
+======== ====== ===== ===========
+1.0      6.0    Unary half, float
+======== ====== ===== ===========
+
+
 +----------+------+--------------+---------+------+------+---------+---------------+-----+-----+
 | src      | -inf | -F           | -denorm | -0   | +0   | +denorm | +F            |+inf | NaN |
 +----------+------+--------------+---------+------+------+---------+---------------+-----+-----+
@@ -2349,13 +2437,82 @@ Atan
 
 Returns the arctangent of the specified value. The return value is within the range of -PI/2 to PI/2
 
+AtomicBinOp
+~~~~~~~~~~~
+
+  i32 AtomicBinOp(i32 78, %dx.types.Handle handle, i32 atomicOp, i32 offset0, i32 offset1, i32 offset2, i32 newValue)
+
+Category: Synchronization
+Shader Stages: All
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.0      6.0    i32
+======== ====== =========
+
+
+AtomicCompareExchange
+~~~~~~~~~~~~~~~~~~~~~
+
+  i32 AtomicCompareExchange(i32 79, %dx.types.Handle handle, i32 offset0, i32 offset1, i32 offset2, i32 compareValue, i32 newValue)
+
+Category: Synchronization
+Shader Stages: All
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.0      6.0    i32
+======== ====== =========
+
+
 AttributeAtVertex
 ~~~~~~~~~~~~~~~~~
 
+  <overload> AttributeAtVertex(i32 137, i32 inputSigId, i32 inputRowIndex, i8 inputColIndex, i8 VertexID)
+
+Category: Pixel shader
+Shader Stages: pixel
+
+======== ====== =====================
+Min Dxil Min SM Overloads
+======== ====== =====================
+1.1      6.1    half, float, i32, i16
+======== ====== =====================
+
+
 returns the values of the attributes at the vertex. VertexID ranges from 0 to 2.
+
+Barrier
+~~~~~~~
+
+  void Barrier(i32 80, const i32 barrierMode)
+
+Category: Synchronization
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
 
 Bfi
 ~~~
+
+  <overload> Bfi(i32 53, <overload> width, <overload> offset, <overload> value, <overload> replacedValue)
+
+Category: Quaternary
+Shader Stages: All
+
+======== ====== ========== =========
+Min Dxil Min SM Class      Overloads
+======== ====== ========== =========
+1.0      6.0    Quaternary i32
+======== ====== ========== =========
+
 
 Given a bit range from the LSB of a number, place that number of bits in another number at any offset.
 
@@ -2368,10 +2525,244 @@ Given width, offset: bitmask = (((1 << width)-1) << offset) & 0xffffffff, dest =
 Bfrev
 ~~~~~
 
+  <overload> Bfrev(i32 30, <overload> value)
+
+Category: Unary int
+Shader Stages: All
+
+======== ====== ===== =============
+Min Dxil Min SM Class Overloads
+======== ====== ===== =============
+1.0      6.0    Unary i16, i32, i64
+======== ====== ===== =============
+
+
 Reverses the order of the bits. For example given 0x12345678 the result would be 0x1e6a2c48.
+
+BitcastF16toI16
+~~~~~~~~~~~~~~~
+
+  i16 BitcastF16toI16(i32 125, half value)
+
+Category: Bitcasts with different sizes
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+BitcastF32toI32
+~~~~~~~~~~~~~~~
+
+  i32 BitcastF32toI32(i32 127, float value)
+
+Category: Bitcasts with different sizes
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+BitcastF64toI64
+~~~~~~~~~~~~~~~
+
+  i64 BitcastF64toI64(i32 129, double value)
+
+Category: Bitcasts with different sizes
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+BitcastI16toF16
+~~~~~~~~~~~~~~~
+
+  half BitcastI16toF16(i32 124, i16 value)
+
+Category: Bitcasts with different sizes
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+BitcastI32toF32
+~~~~~~~~~~~~~~~
+
+  float BitcastI32toF32(i32 126, i32 value)
+
+Category: Bitcasts with different sizes
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+BitcastI64toF64
+~~~~~~~~~~~~~~~
+
+  double BitcastI64toF64(i32 128, i64 value)
+
+Category: Bitcasts with different sizes
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+BufferLoad
+~~~~~~~~~~
+
+  %dx.types.ResRet.<overload> BufferLoad(i32 68, %dx.types.Handle srv, i32 index, i32 wot)
+
+Category: Resources
+Shader Stages: All
+
+======== ====== =====================
+Min Dxil Min SM Overloads
+======== ====== =====================
+1.0      6.0    half, float, i16, i32
+======== ====== =====================
+
+
+BufferStore
+~~~~~~~~~~~
+
+  void BufferStore(i32 69, %dx.types.Handle uav, i32 coord0, i32 coord1, <overload> value0, <overload> value1, <overload> value2, <overload> value3, i8 mask)
+
+Category: Resources
+Shader Stages: All
+
+======== ====== =====================
+Min Dxil Min SM Overloads
+======== ====== =====================
+1.0      6.0    half, float, i16, i32
+======== ====== =====================
+
+
+BufferUpdateCounter
+~~~~~~~~~~~~~~~~~~~
+
+  i32 BufferUpdateCounter(i32 70, %dx.types.Handle uav, i8 inc)
+
+Category: Resources
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+CBufferLoad
+~~~~~~~~~~~
+
+  <overload> CBufferLoad(i32 58, %dx.types.Handle handle, i32 byteOffset, const i32 alignment)
+
+Category: Resources
+Shader Stages: All
+
+======== ====== ======================================
+Min Dxil Min SM Overloads
+======== ====== ======================================
+1.0      6.0    half, float, double, i8, i16, i32, i64
+======== ====== ======================================
+
+
+CBufferLoadLegacy
+~~~~~~~~~~~~~~~~~
+
+  dx.types.CBufRet.<overload> CBufferLoadLegacy(i32 59, %dx.types.Handle handle, i32 regIndex)
+
+Category: Resources
+Shader Stages: All
+
+======== ====== ==================================
+Min Dxil Min SM Overloads
+======== ====== ==================================
+1.0      6.0    half, float, double, i16, i32, i64
+======== ====== ==================================
+
+
+CalculateLOD
+~~~~~~~~~~~~
+
+  float CalculateLOD(i32 81, %dx.types.Handle handle, %dx.types.Handle sampler, float coord0, float coord1, float coord2, i1 clamped)
+
+Category: Pixel shader
+Shader Stages: pixel
+
+======== ====== ========= ========
+Min Dxil Min SM Overloads Gradient
+======== ====== ========= ========
+1.0      6.0    float     Yes
+======== ====== ========= ========
+
+
+CallShader
+~~~~~~~~~~
+
+  void CallShader(i32 159, i32 ShaderIndex, <UDT overload> Parameter)
+
+Category: Indirect Shader Invocation
+Shader Stages: raygeneration, closesthit, miss, callable
+
+======== ====== ==============================
+Min Dxil Min SM Overloads
+======== ====== ==============================
+1.3      6.3    user defined struct type (UDT)
+======== ====== ==============================
+
+
+CheckAccessFullyMapped
+~~~~~~~~~~~~~~~~~~~~~~
+
+  i1 CheckAccessFullyMapped(i32 71, i32 status)
+
+Category: Resources
+Shader Stages: All
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.0      6.0    i32
+======== ====== =========
+
 
 Cos
 ~~~
+
+  <overload> Cos(i32 12, <overload> value)
+
+Category: Unary float
+Shader Stages: All
+
+======== ====== ===== ===========
+Min Dxil Min SM Class Overloads
+======== ====== ===== ===========
+1.0      6.0    Unary half, float
+======== ====== ===== ===========
+
 
 Theta values can be any IEEE 32-bit floating point values.
 
@@ -2386,10 +2777,124 @@ The maximum absolute error is 0.0008 in the interval from -100*Pi to +100*Pi.
 Countbits
 ~~~~~~~~~
 
+  i32 Countbits(i32 31, <overload> value)
+
+Category: Unary int
+Shader Stages: All
+
+======== ====== ========= =============
+Min Dxil Min SM Class     Overloads
+======== ====== ========= =============
+1.0      6.0    UnaryBits i16, i32, i64
+======== ====== ========= =============
+
+
 Counts the number of bits in the input integer.
+
+Coverage
+~~~~~~~~
+
+  i32 Coverage(i32 91)
+
+Category: Pixel shader
+Shader Stages: pixel
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.0      6.0    i32
+======== ====== =========
+
+
+CreateHandle
+~~~~~~~~~~~~
+
+  %dx.types.Handle CreateHandle(i32 57, const i8 resourceClass, const i32 rangeId, i32 index, const i1 nonUniformIndex)
+
+Category: Resources
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+CreateHandleForLib
+~~~~~~~~~~~~~~~~~~
+
+  %dx.types.Handle CreateHandleForLib(i32 160, <resource object> Resource)
+
+Category: Library create handle from resource struct (like HL intrinsic)
+Shader Stages: All
+
+======== ====== ======== ===============
+Min Dxil Min SM for link Overloads
+======== ====== ======== ===============
+1.3      6.3    6.0      resource object
+======== ====== ======== ===============
+
+
+CreateHandleFromHeap
+~~~~~~~~~~~~~~~~~~~~
+
+  %dx.types.Handle CreateHandleFromHeap(i32 216, i32 index, const i1 nonUniformIndex)
+
+Category: Get handle from heap
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.6      6.6
+======== ======
+
+
+CutStream
+~~~~~~~~~
+
+  void CutStream(i32 98, i8 streamId)
+
+Category: Geometry shader
+Shader Stages: geometry
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+CycleCounterLegacy
+~~~~~~~~~~~~~~~~~~
+
+  dx.types.twoi32 CycleCounterLegacy(i32 109)
+
+Category: Other
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
 
 DerivCoarseX
 ~~~~~~~~~~~~
+
+  <overload> DerivCoarseX(i32 83, <overload> value)
+
+Category: Pixel shader
+Shader Stages: pixel
+
+======== ====== ===== =========== ========
+Min Dxil Min SM Class Overloads   Gradient
+======== ====== ===== =========== ========
+1.0      6.0    Unary half, float Yes
+======== ====== ===== =========== ========
+
 
 dst = DerivCoarseX(src);
 
@@ -2401,6 +2906,18 @@ The exact calculation is up to the hardware vendor. There is also no specificati
 DerivCoarseY
 ~~~~~~~~~~~~
 
+  <overload> DerivCoarseY(i32 84, <overload> value)
+
+Category: Pixel shader
+Shader Stages: pixel
+
+======== ====== ===== =========== ========
+Min Dxil Min SM Class Overloads   Gradient
+======== ====== ===== =========== ========
+1.0      6.0    Unary half, float Yes
+======== ====== ===== =========== ========
+
+
 dst = DerivCoarseY(src);
 
 Computes the rate of change per stamp in y direction. Only a single y derivative pair is computed for each 2x2 stamp of pixels.
@@ -2411,6 +2928,18 @@ The exact calculation is up to the hardware vendor. There is also no specificati
 DerivFineX
 ~~~~~~~~~~
 
+  <overload> DerivFineX(i32 85, <overload> value)
+
+Category: Pixel shader
+Shader Stages: pixel
+
+======== ====== ===== =========== ========
+Min Dxil Min SM Class Overloads   Gradient
+======== ====== ===== =========== ========
+1.0      6.0    Unary half, float Yes
+======== ====== ===== =========== ========
+
+
 dst = DerivFineX(src);
 
 Computes the rate of change per pixel in x direction. Each pixel in the 2x2 stamp gets a unique pair of x derivative calculations
@@ -2420,29 +2949,299 @@ There is no specification dictating how the 2x2 quads will be aligned/tiled over
 DerivFineY
 ~~~~~~~~~~
 
+  <overload> DerivFineY(i32 86, <overload> value)
+
+Category: Pixel shader
+Shader Stages: pixel
+
+======== ====== ===== =========== ========
+Min Dxil Min SM Class Overloads   Gradient
+======== ====== ===== =========== ========
+1.0      6.0    Unary half, float Yes
+======== ====== ===== =========== ========
+
+
 dst = DerivFineY(src);
 
 Computes the rate of change per pixel in y direction. Each pixel in the 2x2 stamp gets a unique pair of y derivative calculations
 The data in the current Pixel Shader invocation always participates in the calculation of the requested derivative.
 There is no specification dictating how the 2x2 quads will be aligned/tiled over a primitive.
 
+Discard
+~~~~~~~
+
+  void Discard(i32 82, i1 condition)
+
+Category: Pixel shader
+Shader Stages: pixel
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+DispatchMesh
+~~~~~~~~~~~~
+
+  void DispatchMesh(i32 173, i32 threadGroupCountX, i32 threadGroupCountY, i32 threadGroupCountZ, <overload> payload)
+
+Category: Amplification shader instructions
+Shader Stages: amplification
+
+======== ====== ==============================
+Min Dxil Min SM Overloads
+======== ====== ==============================
+1.5      6.5    user defined struct type (UDT)
+======== ====== ==============================
+
+
+DispatchRaysDimensions
+~~~~~~~~~~~~~~~~~~~~~~
+
+  i32 DispatchRaysDimensions(i32 146, i8 col)
+
+Category: Ray Dispatch Arguments
+Shader Stages: raygeneration, intersection, anyhit, closesthit, miss, callable
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.3      6.3    i32
+======== ====== =========
+
+
+DispatchRaysIndex
+~~~~~~~~~~~~~~~~~
+
+  i32 DispatchRaysIndex(i32 145, i8 col)
+
+Category: Ray Dispatch Arguments
+Shader Stages: raygeneration, intersection, anyhit, closesthit, miss, callable
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.3      6.3    i32
+======== ====== =========
+
+
+DomainLocation
+~~~~~~~~~~~~~~
+
+  float DomainLocation(i32 105, const i8 component)
+
+Category: Domain shader
+Shader Stages: domain
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.0      6.0    float
+======== ====== =========
+
+
 Dot2
 ~~~~
 
+  <overload> Dot2(i32 54, <overload> ax, <overload> ay, <overload> bx, <overload> by)
+
+Category: Dot
+Shader Stages: All
+
+======== ====== ===========
+Min Dxil Min SM Overloads
+======== ====== ===========
+1.0      6.0    half, float
+======== ====== ===========
+
+
 Two-dimensional vector dot-product
+
+Dot2AddHalf
+~~~~~~~~~~~
+
+  <overload> Dot2AddHalf(i32 162, <overload> acc, half ax, half ay, half bx, half by)
+
+Category: Dot product with accumulate
+Shader Stages: All
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.4      6.4    float
+======== ====== =========
+
 
 Dot3
 ~~~~
+
+  <overload> Dot3(i32 55, <overload> ax, <overload> ay, <overload> az, <overload> bx, <overload> by, <overload> bz)
+
+Category: Dot
+Shader Stages: All
+
+======== ====== ===========
+Min Dxil Min SM Overloads
+======== ====== ===========
+1.0      6.0    half, float
+======== ====== ===========
+
 
 Three-dimensional vector dot-product
 
 Dot4
 ~~~~
 
+  <overload> Dot4(i32 56, <overload> ax, <overload> ay, <overload> az, <overload> aw, <overload> bx, <overload> by, <overload> bz, <overload> bw)
+
+Category: Dot
+Shader Stages: All
+
+======== ====== ===========
+Min Dxil Min SM Overloads
+======== ====== ===========
+1.0      6.0    half, float
+======== ====== ===========
+
+
 Four-dimensional vector dot-product
+
+Dot4AddI8Packed
+~~~~~~~~~~~~~~~
+
+  i32 Dot4AddI8Packed(i32 163, i32 acc, i32 a, i32 b)
+
+Category: Dot product with accumulate
+Shader Stages: All
+
+======== ====== ============= =========
+Min Dxil Min SM Class         Overloads
+======== ====== ============= =========
+1.4      6.4    Dot4AddPacked i32
+======== ====== ============= =========
+
+
+Dot4AddU8Packed
+~~~~~~~~~~~~~~~
+
+  i32 Dot4AddU8Packed(i32 164, i32 acc, i32 a, i32 b)
+
+Category: Dot product with accumulate
+Shader Stages: All
+
+======== ====== ============= =========
+Min Dxil Min SM Class         Overloads
+======== ====== ============= =========
+1.4      6.4    Dot4AddPacked i32
+======== ====== ============= =========
+
+
+EmitIndices
+~~~~~~~~~~~
+
+  void EmitIndices(i32 169, i32 PrimitiveIndex, i32 VertexIndex0, i32 VertexIndex1, i32 VertexIndex2)
+
+Category: Mesh shader instructions
+Shader Stages: mesh
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.5      6.5
+======== ======
+
+
+EmitStream
+~~~~~~~~~~
+
+  void EmitStream(i32 97, i8 streamId)
+
+Category: Geometry shader
+Shader Stages: geometry
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+EmitThenCutStream
+~~~~~~~~~~~~~~~~~
+
+  void EmitThenCutStream(i32 99, i8 streamId)
+
+Category: Geometry shader
+Shader Stages: geometry
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+EvalCentroid
+~~~~~~~~~~~~
+
+  <overload> EvalCentroid(i32 89, i32 inputSigId, i32 inputRowIndex, i8 inputColIndex)
+
+Category: Pixel shader
+Shader Stages: pixel
+
+======== ====== ===========
+Min Dxil Min SM Overloads
+======== ====== ===========
+1.0      6.0    half, float
+======== ====== ===========
+
+
+EvalSampleIndex
+~~~~~~~~~~~~~~~
+
+  <overload> EvalSampleIndex(i32 88, i32 inputSigId, i32 inputRowIndex, i8 inputColIndex, i32 sampleIndex)
+
+Category: Pixel shader
+Shader Stages: pixel
+
+======== ====== ===========
+Min Dxil Min SM Overloads
+======== ====== ===========
+1.0      6.0    half, float
+======== ====== ===========
+
+
+EvalSnapped
+~~~~~~~~~~~
+
+  <overload> EvalSnapped(i32 87, i32 inputSigId, i32 inputRowIndex, i8 inputColIndex, i32 offsetX, i32 offsetY)
+
+Category: Pixel shader
+Shader Stages: pixel
+
+======== ====== ===========
+Min Dxil Min SM Overloads
+======== ====== ===========
+1.0      6.0    half, float
+======== ====== ===========
+
 
 Exp
 ~~~
+
+  <overload> Exp(i32 21, <overload> value)
+
+Category: Unary float
+Shader Stages: All
+
+======== ====== ===== ===========
+Min Dxil Min SM Class Overloads
+======== ====== ===== ===========
+1.0      6.0    Unary half, float
+======== ====== ===== ===========
+
 
 Returns 2^exponent. Note that hlsl log intrinsic returns the base-e exponent. Maximum relative error is e^-21.
 
@@ -2455,17 +3254,53 @@ Returns 2^exponent. Note that hlsl log intrinsic returns the base-e exponent. Ma
 FAbs
 ~~~~
 
+  <overload> FAbs(i32 6, <overload> value)
+
+Category: Unary float
+Shader Stages: All
+
+======== ====== ===== ===================
+Min Dxil Min SM Class Overloads
+======== ====== ===== ===================
+1.0      6.0    Unary half, float, double
+======== ====== ===== ===================
+
+
 The FAbs instruction takes simply forces the sign of the number(s) on the source operand positive, including on INF and denorm values.
 Applying FAbs on NaN preserves NaN, although the particular NaN bit pattern that results is not defined.
 
 FMad
 ~~~~
 
+  <overload> FMad(i32 46, <overload> a, <overload> b, <overload> c)
+
+Category: Tertiary float
+Shader Stages: All
+
+======== ====== ======== ===================
+Min Dxil Min SM Class    Overloads
+======== ====== ======== ===================
+1.0      6.0    Tertiary half, float, double
+======== ====== ======== ===================
+
+
 Floating point multiply & add. This operation is not fused for "precise" operations.
 FMad(a,b,c) = a * b + c
 
 FMax
 ~~~~
+
+  <overload> FMax(i32 35, <overload> a, <overload> b)
+
+Category: Binary float
+Shader Stages: All
+
+======== ====== ====== ===================
+Min Dxil Min SM Class  Overloads
+======== ====== ====== ===================
+1.0      6.0    Binary half, float, double
+======== ====== ====== ===================
+
 
 >= is used instead of > so that if min(x,y) = x then max(x,y) = y.
 
@@ -2492,6 +3327,18 @@ Denorms are flushed (sign preserved) before comparison, however the result writt
 FMin
 ~~~~
 
+  <overload> FMin(i32 36, <overload> a, <overload> b)
+
+Category: Binary float
+Shader Stages: All
+
+======== ====== ====== ===================
+Min Dxil Min SM Class  Overloads
+======== ====== ====== ===================
+1.0      6.0    Binary half, float, double
+======== ====== ====== ===================
+
+
 NaN has special handling: If one source operand is NaN, then the other source operand is returned.
 If both are NaN, any NaN representation is returned.
 This conforms to new IEEE 754R rules.
@@ -2515,20 +3362,83 @@ Denorms are flushed (sign preserved) before comparison, however the result writt
 FirstbitHi
 ~~~~~~~~~~
 
+  i32 FirstbitHi(i32 33, <overload> value)
+
+Category: Unary uint
+Shader Stages: All
+
+======== ====== ========= =============
+Min Dxil Min SM Class     Overloads
+======== ====== ========= =============
+1.0      6.0    UnaryBits i16, i32, i64
+======== ====== ========= =============
+
+
 Returns the integer position of the first bit set in the 32-bit input starting from the MSB. For example, 0x10000000 would return 3. Returns 0xffffffff if no match was found.
 
 FirstbitLo
 ~~~~~~~~~~
+
+  i32 FirstbitLo(i32 32, <overload> value)
+
+Category: Unary int
+Shader Stages: All
+
+======== ====== ========= =============
+Min Dxil Min SM Class     Overloads
+======== ====== ========= =============
+1.0      6.0    UnaryBits i16, i32, i64
+======== ====== ========= =============
+
 
 Returns the integer position of the first bit set in the 32-bit input starting from the LSB. For example, 0x00000000 would return 1. Returns 0xffffffff if no match was found.
 
 FirstbitSHi
 ~~~~~~~~~~~
 
+  i32 FirstbitSHi(i32 34, <overload> value)
+
+Category: Unary int
+Shader Stages: All
+
+======== ====== ========= =============
+Min Dxil Min SM Class     Overloads
+======== ====== ========= =============
+1.0      6.0    UnaryBits i16, i32, i64
+======== ====== ========= =============
+
+
 Returns the first 0 from the MSB if the number is negative, else the first 1 from the MSB. Returns 0xffffffff if no match was found.
+
+FlattenedThreadIdInGroup
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+  i32 FlattenedThreadIdInGroup(i32 96)
+
+Category: Compute/Mesh/Amplification shader
+Shader Stages: compute, amplification, mesh
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.0      6.0    i32
+======== ====== =========
+
 
 Fma
 ~~~
+
+  <overload> Fma(i32 47, <overload> a, <overload> b, <overload> c)
+
+Category: Tertiary float
+Shader Stages: All
+
+======== ====== ======== =========
+Min Dxil Min SM Class    Overloads
+======== ====== ======== =========
+1.0      6.0    Tertiary double
+======== ====== ======== =========
+
 
 Fused multiply-add. This operation is only defined in double precision.
 Fma(a,b,c) = a * b + c
@@ -2536,14 +3446,113 @@ Fma(a,b,c) = a * b + c
 Frc
 ~~~
 
+  <overload> Frc(i32 22, <overload> value)
+
+Category: Unary float
+Shader Stages: All
+
+======== ====== ===== ===========
+Min Dxil Min SM Class Overloads
+======== ====== ===== ===========
+1.0      6.0    Unary half, float
+======== ====== ===== ===========
+
+
 +--------------+------+------+---------+----+----+---------+--------+------+-----+
 | src          | -inf | -F   | -denorm | -0 | +0 | +denorm | +F     | +inf | NaN |
 +--------------+------+------+---------+----+----+---------+--------+------+-----+
 | log(src)     | NaN  |[+0,1)| +0      | +0 | +0 | +0      | [+0,1) | NaN  | NaN |
 +--------------+------+------+---------+----+----+---------+--------+------+-----+
 
+GSInstanceID
+~~~~~~~~~~~~
+
+  i32 GSInstanceID(i32 100)
+
+Category: Geometry shader
+Shader Stages: geometry
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.0      6.0    i32
+======== ====== =========
+
+
+GeometryIndex
+~~~~~~~~~~~~~
+
+  i32 GeometryIndex(i32 213)
+
+Category: Raytracing object space uint System Values, raytracing tier 1.1
+Shader Stages: intersection, anyhit, closesthit
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.5      6.5    i32
+======== ====== =========
+
+
+GetDimensions
+~~~~~~~~~~~~~
+
+  %dx.types.Dimensions GetDimensions(i32 72, %dx.types.Handle handle, i32 mipLevel)
+
+Category: Resources
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+GetMeshPayload
+~~~~~~~~~~~~~~
+
+  <overload> GetMeshPayload(i32 170)
+
+Category: Mesh shader instructions
+Shader Stages: mesh
+
+======== ====== ==============================
+Min Dxil Min SM Overloads
+======== ====== ==============================
+1.5      6.5    user defined struct type (UDT)
+======== ====== ==============================
+
+
+GroupId
+~~~~~~~
+
+  i32 GroupId(i32 94, i32 component)
+
+Category: Compute/Mesh/Amplification shader
+Shader Stages: compute, amplification, mesh
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.0      6.0    i32
+======== ====== =========
+
+
 Hcos
 ~~~~
+
+  <overload> Hcos(i32 18, <overload> value)
+
+Category: Unary float
+Shader Stages: All
+
+======== ====== ===== ===========
+Min Dxil Min SM Class Overloads
+======== ====== ===== ===========
+1.0      6.0    Unary half, float
+======== ====== ===== ===========
+
 
 Returns the hyperbolic cosine of the specified value.
 
@@ -2553,8 +3562,35 @@ Returns the hyperbolic cosine of the specified value.
 | hcos(src)| +inf | (1, +inf)  |      +1 | +1 | +1 |      +1 | (1, +inf)  | +inf | NaN |
 +----------+------+------------+---------+----+----+---------+------------+------+-----+
 
+HitKind
+~~~~~~~
+
+  i32 HitKind(i32 143)
+
+Category: Raytracing hit uint System Values
+Shader Stages: intersection, anyhit, closesthit
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.3      6.3    i32
+======== ====== =========
+
+
 Hsin
 ~~~~
+
+  <overload> Hsin(i32 19, <overload> value)
+
+Category: Unary float
+Shader Stages: All
+
+======== ====== ===== ===========
+Min Dxil Min SM Class Overloads
+======== ====== ===== ===========
+1.0      6.0    Unary half, float
+======== ====== ===== ===========
+
 
 Returns the hyperbolic sine of the specified value.
 
@@ -2567,6 +3603,18 @@ Returns the hyperbolic sine of the specified value.
 Htan
 ~~~~
 
+  <overload> Htan(i32 20, <overload> value)
+
+Category: Unary float
+Shader Stages: All
+
+======== ====== ===== ===========
+Min Dxil Min SM Class Overloads
+======== ====== ===== ===========
+1.0      6.0    Unary half, float
+======== ====== ===== ===========
+
+
 Returns the hyperbolic tangent of the specified value.
 
 +----------+------+------------+---------+----+----+---------+------------+------+-----+
@@ -2578,6 +3626,18 @@ Returns the hyperbolic tangent of the specified value.
 IMad
 ~~~~
 
+  <overload> IMad(i32 48, <overload> a, <overload> b, <overload> c)
+
+Category: Tertiary int
+Shader Stages: All
+
+======== ====== ======== =============
+Min Dxil Min SM Class    Overloads
+======== ====== ======== =============
+1.0      6.0    Tertiary i16, i32, i64
+======== ====== ======== =============
+
+
 Signed integer multiply & add
 
 IMad(a,b,c) = a * b + c
@@ -2585,15 +3645,51 @@ IMad(a,b,c) = a * b + c
 IMax
 ~~~~
 
+  <overload> IMax(i32 37, <overload> a, <overload> b)
+
+Category: Binary int
+Shader Stages: All
+
+======== ====== ====== =============
+Min Dxil Min SM Class  Overloads
+======== ====== ====== =============
+1.0      6.0    Binary i16, i32, i64
+======== ====== ====== =============
+
+
 IMax(a,b) returns a if a > b, else b. Optional negate modifier on source operands takes 2's complement before performing operation.
 
 IMin
 ~~~~
 
+  <overload> IMin(i32 38, <overload> a, <overload> b)
+
+Category: Binary int
+Shader Stages: All
+
+======== ====== ====== =============
+Min Dxil Min SM Class  Overloads
+======== ====== ====== =============
+1.0      6.0    Binary i16, i32, i64
+======== ====== ====== =============
+
+
 IMin(a,b) returns a if a < b, else b. Optional negate modifier on source operands takes 2's complement before performing operation.
 
 IMul
 ~~~~
+
+  dx.types.twoi32 IMul(i32 41, <overload> a, <overload> b)
+
+Category: Binary int with two outputs
+Shader Stages: All
+
+======== ====== ================= =========
+Min Dxil Min SM Class             Overloads
+======== ====== ================= =========
+1.0      6.0    BinaryWithTwoOuts i32
+======== ====== ================= =========
+
 
 IMul(src0, src1) = destHi, destLo
 multiply of 32-bit operands src0 and src1 (note they are signed), producing the correct full 64-bit result.
@@ -2605,6 +3701,18 @@ Optional negate modifier on source operands takes 2's complement before performi
 
 Ibfe
 ~~~~
+
+  <overload> Ibfe(i32 51, <overload> a, <overload> b, <overload> c)
+
+Category: Tertiary int
+Shader Stages: All
+
+======== ====== ======== =========
+Min Dxil Min SM Class    Overloads
+======== ====== ======== =========
+1.0      6.0    Tertiary i32, i64
+======== ====== ======== =========
+
 
 dest = Ibfe(src0, src1, src2)
 
@@ -2630,33 +3738,270 @@ offset: The LSB 5 bits of src1 (0-31)
         ishr dest, src2, offset
     }
 
+IgnoreHit
+~~~~~~~~~
+
+  void IgnoreHit(i32 155)
+
+Category: AnyHit Terminals
+Shader Stages: anyhit
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.3      6.3
+======== ======
+
+
+InnerCoverage
+~~~~~~~~~~~~~
+
+  i32 InnerCoverage(i32 92)
+
+Category: Pixel shader
+Shader Stages: pixel
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.0      6.0    i32
+======== ====== =========
+
+
+InstanceID
+~~~~~~~~~~
+
+  i32 InstanceID(i32 141)
+
+Category: Raytracing object space uint System Values
+Shader Stages: intersection, anyhit, closesthit
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.3      6.3    i32
+======== ====== =========
+
+
+InstanceIndex
+~~~~~~~~~~~~~
+
+  i32 InstanceIndex(i32 142)
+
+Category: Raytracing object space uint System Values
+Shader Stages: intersection, anyhit, closesthit
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.3      6.3    i32
+======== ====== =========
+
+
 IsFinite
 ~~~~~~~~
+
+  i1 IsFinite(i32 10, <overload> value)
+
+Category: Unary float
+Shader Stages: All
+
+======== ====== ============== ===========
+Min Dxil Min SM Class          Overloads
+======== ====== ============== ===========
+1.0      6.0    IsSpecialFloat half, float
+======== ====== ============== ===========
+
 
 Returns true if x is finite, false otherwise.
 
 IsInf
 ~~~~~
 
+  i1 IsInf(i32 9, <overload> value)
+
+Category: Unary float
+Shader Stages: All
+
+======== ====== ============== ===========
+Min Dxil Min SM Class          Overloads
+======== ====== ============== ===========
+1.0      6.0    IsSpecialFloat half, float
+======== ====== ============== ===========
+
+
 Returns true if x is +INF or -INF, false otherwise.
 
 IsNaN
 ~~~~~
+
+  i1 IsNaN(i32 8, <overload> value)
+
+Category: Unary float
+Shader Stages: All
+
+======== ====== ============== ===========
+Min Dxil Min SM Class          Overloads
+======== ====== ============== ===========
+1.0      6.0    IsSpecialFloat half, float
+======== ====== ============== ===========
+
 
 Returns true if x is NAN or QNAN, false otherwise.
 
 IsNormal
 ~~~~~~~~
 
+  i1 IsNormal(i32 11, <overload> value)
+
+Category: Unary float
+Shader Stages: All
+
+======== ====== ============== ===========
+Min Dxil Min SM Class          Overloads
+======== ====== ============== ===========
+1.0      6.0    IsSpecialFloat half, float
+======== ====== ============== ===========
+
+
 Returns IsNormal.
+
+LegacyDoubleToFloat
+~~~~~~~~~~~~~~~~~~~
+
+  float LegacyDoubleToFloat(i32 132, double value)
+
+Category: Double precision
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+LegacyDoubleToSInt32
+~~~~~~~~~~~~~~~~~~~~
+
+  i32 LegacyDoubleToSInt32(i32 133, double value)
+
+Category: Double precision
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+LegacyDoubleToUInt32
+~~~~~~~~~~~~~~~~~~~~
+
+  i32 LegacyDoubleToUInt32(i32 134, double value)
+
+Category: Double precision
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+LegacyF16ToF32
+~~~~~~~~~~~~~~
+
+  float LegacyF16ToF32(i32 131, i32 value)
+
+Category: Legacy floating-point
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+LegacyF32ToF16
+~~~~~~~~~~~~~~
+
+  i32 LegacyF32ToF16(i32 130, float value)
+
+Category: Legacy floating-point
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
 
 LoadInput
 ~~~~~~~~~
 
+  <overload> LoadInput(i32 4, i32 inputSigId, i32 rowIndex, i8 colIndex, i32 gsVertexAxis)
+
+Category: Temporary, indexable, input, output registers
+Shader Stages: All
+
+======== ====== =====================
+Min Dxil Min SM Overloads
+======== ====== =====================
+1.0      6.0    half, float, i16, i32
+======== ====== =====================
+
+
 Loads the value from shader input
+
+LoadOutputControlPoint
+~~~~~~~~~~~~~~~~~~~~~~
+
+  <overload> LoadOutputControlPoint(i32 103, i32 inputSigId, i32 row, i8 col, i32 index)
+
+Category: Domain and hull shader
+Shader Stages: hull, domain
+
+======== ====== =====================
+Min Dxil Min SM Overloads
+======== ====== =====================
+1.0      6.0    half, float, i16, i32
+======== ====== =====================
+
+
+LoadPatchConstant
+~~~~~~~~~~~~~~~~~
+
+  <overload> LoadPatchConstant(i32 104, i32 inputSigId, i32 row, i8 col)
+
+Category: Domain and hull shader
+Shader Stages: hull, domain
+
+======== ====== =====================
+Min Dxil Min SM Overloads
+======== ====== =====================
+1.0      6.0    half, float, i16, i32
+======== ====== =====================
+
 
 Log
 ~~~
+
+  <overload> Log(i32 23, <overload> value)
+
+Category: Unary float
+Shader Stages: All
+
+======== ====== ===== ===========
+Min Dxil Min SM Class Overloads
+======== ====== ===== ===========
+1.0      6.0    Unary half, float
+======== ====== ===== ===========
+
 
 Returns log base 2. Note that hlsl log intrinsic returns natural log.
 
@@ -2666,18 +4011,69 @@ Returns log base 2. Note that hlsl log intrinsic returns natural log.
 | log(src) |  NaN | NaN        |    -inf |-inf|-inf|    -inf |  F         | +inf | NaN |
 +----------+------+------------+---------+----+----+---------+------------+------+-----+
 
+MakeDouble
+~~~~~~~~~~
+
+  double MakeDouble(i32 101, i32 lo, i32 hi)
+
+Category: Double precision
+Shader Stages: All
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.0      6.0    double
+======== ====== =========
+
+
 MinPrecXRegLoad
 ~~~~~~~~~~~~~~~
+
+  <overload> MinPrecXRegLoad(i32 2, float* regIndex, i32 index, i8 component)
+
+Category: Temporary, indexable, input, output registers
+Shader Stages: All
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.0      6.0    half, i16
+======== ====== =========
+
 
 Helper load operation for minprecision
 
 MinPrecXRegStore
 ~~~~~~~~~~~~~~~~
 
+  void MinPrecXRegStore(i32 3, float* regIndex, i32 index, i8 component, <overload> value)
+
+Category: Temporary, indexable, input, output registers
+Shader Stages: All
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.0      6.0    half, i16
+======== ====== =========
+
+
 Helper store operation for minprecision
 
 Msad
 ~~~~
+
+  <overload> Msad(i32 50, <overload> a, <overload> b, <overload> c)
+
+Category: Tertiary int
+Shader Stages: All
+
+======== ====== ======== =========
+Min Dxil Min SM Class    Overloads
+======== ====== ======== =========
+1.0      6.0    Tertiary i32, i64
+======== ====== ======== =========
+
 
 Returns the masked Sum of Absolute Differences.
 
@@ -2732,8 +4128,800 @@ dest receives the result of the masked SAD operation added to the accumulation v
         return accum;
     }
 
+ObjectRayDirection
+~~~~~~~~~~~~~~~~~~
+
+  float ObjectRayDirection(i32 150, i8 col)
+
+Category: Ray object space Vectors
+Shader Stages: intersection, anyhit, closesthit
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.3      6.3    float
+======== ====== =========
+
+
+ObjectRayOrigin
+~~~~~~~~~~~~~~~
+
+  float ObjectRayOrigin(i32 149, i8 col)
+
+Category: Ray object space Vectors
+Shader Stages: intersection, anyhit, closesthit
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.3      6.3    float
+======== ====== =========
+
+
+ObjectToWorld
+~~~~~~~~~~~~~
+
+  float ObjectToWorld(i32 151, i32 row, i8 col)
+
+Category: Ray Transforms
+Shader Stages: intersection, anyhit, closesthit
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.3      6.3    float
+======== ====== =========
+
+
+OutputControlPointID
+~~~~~~~~~~~~~~~~~~~~
+
+  i32 OutputControlPointID(i32 107)
+
+Category: Hull shader
+Shader Stages: hull
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.0      6.0    i32
+======== ====== =========
+
+
+PrimitiveID
+~~~~~~~~~~~
+
+  i32 PrimitiveID(i32 108)
+
+Category: Hull, Domain and Geometry shaders
+Shader Stages: hull, domain, geometry
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.0      6.0    i32
+======== ====== =========
+
+
+PrimitiveIndex
+~~~~~~~~~~~~~~
+
+  i32 PrimitiveIndex(i32 161)
+
+Category: Raytracing object space uint System Values
+Shader Stages: intersection, anyhit, closesthit
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.3      6.3    i32
+======== ====== =========
+
+
+QuadOp
+~~~~~~
+
+  <overload> QuadOp(i32 123, <overload> value, const i8 op)
+
+Category: Quad Wave Ops
+Shader Stages: compute, pixel, amplification, mesh
+
+======== ====== ======================================
+Min Dxil Min SM Overloads
+======== ====== ======================================
+1.0      6.0    half, float, double, i8, i16, i32, i64
+======== ====== ======================================
+
+
+QuadReadLaneAt
+~~~~~~~~~~~~~~
+
+  <overload> QuadReadLaneAt(i32 122, <overload> value, const i32 quadLane)
+
+Category: Quad Wave Ops
+Shader Stages: compute, pixel, amplification, mesh
+
+======== ====== ==========================================
+Min Dxil Min SM Overloads
+======== ====== ==========================================
+1.0      6.0    half, float, double, i1, i8, i16, i32, i64
+======== ====== ==========================================
+
+
+RawBufferLoad
+~~~~~~~~~~~~~
+
+  %dx.types.ResRet.<overload> RawBufferLoad(i32 139, %dx.types.Handle srv, i32 index, i32 elementOffset, const i8 mask, const i32 alignment)
+
+Category: Resources
+Shader Stages: All
+
+======== ====== ======== ==================================
+Min Dxil Min SM for link Overloads
+======== ====== ======== ==================================
+1.2      6.2    6.0      half, float, i16, i32, double, i64
+======== ====== ======== ==================================
+
+
+RawBufferStore
+~~~~~~~~~~~~~~
+
+  void RawBufferStore(i32 140, %dx.types.Handle uav, i32 index, i32 elementOffset, <overload> value0, <overload> value1, <overload> value2, <overload> value3, const i8 mask, const i32 alignment)
+
+Category: Resources
+Shader Stages: All
+
+======== ====== ======== ==================================
+Min Dxil Min SM for link Overloads
+======== ====== ======== ==================================
+1.2      6.2    6.0      half, float, i16, i32, double, i64
+======== ====== ======== ==================================
+
+
+RayFlags
+~~~~~~~~
+
+  i32 RayFlags(i32 144)
+
+Category: Raytracing uint System Values
+Shader Stages: intersection, anyhit, closesthit, miss
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.3      6.3    i32
+======== ====== =========
+
+
+RayQuery_Abort
+~~~~~~~~~~~~~~
+
+  void RayQuery_Abort(i32 181, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.5      6.5
+======== ======
+
+
+RayQuery_CandidateGeometryIndex
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  i32 RayQuery_CandidateGeometryIndex(i32 203, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateScalar i32
+======== ====== ==================== =========
+
+
+RayQuery_CandidateInstanceContributionToHitGroupIndex
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  i32 RayQuery_CandidateInstanceContributionToHitGroupIndex(i32 214, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateScalar i32
+======== ====== ==================== =========
+
+
+RayQuery_CandidateInstanceID
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  i32 RayQuery_CandidateInstanceID(i32 202, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateScalar i32
+======== ====== ==================== =========
+
+
+RayQuery_CandidateInstanceIndex
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  i32 RayQuery_CandidateInstanceIndex(i32 201, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateScalar i32
+======== ====== ==================== =========
+
+
+RayQuery_CandidateObjectRayDirection
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  float RayQuery_CandidateObjectRayDirection(i32 206, i32 rayQueryHandle, const i8 component)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateVector float
+======== ====== ==================== =========
+
+
+RayQuery_CandidateObjectRayOrigin
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  float RayQuery_CandidateObjectRayOrigin(i32 205, i32 rayQueryHandle, const i8 component)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateVector float
+======== ====== ==================== =========
+
+
+RayQuery_CandidateObjectToWorld3x4
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  float RayQuery_CandidateObjectToWorld3x4(i32 186, i32 rayQueryHandle, i32 row, i8 col)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateMatrix float
+======== ====== ==================== =========
+
+
+RayQuery_CandidatePrimitiveIndex
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  i32 RayQuery_CandidatePrimitiveIndex(i32 204, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateScalar i32
+======== ====== ==================== =========
+
+
+RayQuery_CandidateProceduralPrimitiveNonOpaque
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  i1 RayQuery_CandidateProceduralPrimitiveNonOpaque(i32 190, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateScalar i1
+======== ====== ==================== =========
+
+
+RayQuery_CandidateTriangleBarycentrics
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  float RayQuery_CandidateTriangleBarycentrics(i32 193, i32 rayQueryHandle, const i8 component)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateVector float
+======== ====== ==================== =========
+
+
+RayQuery_CandidateTriangleFrontFace
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  i1 RayQuery_CandidateTriangleFrontFace(i32 191, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateScalar i1
+======== ====== ==================== =========
+
+
+RayQuery_CandidateTriangleRayT
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  float RayQuery_CandidateTriangleRayT(i32 199, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateScalar float
+======== ====== ==================== =========
+
+
+RayQuery_CandidateType
+~~~~~~~~~~~~~~~~~~~~~~
+
+  i32 RayQuery_CandidateType(i32 185, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateScalar i32
+======== ====== ==================== =========
+
+
+RayQuery_CandidateWorldToObject3x4
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  float RayQuery_CandidateWorldToObject3x4(i32 187, i32 rayQueryHandle, i32 row, i8 col)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateMatrix float
+======== ====== ==================== =========
+
+
+RayQuery_CommitNonOpaqueTriangleHit
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  void RayQuery_CommitNonOpaqueTriangleHit(i32 182, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.5      6.5
+======== ======
+
+
+RayQuery_CommitProceduralPrimitiveHit
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  void RayQuery_CommitProceduralPrimitiveHit(i32 183, i32 rayQueryHandle, float t)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.5      6.5
+======== ======
+
+
+RayQuery_CommittedGeometryIndex
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  i32 RayQuery_CommittedGeometryIndex(i32 209, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateScalar i32
+======== ====== ==================== =========
+
+
+RayQuery_CommittedInstanceContributionToHitGroupIndex
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  i32 RayQuery_CommittedInstanceContributionToHitGroupIndex(i32 215, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateScalar i32
+======== ====== ==================== =========
+
+
+RayQuery_CommittedInstanceID
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  i32 RayQuery_CommittedInstanceID(i32 208, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateScalar i32
+======== ====== ==================== =========
+
+
+RayQuery_CommittedInstanceIndex
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  i32 RayQuery_CommittedInstanceIndex(i32 207, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateScalar i32
+======== ====== ==================== =========
+
+
+RayQuery_CommittedObjectRayDirection
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  float RayQuery_CommittedObjectRayDirection(i32 212, i32 rayQueryHandle, const i8 component)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateVector float
+======== ====== ==================== =========
+
+
+RayQuery_CommittedObjectRayOrigin
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  float RayQuery_CommittedObjectRayOrigin(i32 211, i32 rayQueryHandle, const i8 component)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateVector float
+======== ====== ==================== =========
+
+
+RayQuery_CommittedObjectToWorld3x4
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  float RayQuery_CommittedObjectToWorld3x4(i32 188, i32 rayQueryHandle, i32 row, i8 col)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateMatrix float
+======== ====== ==================== =========
+
+
+RayQuery_CommittedPrimitiveIndex
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  i32 RayQuery_CommittedPrimitiveIndex(i32 210, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateScalar i32
+======== ====== ==================== =========
+
+
+RayQuery_CommittedRayT
+~~~~~~~~~~~~~~~~~~~~~~
+
+  float RayQuery_CommittedRayT(i32 200, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateScalar float
+======== ====== ==================== =========
+
+
+RayQuery_CommittedStatus
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+  i32 RayQuery_CommittedStatus(i32 184, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateScalar i32
+======== ====== ==================== =========
+
+
+RayQuery_CommittedTriangleBarycentrics
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  float RayQuery_CommittedTriangleBarycentrics(i32 194, i32 rayQueryHandle, const i8 component)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateVector float
+======== ====== ==================== =========
+
+
+RayQuery_CommittedTriangleFrontFace
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  i1 RayQuery_CommittedTriangleFrontFace(i32 192, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateScalar i1
+======== ====== ==================== =========
+
+
+RayQuery_CommittedWorldToObject3x4
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  float RayQuery_CommittedWorldToObject3x4(i32 189, i32 rayQueryHandle, i32 row, i8 col)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateMatrix float
+======== ====== ==================== =========
+
+
+RayQuery_Proceed
+~~~~~~~~~~~~~~~~
+
+  i1 RayQuery_Proceed(i32 180, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.5      6.5    i1
+======== ====== =========
+
+
+RayQuery_RayFlags
+~~~~~~~~~~~~~~~~~
+
+  i32 RayQuery_RayFlags(i32 195, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateScalar i32
+======== ====== ==================== =========
+
+
+RayQuery_RayTMin
+~~~~~~~~~~~~~~~~
+
+  float RayQuery_RayTMin(i32 198, i32 rayQueryHandle)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateScalar float
+======== ====== ==================== =========
+
+
+RayQuery_TraceRayInline
+~~~~~~~~~~~~~~~~~~~~~~~
+
+  void RayQuery_TraceRayInline(i32 179, i32 rayQueryHandle, %dx.types.Handle accelerationStructure, i32 rayFlags, i32 instanceInclusionMask, float origin_X, float origin_Y, float origin_Z, float tMin, float direction_X, float direction_Y, float direction_Z, float tMax)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.5      6.5
+======== ======
+
+
+RayQuery_WorldRayDirection
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  float RayQuery_WorldRayDirection(i32 197, i32 rayQueryHandle, const i8 component)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateVector float
+======== ====== ==================== =========
+
+
+RayQuery_WorldRayOrigin
+~~~~~~~~~~~~~~~~~~~~~~~
+
+  float RayQuery_WorldRayOrigin(i32 196, i32 rayQueryHandle, const i8 component)
+
+Category: Inline Ray Query
+Shader Stages: All
+
+======== ====== ==================== =========
+Min Dxil Min SM Class                Overloads
+======== ====== ==================== =========
+1.5      6.5    RayQuery_StateVector float
+======== ====== ==================== =========
+
+
+RayTCurrent
+~~~~~~~~~~~
+
+  float RayTCurrent(i32 154)
+
+Category: RayT
+Shader Stages: intersection, anyhit, closesthit, miss
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.3      6.3    float
+======== ====== =========
+
+
+RayTMin
+~~~~~~~
+
+  float RayTMin(i32 153)
+
+Category: RayT
+Shader Stages: intersection, anyhit, closesthit, miss
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.3      6.3    float
+======== ====== =========
+
+
+RenderTargetGetSampleCount
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  i32 RenderTargetGetSampleCount(i32 77)
+
+Category: Resources - sample
+Shader Stages: pixel
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+RenderTargetGetSamplePosition
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  %dx.types.SamplePos RenderTargetGetSamplePosition(i32 76, i32 index)
+
+Category: Resources - sample
+Shader Stages: pixel
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+ReportHit
+~~~~~~~~~
+
+  i1 ReportHit(i32 158, float THit, i32 HitKind, <UDT overload> Attributes)
+
+Category: Indirect Shader Invocation
+Shader Stages: intersection
+
+======== ====== ==============================
+Min Dxil Min SM Overloads
+======== ====== ==============================
+1.3      6.3    user defined struct type (UDT)
+======== ====== ==============================
+
+
 Round_ne
 ~~~~~~~~
+
+  <overload> Round_ne(i32 26, <overload> value)
+
+Category: Unary float - rounding
+Shader Stages: All
+
+======== ====== ===== ===========
+Min Dxil Min SM Class Overloads
+======== ====== ===== ===========
+1.0      6.0    Unary half, float
+======== ====== ===== ===========
+
 
 Floating-point round of the values in src,
 writing integral floating-point values to dest.
@@ -2749,6 +4937,18 @@ round_ne rounds towards nearest even. For halfway, it rounds away from zero.
 Round_ni
 ~~~~~~~~
 
+  <overload> Round_ni(i32 27, <overload> value)
+
+Category: Unary float - rounding
+Shader Stages: All
+
+======== ====== ===== ===========
+Min Dxil Min SM Class Overloads
+======== ====== ===== ===========
+1.0      6.0    Unary half, float
+======== ====== ===== ===========
+
+
 Floating-point round of the values in src,
 writing integral floating-point values to dest.
 
@@ -2762,6 +4962,18 @@ round_ni rounds towards -INF, commonly known as floor().
 
 Round_pi
 ~~~~~~~~
+
+  <overload> Round_pi(i32 28, <overload> value)
+
+Category: Unary float - rounding
+Shader Stages: All
+
+======== ====== ===== ===========
+Min Dxil Min SM Class Overloads
+======== ====== ===== ===========
+1.0      6.0    Unary half, float
+======== ====== ===== ===========
+
 
 Floating-point round of the values in src,
 writing integral floating-point values to dest.
@@ -2777,6 +4989,18 @@ round_pi rounds towards +INF, commonly known as ceil().
 Round_z
 ~~~~~~~
 
+  <overload> Round_z(i32 29, <overload> value)
+
+Category: Unary float - rounding
+Shader Stages: All
+
+======== ====== ===== ===========
+Min Dxil Min SM Class Overloads
+======== ====== ===== ===========
+1.0      6.0    Unary half, float
+======== ====== ===== ===========
+
+
 Floating-point round of the values in src,
 writing integral floating-point values to dest.
 
@@ -2791,6 +5015,18 @@ round_z rounds towards zero.
 Rsqrt
 ~~~~~
 
+  <overload> Rsqrt(i32 25, <overload> value)
+
+Category: Unary float
+Shader Stages: All
+
+======== ====== ===== ===========
+Min Dxil Min SM Class Overloads
+======== ====== ===== ===========
+1.0      6.0    Unary half, float
+======== ====== ===== ===========
+
+
 Maximum relative error is 2^21.
 
 +--------------+------+----+---------+----+----+---------+----+------+-----+
@@ -2799,8 +5035,125 @@ Maximum relative error is 2^21.
 | rsqrt(src)   | -inf | -F | -0      | -0 | +0 | +0      | +F | +inf | NaN |
 +--------------+------+----+---------+----+----+---------+----+------+-----+
 
+Sample
+~~~~~~
+
+  %dx.types.ResRet.<overload> Sample(i32 60, %dx.types.Handle srv, %dx.types.Handle sampler, float coord0, float coord1, float coord2, float coord3, i32 offset0, i32 offset1, i32 offset2, float clamp)
+
+Category: Resources - sample
+Shader Stages: pixel
+
+======== ====== =========== ========
+Min Dxil Min SM Overloads   Gradient
+======== ====== =========== ========
+1.0      6.0    half, float Yes
+======== ====== =========== ========
+
+
+SampleBias
+~~~~~~~~~~
+
+  %dx.types.ResRet.<overload> SampleBias(i32 61, %dx.types.Handle srv, %dx.types.Handle sampler, float coord0, float coord1, float coord2, float coord3, i32 offset0, i32 offset1, i32 offset2, float bias, float clamp)
+
+Category: Resources - sample
+Shader Stages: pixel
+
+======== ====== =========== ========
+Min Dxil Min SM Overloads   Gradient
+======== ====== =========== ========
+1.0      6.0    half, float Yes
+======== ====== =========== ========
+
+
+SampleCmp
+~~~~~~~~~
+
+  %dx.types.ResRet.<overload> SampleCmp(i32 64, %dx.types.Handle srv, %dx.types.Handle sampler, float coord0, float coord1, float coord2, float coord3, i32 offset0, i32 offset1, i32 offset2, float compareValue, float clamp)
+
+Category: Resources - sample
+Shader Stages: pixel
+
+======== ====== =========== ========
+Min Dxil Min SM Overloads   Gradient
+======== ====== =========== ========
+1.0      6.0    half, float Yes
+======== ====== =========== ========
+
+
+SampleCmpLevelZero
+~~~~~~~~~~~~~~~~~~
+
+  %dx.types.ResRet.<overload> SampleCmpLevelZero(i32 65, %dx.types.Handle srv, %dx.types.Handle sampler, float coord0, float coord1, float coord2, float coord3, i32 offset0, i32 offset1, i32 offset2, float compareValue)
+
+Category: Resources - sample
+Shader Stages: All
+
+======== ====== ===========
+Min Dxil Min SM Overloads
+======== ====== ===========
+1.0      6.0    half, float
+======== ====== ===========
+
+
+SampleGrad
+~~~~~~~~~~
+
+  %dx.types.ResRet.<overload> SampleGrad(i32 63, %dx.types.Handle srv, %dx.types.Handle sampler, float coord0, float coord1, float coord2, float coord3, i32 offset0, i32 offset1, i32 offset2, float ddx0, float ddx1, float ddx2, float ddy0, float ddy1, float ddy2, float clamp)
+
+Category: Resources - sample
+Shader Stages: All
+
+======== ====== ===========
+Min Dxil Min SM Overloads
+======== ====== ===========
+1.0      6.0    half, float
+======== ====== ===========
+
+
+SampleIndex
+~~~~~~~~~~~
+
+  i32 SampleIndex(i32 90)
+
+Category: Pixel shader
+Shader Stages: pixel
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.0      6.0    i32
+======== ====== =========
+
+
+SampleLevel
+~~~~~~~~~~~
+
+  %dx.types.ResRet.<overload> SampleLevel(i32 62, %dx.types.Handle srv, %dx.types.Handle sampler, float coord0, float coord1, float coord2, float coord3, i32 offset0, i32 offset1, i32 offset2, float LOD)
+
+Category: Resources - sample
+Shader Stages: All
+
+======== ====== ===========
+Min Dxil Min SM Overloads
+======== ====== ===========
+1.0      6.0    half, float
+======== ====== ===========
+
+
 Saturate
 ~~~~~~~~
+
+  <overload> Saturate(i32 7, <overload> value)
+
+Category: Unary float
+Shader Stages: All
+
+======== ====== ===== ===================
+Min Dxil Min SM Class Overloads
+======== ====== ===== ===================
+1.0      6.0    Unary half, float, double
+======== ====== ===== ===================
+
 
 The Saturate instruction performs the following operation on its input value:
 
@@ -2810,8 +5163,35 @@ where min() and max() in the above expression behave in the way Min and Max beha
 
 Saturate(NaN) returns 0, by the rules for min and max.
 
+SetMeshOutputCounts
+~~~~~~~~~~~~~~~~~~~
+
+  void SetMeshOutputCounts(i32 168, i32 numVertices, i32 numPrimitives)
+
+Category: Mesh shader instructions
+Shader Stages: mesh
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.5      6.5
+======== ======
+
+
 Sin
 ~~~
+
+  <overload> Sin(i32 13, <overload> value)
+
+Category: Unary float
+Shader Stages: All
+
+======== ====== ===== ===========
+Min Dxil Min SM Class Overloads
+======== ====== ===== ===========
+1.0      6.0    Unary half, float
+======== ====== ===== ===========
+
 
 Theta values can be any IEEE 32-bit floating point values.
 
@@ -2823,8 +5203,35 @@ The maximum absolute error is 0.0008 in the interval from -100*Pi to +100*Pi.
 | sin(src) |  NaN | [-1 to +1] |      -0 | -0 | +0 |      +0 | [-1 to +1] |  NaN | NaN |
 +----------+------+------------+---------+----+----+---------+------------+------+-----+
 
+SplitDouble
+~~~~~~~~~~~
+
+  dx.types.splitdouble SplitDouble(i32 102, double value)
+
+Category: Double precision
+Shader Stages: All
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.0      6.0    double
+======== ====== =========
+
+
 Sqrt
 ~~~~
+
+  <overload> Sqrt(i32 24, <overload> value)
+
+Category: Unary float
+Shader Stages: All
+
+======== ====== ===== ===========
+Min Dxil Min SM Class Overloads
+======== ====== ===== ===========
+1.0      6.0    Unary half, float
+======== ====== ===== ===========
+
 
 Precision is 1 ulp.
 
@@ -2837,10 +5244,79 @@ Precision is 1 ulp.
 StoreOutput
 ~~~~~~~~~~~
 
+  void StoreOutput(i32 5, i32 outputSigId, i32 rowIndex, i8 colIndex, <overload> value)
+
+Category: Temporary, indexable, input, output registers
+Shader Stages: All
+
+======== ====== =====================
+Min Dxil Min SM Overloads
+======== ====== =====================
+1.0      6.0    half, float, i16, i32
+======== ====== =====================
+
+
 Stores the value to shader output
+
+StorePatchConstant
+~~~~~~~~~~~~~~~~~~
+
+  void StorePatchConstant(i32 106, i32 outputSigID, i32 row, i8 col, <overload> value)
+
+Category: Hull shader
+Shader Stages: hull
+
+======== ====== =====================
+Min Dxil Min SM Overloads
+======== ====== =====================
+1.0      6.0    half, float, i16, i32
+======== ====== =====================
+
+
+StorePrimitiveOutput
+~~~~~~~~~~~~~~~~~~~~
+
+  void StorePrimitiveOutput(i32 172, i32 outputSigId, i32 rowIndex, i8 colIndex, <overload> value, i32 primitiveIndex)
+
+Category: Mesh shader instructions
+Shader Stages: mesh
+
+======== ====== =====================
+Min Dxil Min SM Overloads
+======== ====== =====================
+1.5      6.5    half, float, i16, i32
+======== ====== =====================
+
+
+StoreVertexOutput
+~~~~~~~~~~~~~~~~~
+
+  void StoreVertexOutput(i32 171, i32 outputSigId, i32 rowIndex, i8 colIndex, <overload> value, i32 vertexIndex)
+
+Category: Mesh shader instructions
+Shader Stages: mesh
+
+======== ====== =====================
+Min Dxil Min SM Overloads
+======== ====== =====================
+1.5      6.5    half, float, i16, i32
+======== ====== =====================
+
 
 Tan
 ~~~
+
+  <overload> Tan(i32 14, <overload> value)
+
+Category: Unary float
+Shader Stages: All
+
+======== ====== ===== ===========
+Min Dxil Min SM Class Overloads
+======== ====== ===== ===========
+1.0      6.0    Unary half, float
+======== ====== ===== ===========
+
 
 Theta values can be any IEEE 32-bit floating point values.
 
@@ -2853,15 +5329,171 @@ Theta values can be any IEEE 32-bit floating point values.
 TempRegLoad
 ~~~~~~~~~~~
 
+  <overload> TempRegLoad(i32 0, i32 index)
+
+Category: Temporary, indexable, input, output registers
+Shader Stages: All
+
+======== ====== =====================
+Min Dxil Min SM Overloads
+======== ====== =====================
+1.0      6.0    half, float, i16, i32
+======== ====== =====================
+
+
 Helper load operation
 
 TempRegStore
 ~~~~~~~~~~~~
 
+  void TempRegStore(i32 1, i32 index, <overload> value)
+
+Category: Temporary, indexable, input, output registers
+Shader Stages: All
+
+======== ====== =====================
+Min Dxil Min SM Overloads
+======== ====== =====================
+1.0      6.0    half, float, i16, i32
+======== ====== =====================
+
+
 Helper store operation
+
+Texture2DMSGetSamplePosition
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  %dx.types.SamplePos Texture2DMSGetSamplePosition(i32 75, %dx.types.Handle srv, i32 index)
+
+Category: Resources - sample
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+TextureGather
+~~~~~~~~~~~~~
+
+  %dx.types.ResRet.<overload> TextureGather(i32 73, %dx.types.Handle srv, %dx.types.Handle sampler, float coord0, float coord1, float coord2, float coord3, i32 offset0, i32 offset1, i32 channel)
+
+Category: Resources - gather
+Shader Stages: All
+
+======== ====== =====================
+Min Dxil Min SM Overloads
+======== ====== =====================
+1.0      6.0    half, float, i16, i32
+======== ====== =====================
+
+
+TextureGatherCmp
+~~~~~~~~~~~~~~~~
+
+  %dx.types.ResRet.<overload> TextureGatherCmp(i32 74, %dx.types.Handle srv, %dx.types.Handle sampler, float coord0, float coord1, float coord2, float coord3, i32 offset0, i32 offset1, i32 channel, float compareVale)
+
+Category: Resources - gather
+Shader Stages: All
+
+======== ====== =====================
+Min Dxil Min SM Overloads
+======== ====== =====================
+1.0      6.0    half, float, i16, i32
+======== ====== =====================
+
+
+TextureLoad
+~~~~~~~~~~~
+
+  %dx.types.ResRet.<overload> TextureLoad(i32 66, %dx.types.Handle srv, i32 mipLevelOrSampleCount, i32 coord0, i32 coord1, i32 coord2, i32 offset0, i32 offset1, i32 offset2)
+
+Category: Resources
+Shader Stages: All
+
+======== ====== =====================
+Min Dxil Min SM Overloads
+======== ====== =====================
+1.0      6.0    half, float, i16, i32
+======== ====== =====================
+
+
+TextureStore
+~~~~~~~~~~~~
+
+  void TextureStore(i32 67, %dx.types.Handle srv, i32 coord0, i32 coord1, i32 coord2, <overload> value0, <overload> value1, <overload> value2, <overload> value3, i8 mask)
+
+Category: Resources
+Shader Stages: All
+
+======== ====== =====================
+Min Dxil Min SM Overloads
+======== ====== =====================
+1.0      6.0    half, float, i16, i32
+======== ====== =====================
+
+
+ThreadId
+~~~~~~~~
+
+  i32 ThreadId(i32 93, i32 component)
+
+Category: Compute/Mesh/Amplification shader
+Shader Stages: compute, amplification, mesh
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.0      6.0    i32
+======== ====== =========
+
+
+ThreadIdInGroup
+~~~~~~~~~~~~~~~
+
+  i32 ThreadIdInGroup(i32 95, i32 component)
+
+Category: Compute/Mesh/Amplification shader
+Shader Stages: compute, amplification, mesh
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.0      6.0    i32
+======== ====== =========
+
+
+TraceRay
+~~~~~~~~
+
+  void TraceRay(i32 157, %dx.types.Handle AccelerationStructure, i32 RayFlags, i32 InstanceInclusionMask, i32 RayContributionToHitGroupIndex, i32 MultiplierForGeometryContributionToShaderIndex, i32 MissShaderIndex, float Origin_X, float Origin_Y, float Origin_Z, float TMin, float Direction_X, float Direction_Y, float Direction_Z, float TMax, <UDT overload> payload)
+
+Category: Indirect Shader Invocation
+Shader Stages: raygeneration, closesthit, miss
+
+======== ====== ==============================
+Min Dxil Min SM Overloads
+======== ====== ==============================
+1.3      6.3    user defined struct type (UDT)
+======== ====== ==============================
+
 
 UAddc
 ~~~~~
+
+  dx.types.i32c UAddc(i32 44, <overload> a, <overload> b)
+
+Category: Binary uint with carry or borrow
+Shader Stages: All
+
+======== ====== ======================= =========
+Min Dxil Min SM Class                   Overloads
+======== ====== ======================= =========
+1.0      6.0    BinaryWithCarryOrBorrow i32
+======== ====== ======================= =========
+
 
 dest0, dest1 = UAddc(src0, src1)
 
@@ -2870,6 +5502,18 @@ dest1 is written with: 1 if a carry is produced, 0 otherwise. Dest1 can be NULL 
 
 UDiv
 ~~~~
+
+  dx.types.twoi32 UDiv(i32 43, <overload> a, <overload> b)
+
+Category: Binary uint with two outputs
+Shader Stages: All
+
+======== ====== ================= =========
+Min Dxil Min SM Class             Overloads
+======== ====== ================= =========
+1.0      6.0    BinaryWithTwoOuts i32
+======== ====== ================= =========
+
 
 destQUOT, destREM = UDiv(src0, src1);
 
@@ -2887,6 +5531,18 @@ dest1 is written with: 1 if a borrow is produced, 0 otherwise. Dest1 can be NULL
 UMad
 ~~~~
 
+  <overload> UMad(i32 49, <overload> a, <overload> b, <overload> c)
+
+Category: Tertiary uint
+Shader Stages: All
+
+======== ====== ======== =============
+Min Dxil Min SM Class    Overloads
+======== ====== ======== =============
+1.0      6.0    Tertiary i16, i32, i64
+======== ====== ======== =============
+
+
 Unsigned integer multiply & add.
 
 Umad(a,b,c) = a * b + c
@@ -2894,15 +5550,51 @@ Umad(a,b,c) = a * b + c
 UMax
 ~~~~
 
+  <overload> UMax(i32 39, <overload> a, <overload> b)
+
+Category: Binary uint
+Shader Stages: All
+
+======== ====== ====== =============
+Min Dxil Min SM Class  Overloads
+======== ====== ====== =============
+1.0      6.0    Binary i16, i32, i64
+======== ====== ====== =============
+
+
 unsigned integer maximum. UMax(a,b) = a > b ? a : b
 
 UMin
 ~~~~
 
+  <overload> UMin(i32 40, <overload> a, <overload> b)
+
+Category: Binary uint
+Shader Stages: All
+
+======== ====== ====== =============
+Min Dxil Min SM Class  Overloads
+======== ====== ====== =============
+1.0      6.0    Binary i16, i32, i64
+======== ====== ====== =============
+
+
 unsigned integer minimum. UMin(a,b) = a < b ? a : b
 
 UMul
 ~~~~
+
+  dx.types.twoi32 UMul(i32 42, <overload> a, <overload> b)
+
+Category: Binary uint with two outputs
+Shader Stages: All
+
+======== ====== ================= =========
+Min Dxil Min SM Class             Overloads
+======== ====== ================= =========
+1.0      6.0    BinaryWithTwoOuts i32
+======== ====== ================= =========
+
 
 multiply of 32-bit operands src0 and src1 (note they are unsigned), producing the correct full 64-bit result.
 The low 32 bits are placed in destLO. The high 32 bits are placed in destHI.
@@ -2911,10 +5603,34 @@ Either of destHI or destLO may be specified as NULL instead of specifying a regi
 USubb
 ~~~~~
 
+  dx.types.i32c USubb(i32 45, <overload> a, <overload> b)
+
+Category: Binary uint with carry or borrow
+Shader Stages: All
+
+======== ====== ======================= =========
+Min Dxil Min SM Class                   Overloads
+======== ====== ======================= =========
+1.0      6.0    BinaryWithCarryOrBorrow i32
+======== ====== ======================= =========
+
+
 dest0, dest1 = USubb(src0, src1)
 
 Ubfe
 ~~~~
+
+  <overload> Ubfe(i32 52, <overload> a, <overload> b, <overload> c)
+
+Category: Tertiary uint
+Shader Stages: All
+
+======== ====== ======== =========
+Min Dxil Min SM Class    Overloads
+======== ====== ======== =========
+1.0      6.0    Tertiary i32, i64
+======== ====== ======== =========
+
 
 dest = ubfe(src0, src1, src2)
 
@@ -2941,6 +5657,381 @@ Given width, offset:
     {
         ushr dest, src2, offset
     }
+
+ViewID
+~~~~~~
+
+  i32 ViewID(i32 138)
+
+Category: Graphics shader
+Shader Stages: vertex, hull, domain, geometry, pixel, mesh
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.1      6.1    i32
+======== ====== =========
+
+
+WaveActiveAllEqual
+~~~~~~~~~~~~~~~~~~
+
+  i1 WaveActiveAllEqual(i32 115, <overload> value)
+
+Category: Wave
+Shader Stages: compute, vertex, hull, domain, geometry, pixel, raygeneration, intersection, anyhit, closesthit, miss, callable, amplification, mesh
+
+======== ====== ==========================================
+Min Dxil Min SM Overloads
+======== ====== ==========================================
+1.0      6.0    half, float, double, i1, i8, i16, i32, i64
+======== ====== ==========================================
+
+
+WaveActiveBallot
+~~~~~~~~~~~~~~~~
+
+  dx.types.fouri32 WaveActiveBallot(i32 116, i1 cond)
+
+Category: Wave
+Shader Stages: compute, vertex, hull, domain, geometry, pixel, raygeneration, intersection, anyhit, closesthit, miss, callable, amplification, mesh
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+WaveActiveBit
+~~~~~~~~~~~~~
+
+  <overload> WaveActiveBit(i32 120, <overload> value, const i8 op)
+
+Category: Wave
+Shader Stages: compute, vertex, hull, domain, geometry, pixel, raygeneration, intersection, anyhit, closesthit, miss, callable, amplification, mesh
+
+======== ====== =================
+Min Dxil Min SM Overloads
+======== ====== =================
+1.0      6.0    i8, i16, i32, i64
+======== ====== =================
+
+
+WaveActiveOp
+~~~~~~~~~~~~
+
+  <overload> WaveActiveOp(i32 119, <overload> value, const i8 op, const i8 sop)
+
+Category: Wave
+Shader Stages: compute, vertex, hull, domain, geometry, pixel, raygeneration, intersection, anyhit, closesthit, miss, callable, amplification, mesh
+
+======== ====== ==========================================
+Min Dxil Min SM Overloads
+======== ====== ==========================================
+1.0      6.0    half, float, double, i1, i8, i16, i32, i64
+======== ====== ==========================================
+
+
+WaveAllBitCount
+~~~~~~~~~~~~~~~
+
+  i32 WaveAllBitCount(i32 135, i1 value)
+
+Category: Wave
+Shader Stages: compute, vertex, hull, domain, geometry, pixel, raygeneration, intersection, anyhit, closesthit, miss, callable, amplification, mesh
+
+======== ====== =========
+Min Dxil Min SM Class
+======== ====== =========
+1.0      6.0    WaveAllOp
+======== ====== =========
+
+
+WaveAllTrue
+~~~~~~~~~~~
+
+  i1 WaveAllTrue(i32 114, i1 cond)
+
+Category: Wave
+Shader Stages: compute, vertex, hull, domain, geometry, pixel, raygeneration, intersection, anyhit, closesthit, miss, callable, amplification, mesh
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+WaveAnyTrue
+~~~~~~~~~~~
+
+  i1 WaveAnyTrue(i32 113, i1 cond)
+
+Category: Wave
+Shader Stages: compute, vertex, hull, domain, geometry, pixel, raygeneration, intersection, anyhit, closesthit, miss, callable, amplification, mesh
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+WaveGetLaneCount
+~~~~~~~~~~~~~~~~
+
+  i32 WaveGetLaneCount(i32 112)
+
+Category: Wave
+Shader Stages: compute, vertex, hull, domain, geometry, pixel, raygeneration, intersection, anyhit, closesthit, miss, callable, amplification, mesh
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+WaveGetLaneIndex
+~~~~~~~~~~~~~~~~
+
+  i32 WaveGetLaneIndex(i32 111)
+
+Category: Wave
+Shader Stages: compute, vertex, hull, domain, geometry, pixel, raygeneration, intersection, anyhit, closesthit, miss, callable, amplification, mesh
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+WaveIsFirstLane
+~~~~~~~~~~~~~~~
+
+  i1 WaveIsFirstLane(i32 110)
+
+Category: Wave
+Shader Stages: compute, vertex, hull, domain, geometry, pixel, raygeneration, intersection, anyhit, closesthit, miss, callable, amplification, mesh
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.0      6.0
+======== ======
+
+
+WaveMatch
+~~~~~~~~~
+
+  dx.types.fouri32 WaveMatch(i32 165, <overload> value)
+
+Category: Wave
+Shader Stages: compute, vertex, hull, domain, geometry, pixel, raygeneration, intersection, anyhit, closesthit, miss, callable, amplification, mesh
+
+======== ====== ======================================
+Min Dxil Min SM Overloads
+======== ====== ======================================
+1.5      6.5    half, float, double, i8, i16, i32, i64
+======== ====== ======================================
+
+
+WaveMultiPrefixBitCount
+~~~~~~~~~~~~~~~~~~~~~~~
+
+  i32 WaveMultiPrefixBitCount(i32 167, i1 value, i32 mask0, i32 mask1, i32 mask2, i32 mask3)
+
+Category: Wave
+Shader Stages: compute, vertex, hull, domain, geometry, pixel, raygeneration, intersection, anyhit, closesthit, miss, callable, amplification, mesh
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.5      6.5
+======== ======
+
+
+WaveMultiPrefixOp
+~~~~~~~~~~~~~~~~~
+
+  <overload> WaveMultiPrefixOp(i32 166, <overload> value, i32 mask0, i32 mask1, i32 mask2, i32 mask3, const i8 op, const i8 sop)
+
+Category: Wave
+Shader Stages: compute, vertex, hull, domain, geometry, pixel, raygeneration, intersection, anyhit, closesthit, miss, callable, amplification, mesh
+
+======== ====== ======================================
+Min Dxil Min SM Overloads
+======== ====== ======================================
+1.5      6.5    half, float, double, i8, i16, i32, i64
+======== ====== ======================================
+
+
+WavePrefixBitCount
+~~~~~~~~~~~~~~~~~~
+
+  i32 WavePrefixBitCount(i32 136, i1 value)
+
+Category: Wave
+Shader Stages: compute, vertex, hull, domain, geometry, pixel, raygeneration, intersection, anyhit, closesthit, miss, callable, amplification, mesh
+
+======== ====== ============
+Min Dxil Min SM Class
+======== ====== ============
+1.0      6.0    WavePrefixOp
+======== ====== ============
+
+
+WavePrefixOp
+~~~~~~~~~~~~
+
+  <overload> WavePrefixOp(i32 121, <overload> value, const i8 op, const i8 sop)
+
+Category: Wave
+Shader Stages: compute, vertex, hull, domain, geometry, pixel, raygeneration, intersection, anyhit, closesthit, miss, callable, amplification, mesh
+
+======== ====== ======================================
+Min Dxil Min SM Overloads
+======== ====== ======================================
+1.0      6.0    half, float, double, i8, i16, i32, i64
+======== ====== ======================================
+
+
+WaveReadLaneAt
+~~~~~~~~~~~~~~
+
+  <overload> WaveReadLaneAt(i32 117, <overload> value, i32 lane)
+
+Category: Wave
+Shader Stages: compute, vertex, hull, domain, geometry, pixel, raygeneration, intersection, anyhit, closesthit, miss, callable, amplification, mesh
+
+======== ====== ==========================================
+Min Dxil Min SM Overloads
+======== ====== ==========================================
+1.0      6.0    half, float, double, i1, i8, i16, i32, i64
+======== ====== ==========================================
+
+
+WaveReadLaneFirst
+~~~~~~~~~~~~~~~~~
+
+  <overload> WaveReadLaneFirst(i32 118, <overload> value)
+
+Category: Wave
+Shader Stages: compute, vertex, hull, domain, geometry, pixel, raygeneration, intersection, anyhit, closesthit, miss, callable, amplification, mesh
+
+======== ====== ==================================
+Min Dxil Min SM Overloads
+======== ====== ==================================
+1.0      6.0    half, float, i1, i8, i16, i32, i64
+======== ====== ==================================
+
+
+WorldRayDirection
+~~~~~~~~~~~~~~~~~
+
+  float WorldRayDirection(i32 148, i8 col)
+
+Category: Ray Vectors
+Shader Stages: intersection, anyhit, closesthit, miss
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.3      6.3    float
+======== ====== =========
+
+
+WorldRayOrigin
+~~~~~~~~~~~~~~
+
+  float WorldRayOrigin(i32 147, i8 col)
+
+Category: Ray Vectors
+Shader Stages: intersection, anyhit, closesthit, miss
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.3      6.3    float
+======== ====== =========
+
+
+WorldToObject
+~~~~~~~~~~~~~
+
+  float WorldToObject(i32 152, i32 row, i8 col)
+
+Category: Ray Transforms
+Shader Stages: intersection, anyhit, closesthit
+
+======== ====== =========
+Min Dxil Min SM Overloads
+======== ====== =========
+1.3      6.3    float
+======== ====== =========
+
+
+WriteSamplerFeedback
+~~~~~~~~~~~~~~~~~~~~
+
+  void WriteSamplerFeedback(i32 174, %dx.types.Handle feedbackTex, %dx.types.Handle sampledTex, %dx.types.Handle sampler, float c0, float c1, float c2, float c3, float clamp)
+
+Category: Sampler Feedback
+Shader Stages: pixel
+
+======== ====== ========
+Min Dxil Min SM Gradient
+======== ====== ========
+1.5      6.5    Yes
+======== ====== ========
+
+
+WriteSamplerFeedbackBias
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+  void WriteSamplerFeedbackBias(i32 175, %dx.types.Handle feedbackTex, %dx.types.Handle sampledTex, %dx.types.Handle sampler, float c0, float c1, float c2, float c3, float bias, float clamp)
+
+Category: Sampler Feedback
+Shader Stages: pixel
+
+======== ====== ========
+Min Dxil Min SM Gradient
+======== ====== ========
+1.5      6.5    Yes
+======== ====== ========
+
+
+WriteSamplerFeedbackGrad
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+  void WriteSamplerFeedbackGrad(i32 177, %dx.types.Handle feedbackTex, %dx.types.Handle sampledTex, %dx.types.Handle sampler, float c0, float c1, float c2, float c3, float ddx0, float ddx1, float ddx2, float ddy0, float ddy1, float ddy2, float clamp)
+
+Category: Sampler Feedback
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.5      6.5
+======== ======
+
+
+WriteSamplerFeedbackLevel
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  void WriteSamplerFeedbackLevel(i32 176, %dx.types.Handle feedbackTex, %dx.types.Handle sampledTex, %dx.types.Handle sampler, float c0, float c1, float c2, float c3, float lod)
+
+Category: Sampler Feedback
+Shader Stages: All
+
+======== ======
+Min Dxil Min SM
+======== ======
+1.5      6.5
+======== ======
+
 
 .. OPCODES-RST:END
 

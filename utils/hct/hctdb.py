@@ -56,6 +56,57 @@ class db_dxil_enum(object):
     def value_names(self):
         return [i.name for i in self.values]
 
+class db_oload_types(object):
+    "Holds overload types with versioning"
+    valid_overloads = "vhfd1wilou"
+    @staticmethod
+    def parse_version(version):
+        major, minor = version.strip().split('.')
+        if minor == 'x':
+            minor = 15
+        return int(major), int(minor)
+
+    @staticmethod
+    def parse_versioned_oloads(versioned):
+        versioned = versioned.split(',')
+        base = versioned[0].strip()
+        for c in base:
+            assert(c in valid_overloads)
+        versioned = [s.split(':') for s in versioned[1:]]
+        versioned = [(parse_version(t[0]), t[1].strip()) for t in versioned]
+        cur_ver = (0,0)
+        full = base
+        for ver, oloads in versioned:
+            assert(cur_ver < ver)
+            for c in oloads:
+                assert(c in valid_overloads)
+                assert(c not in full, "duplicate overloads under later version")
+            full.append(oloads)
+        return base, versioned
+
+    def __init__(self, versioned):
+        """versioned: '<base_oloads> [, <major>.<minor>:<added_oloads> [, ...]]'
+        version additions must be in order of ascending version.
+        """
+        self.base_oloads, self.versioned = parse_versioned_oloads(versioned)
+        self.full_oloads = self.base_oloads
+        for ver, oloads in self.versioned:
+            self.full_oloads.append(oloads)
+
+    def __call__(self, max_ver=None):
+        if max_ver is None:
+            return self.full_oloads
+        result = self.base_oloads
+        for ver, oloads in self.versioned:
+            if max_ver < ver:
+                break
+            result.append(oloads)
+    def get_base(self):
+        return self.base
+    def get_versions(self):
+        "return version numbers above base in a list"
+        return [ver for ver, oloads in self.versioned]
+
 class db_dxil_inst(object):
     "A representation for a DXIL instruction"
     def __init__(self, name, **kwargs):
@@ -75,7 +126,7 @@ class db_dxil_inst(object):
         self.remarks = ""               # long-form remarks on this instruction
         self.ops = []                   # the operands that this instruction takes
         self.is_allowed = True          # whether this instruction is allowed in a DXIL program
-        self.oload_types = ""           # overload types if applicable
+        self.oload_types = db_oload_types("")   # overload types if applicable
         self.fn_attr = ""               # attribute shorthands: rn=does not access memory,ro=only reads from memory,
         self.is_deriv = False           # whether this is some kind of derivative
         self.is_gradient = False        # whether this requires a gradient calculation
@@ -1850,9 +1901,10 @@ class db_dxil(object):
             self.verify_dense(i.ops, lambda x : x.pos, lambda x : i.name)
         for i in self.instr:
             if i.is_dxil_op:
-                assert i.oload_types != "", "overload for DXIL operation %s should not be empty - use void if n/a" % (i.name)
-                assert i.oload_types == "v" or i.oload_types.find("v") < 0, "void overload should be exclusive to other types (%s)" % i.name
-            assert type(i.oload_types) is str, "overload for %s should be a string - use empty if n/a" % (i.name)
+                oload_types = i.oload_types()
+                assert oload_types != "", "overload for DXIL operation %s should not be empty - use void if n/a" % (i.name)
+                assert oload_types == "v" or oload_types.find("v") < 0, "void overload should be exclusive to other types (%s)" % i.name
+            assert type(oload_types) is str, "overload for %s should be a string - use empty if n/a" % (i.name)
 
         # Verify that all operations in each class have the same signature.
         import itertools
@@ -2673,7 +2725,7 @@ class db_dxil(object):
         self.val_rules.append(db_dxil_valrule(name, len(self.val_rules), err_msg=err_msg, doc=desc))
 
     def add_llvm_instr(self, kind, llvm_id, name, llvm_name, doc, oload_types, op_params, **props):
-        i = db_dxil_inst(name, llvm_id=llvm_id, llvm_name=llvm_name, doc=doc, ops=op_params, oload_types=oload_types)
+        i = db_dxil_inst(name, llvm_id=llvm_id, llvm_name=llvm_name, doc=doc, ops=op_params, oload_types=db_oload_types(oload_types))
         if kind == "TERM": i.is_bb_terminator=True
         if kind == "BINARY": i.is_binary=True
         if kind == "MEMORY": i.is_memory=True
@@ -2687,7 +2739,7 @@ class db_dxil(object):
         i = db_dxil_inst(name,
                          llvm_id=self.call_instr.llvm_id, llvm_name=self.call_instr.llvm_name,
                          dxil_op=name, dxil_opid=code_id, doc=doc, ops=op_params, dxil_class=code_class,
-                         oload_types=oload_types, fn_attr=fn_attr)
+                         oload_types=db_oload_types(oload_types), fn_attr=fn_attr)
         i.props = props
         self.instr.append(i)
     def add_dxil_op_reserved(self, name, code_id):

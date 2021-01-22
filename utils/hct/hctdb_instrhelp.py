@@ -338,6 +338,10 @@ class db_enumhelp_gen:
         for e in sorted(self.db.enums, key=lambda e : e.name):
             self.print_enum(e)
 
+def lower_dxil_fn_name(name):
+    lower_exceptions = { "CBufferLoad" : "cbufferLoad", "CBufferLoadLegacy" : "cbufferLoadLegacy", "GSInstanceID" : "gsInstanceID" }
+    return lower_exceptions[name] if name in lower_exceptions else name[:1].lower() + name[1:]
+
 class db_oload_gen:
     "A generator of overload tables."
     def __init__(self, db):
@@ -361,8 +365,6 @@ class db_oload_gen:
         last_category = None
         # overload types are a string of (v)oid, (h)alf, (f)loat, (d)ouble, (1)-bit, (8)-bit, (w)ord, (i)nt, (l)ong, u(dt)
         f = lambda i,c : "true" if i.oload_types.find(c) >= 0 else "false"
-        lower_exceptions = { "CBufferLoad" : "cbufferLoad", "CBufferLoadLegacy" : "cbufferLoadLegacy", "GSInstanceID" : "gsInstanceID" }
-        lower_fn = lambda t: lower_exceptions[t] if t in lower_exceptions else t[:1].lower() + t[1:]
         attr_dict = { "": "None", "ro": "ReadOnly", "rn": "ReadNone", "nd": "NoDuplicate", "nr": "NoReturn", "wv" : "None" }
         attr_fn = lambda i : "Attribute::" + attr_dict[i.fn_attr] + ","
         for i in self.instrs:
@@ -372,7 +374,7 @@ class db_oload_gen:
                 print("  // {category:118}  void,     h,     f,     d,    i1,    i8,   i16,   i32,   i64,   udt,   obj ,  function attribute".format(category=i.category))
                 last_category = i.category
             print("  {{  OC::{name:24} {quotName:27} OCC::{className:25} {classNameQuot:28} {{{v:>6},{h:>6},{f:>6},{d:>6},{b:>6},{e:>6},{w:>6},{i:>6},{l:>6},{u:>6},{o:>6}}}, {attr:20} }},".format(
-                name=i.name+",", quotName='"'+i.name+'",', className=i.dxil_class+",", classNameQuot='"'+lower_fn(i.dxil_class)+'",',
+                name=i.name+",", quotName='"'+i.name+'",', className=i.dxil_class+",", classNameQuot='"'+lower_dxil_fn_name(i.dxil_class)+'",',
                 v=f(i,"v"), h=f(i,"h"), f=f(i,"f"), d=f(i,"d"), b=f(i,"1"), e=f(i,"8"), w=f(i,"w"), i=f(i,"i"), l=f(i,"l"), u=f(i,"u"), o=f(i,"o"), attr=attr_fn(i)))
         print("};")
 
@@ -896,24 +898,211 @@ def get_is_pass_option_name():
         prefix = "\n  ||  "
     return result + ";"
 
+
+
+def get_opcode_info_rst(i):
+    db = get_db_dxil()
+    # instruction signature
+    op_type_names = {
+        "$cb": "dx.types.CBufRet.<overload>",
+        "$o": "<overload>",
+        "$r": "%dx.types.ResRet.<overload>",
+        "d": "double",
+        "dims": "%dx.types.Dimensions",
+        "f": "float",
+        "h": "half",
+        "i1": "i1",
+        "i16": "i16",
+        "i32": "i32",
+        "i32c": "dx.types.i32c",
+        "i64": "i64",
+        "i8": "i8",
+        "$u4": "dx.types.fouri32",
+        "pf32": "float*",
+        "res": "%dx.types.Handle",
+        "splitdouble": "dx.types.splitdouble",
+        "twoi32": "dx.types.twoi32",
+        # "twof32": "<unused>",
+        "fouri32": "dx.types.fouri32",
+        # "fourf32": "<unused>",
+        "u32": "i32",
+        "u64": "i64",
+        "u8": "i8",
+        "v": "void",
+        # "w": "<unused>",
+        "SamplePos": "%dx.types.SamplePos",
+        "udt": "<UDT overload>",
+        "obj": "<resource object>",
+        "resproperty": "dx.types.ResProps",
+    }
+    map_oload = {
+        'v': 'void',
+        'h': 'half',
+        'f': 'float',
+        'd': 'double',
+        '1': 'i1',
+        '8': 'i8',
+        'w': 'i16',
+        'i': 'i32',
+        'l': 'i64',
+        'u': '<UDT overload>',
+        'o': '<resource object>',
+    }
+    all_shader_stages = [
+        "compute",
+        "vertex",
+        "hull",
+        "domain",
+        "geometry",
+        "pixel",
+        "raygeneration",
+        "intersection",
+        "anyhit",
+        "closesthit",
+        "miss",
+        "callable",
+        "amplification",
+        "mesh",
+    ]
+
+    minDXIL = 'experimental'
+    for key in sorted(db.dxil_version_info.keys()):
+        info = db.dxil_version_info[key]
+        if i.dxil_opid < info['NumOpCodes']:
+            minDXIL = "%s.%s" % key
+            break
+    major, minor = i.shader_model
+    if minor == 15:
+        minor = 'x'
+    minSM = "%s.%s" % (major, minor)
+
+    lines = []
+    # TODO: Convert this to generate something like this:
+    # Note: There's no per-SM overload info at the moment (but there should be!)
+    #       Also, I don't think SM6.1 is necessary here!
+    # TODO: Once done, move extra info on certain ops from being manually written
+    #       into DXIL.rst to living in hctdb_inst_docs.txt so the block can be
+    #       generated instead.  Add links in the relevant section of the doc.
+
+    # The following signature shows the operation syntax::
+    #
+    #   ; minimum: DXIL 1.0, SM 6.0
+    #   ; overloads: f32|i32
+    #   ; added overloads in SM 6.2: f16|i16
+    #   ; returns: status
+    #   declare %dx.types.ResRet.f32 @dx.op.bufferLoad.f32(
+    #       i32,                  ; opcode
+    #       %dx.types.Handle,     ; resource handle
+    #       i32,                  ; coordinate c0 (index)
+    #       i32,                  ; coordinate c1 (elementOffset)
+    #       i8,                   ; mask
+    #       i32,                  ; alignment
+    #   )
+
+    oload_suffix = ''
+    if len(i.oload_types()) == 1 and i.oload_types()[0] != 'v':
+        oload_type = map_oload[i.oload_types()[0]]
+        op_type_names['$o'] = oload_type
+        oload_suffix = '.' + oload_type
+
+    ret = i.ops[0]
+    retTy = op_type_names[ret.llvm_type]
+    lower_name = lower_dxil_fn_name(i.name)
+
+    lines.append("; minimum: DXIL %s, SM %s" % (minDXIL, minSM))
+    # I don't think we need to add this:
+    # if i.shader_model_translated:
+    #     lines.append("; minimum SM when translated through linker:", "%s.%s" % i.shader_model_translated)
+    lines.append("; returns: %s" % ret.name)
+    
+
+
+
+    ####
+
+    ret = i.ops[0]
+    ops = ''.join([', %s%s %s' % ('const ' if o.is_const else '',
+                                  op_type_names[o.llvm_type],
+                                  o.name)
+                   for o in i.ops[2:]])
+    sig = "  %s %s(i32 %s%s)\n" % (op_type_names[ret.llvm_type], i.name, i.dxil_opid, ops)
+    lines.append(sig)
+
+    lines.append("Category: " + i.category)
+
+    if i.shader_stages:
+        stage_set = set(i.shader_stages)
+        ordered_shader_stages = filter(lambda stage: stage in stage_set, all_shader_stages)
+        shader_stages = ", ".join(ordered_shader_stages)
+    else:
+        shader_stages = "All"
+    lines.append("Shader Stages: " + shader_stages)
+
+    #op_props = [["Operation Property", "Value"]]
+    op_props = []
+    if (major, minor) != experimental:
+        op_props.append(["Min Dxil", "%s.%s" % (major, minor)])
+    else:
+        op_props.append(["Min Dxil", "experimental"])
+    op_props.append(["Min SM", "%s.%s" % i.shader_model])
+    if i.shader_model_translated:
+        op_props.append(["for link", "%s.%s" % i.shader_model_translated])
+    if i.dxil_class != i.name:
+        op_props.append(["Class", i.dxil_class])
+    full_oloads = i.oload_types()
+    if full_oloads and full_oloads != "v":
+        op_props.append(["Overloads", ', '.join([map_oload[o] for o in i.oload_types.get_base()])])
+        for ver, oloads in i.oload_types.versioned:
+            major, minor = ver
+            if minor == 15:
+                minor = 'x'
+            op_props.append(["Overloads %s.%s" % (major, minor),
+                            ', '.join([map_oload[o] for o in oloads])])
+    if i.is_gradient:
+        op_props.append(["Gradient", "Yes"])
+
+    prop_table = [[p[0] for p in op_props], [p[1] for p in op_props]]
+    lines.append("")
+    lines.append(format_rst_table(prop_table))
+    return "\n".join(lines)
+
 def get_opcodes_rst():
     "Create an rst table of opcodes"
     db = get_db_dxil()
     instrs = [i for i in db.instr if i.is_allowed and i.is_dxil_op]
     instrs = sorted(instrs, key=lambda v : v.dxil_opid)
+    groups = []
+    for key in sorted(db.dxil_version_info.keys()):
+        info = db.dxil_version_info[key]
+        op_count = info['NumOpCodes']
+        major, minor = key
+        groups.append((op_count, major, minor))
+    groupIdx = -1
+    op_count = 0
     rows = []
     rows.append(["ID", "Name", "Description"])
     for i in instrs:
+        while groupIdx + 1 < len(groups) and i.dxil_opid >= op_count:
+            groupIdx += 1
+            op_count, major, minor = groups[groupIdx]
+            rows.append(["---", "DXIL %s.%s" % (major, minor),
+                "Beginning of DXIL %s.%s operations" % (major, minor)])
         op_name = i.dxil_op
-        if i.remarks:
-            op_name = op_name + "_" # append _ to enable internal hyperlink on rst files
+        op_name = op_name + "_" # append _ to enable internal hyperlink on rst files
         rows.append([i.dxil_opid, op_name, i.doc])
     result = "\n\n" + format_rst_table(rows) + "\n\n"
     # Add detailed instruction information where available.
     instrs = sorted(instrs, key=lambda v : v.name)
     for i in instrs:
+        remarks = ''
+        try:
+            remarks = get_opcode_info_rst(i)
+        except:
+            print('Error getting opcode info for %s' % i.name)
+            raise
         if i.remarks:
-            result += i.name + "\n" + ("~" * len(i.name)) + "\n\n" + i.remarks + "\n\n"
+            remarks += "\n\n" + i.remarks
+        result += i.name + "\n" + ("~" * len(i.name)) + "\n\n" + remarks + "\n\n"
     return result + "\n"
 
 def get_valrules_rst():
