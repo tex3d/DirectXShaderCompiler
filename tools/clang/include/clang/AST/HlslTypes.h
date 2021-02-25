@@ -393,6 +393,7 @@ bool IsHLSLSubobjectType(clang::QualType type);
 bool GetHLSLSubobjectKind(clang::QualType type, DXIL::SubobjectKind &subobjectKind, 
                           DXIL::HitGroupType &ghType);
 bool IsHLSLRayQueryType(clang::QualType type);
+bool IsHLSLObjectType(clang::QualType type);
 
 bool IsArrayConstantStringType(const clang::QualType type);
 bool IsPointerStringType(const clang::QualType type);

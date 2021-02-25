@@ -1,6 +1,6 @@
 // RUN: %dxc -E main -T ps_6_0 %s  | FileCheck %s
 
-// CHECK: error: object types not supported in cbuffer/tbuffer view arrays.
+// CHECK: error: object types not supported inside ConstantBuffer/TextureBuffer type.
 
 SamplerState Samp;
 struct Resource

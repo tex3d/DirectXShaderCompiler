@@ -110,15 +110,14 @@ bool IsHLSLNumericUserDefinedType(clang::QualType type) {
   const clang::Type *Ty = type.getCanonicalType().getTypePtr();
   if (const RecordType *RT = dyn_cast<RecordType>(Ty)) {
     const RecordDecl *RD = RT->getDecl();
-    if (isa<ClassTemplateSpecializationDecl>(RD)) {
-      return false;   // UDT are not templates
+    if (RD->isImplicit()) {
+      // TODO: avoid check by name
+      // Only these built-in (implicit) struct types are ok
+      StringRef name = RD->getName();
+      if (name != "RayDesc" &&
+          name != "BuiltInTriangleIntersectionAttributes")
+        return false;
     }
-    // TODO: avoid check by name
-    StringRef name = RD->getName();
-    if (name == "ByteAddressBuffer" ||
-        name == "RWByteAddressBuffer" ||
-        name == "RaytracingAccelerationStructure")
-      return false;
     for (auto member : RD->fields()) {
       if (!IsHLSLNumericOrAggregateOfNumericType(member->getType()))
         return false;
@@ -566,6 +565,22 @@ bool IsHLSLSubobjectType(clang::QualType type) {
   DXIL::SubobjectKind kind;
   DXIL::HitGroupType hgType;
   return GetHLSLSubobjectKind(type, kind, hgType);
+}
+
+bool IsHLSLObjectType(clang::QualType type) {
+  type = type.getCanonicalType();
+  if (const RecordType *RT = dyn_cast<RecordType>(type)) {
+    const RecordDecl* RD = RT->getDecl();
+    if (RD->isImplicit()) {
+      // TODO: avoid check by name
+      // Only a these built-in (implicit) struct types exist:
+      StringRef name = RD->getName();
+      if (name != "RayDesc" &&
+          name != "BuiltInTriangleIntersectionAttributes")
+        return true;
+    }
+  }
+  return false;
 }
 
 bool GetHLSLSubobjectKind(clang::QualType type, DXIL::SubobjectKind &subobjectKind, DXIL::HitGroupType &hgType) {

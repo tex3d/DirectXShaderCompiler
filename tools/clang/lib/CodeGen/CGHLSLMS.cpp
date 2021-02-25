@@ -3129,32 +3129,6 @@ uint32_t CGMSHLSLRuntime::AddUAVSRV(VarDecl *decl,
   }
 }
 
-static bool IsResourceInType(const clang::ASTContext &context,
-                              clang::QualType Ty) {
-  Ty = Ty.getCanonicalType();
-  if (const clang::ArrayType *arrayType = context.getAsArrayType(Ty)) {
-    return IsResourceInType(context, arrayType->getElementType());
-  } else if (const RecordType *RT = Ty->getAsStructureType()) {
-    if (KeywordToClass(RT->getDecl()->getName()) != DxilResourceBase::Class::Invalid)
-      return true;
-    const CXXRecordDecl* typeRecordDecl = RT->getAsCXXRecordDecl();
-    if (typeRecordDecl && !typeRecordDecl->isImplicit()) {
-      for (auto field : typeRecordDecl->fields()) {
-        if (IsResourceInType(context, field->getType()))
-          return true;
-      }
-    }
-  } else if (const RecordType *RT = Ty->getAs<RecordType>()) {
-    if (const ClassTemplateSpecializationDecl *templateDecl =
-            dyn_cast<ClassTemplateSpecializationDecl>(RT->getDecl())) {
-      if (KeywordToClass(templateDecl->getName()) != DxilResourceBase::Class::Invalid)
-        return true;
-    }
-  }
-
-  return false; // no resources found
-}
-
 void CGMSHLSLRuntime::AddConstantToCB(GlobalVariable *CV, StringRef Name,
                                       QualType Ty, unsigned LowerBound,
                                       HLCBuffer &CB) {
@@ -3353,11 +3327,14 @@ uint32_t CGMSHLSLRuntime::AddConstantBufferView(VarDecl *D) {
   QualType ResultTy = hlsl::GetHLSLResourceResultType(Ty);
 
     // Search defined structure for resource objects and fail
-  if (CB->GetRangeSize() > 1 && IsResourceInType(CGM.getContext(), ResultTy)) {
+  if (!hlsl::IsHLSLNumericUserDefinedType(ResultTy)) {
+    // Note: Diagnostic could be improved to point to the type in template
+    //       argument, then add following note pointing to the first object
+    //       field found in the type (or base/contained type).
     DiagnosticsEngine &Diags = CGM.getDiags();
     unsigned DiagID = Diags.getCustomDiagID(
         DiagnosticsEngine::Error,
-        "object types not supported in cbuffer/tbuffer view arrays.");
+        "object types not supported inside ConstantBuffer/TextureBuffer type.");
     Diags.Report(D->getLocation(), DiagID);
     return UINT_MAX;
   }

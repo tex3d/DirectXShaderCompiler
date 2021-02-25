@@ -103,9 +103,24 @@ struct semantic_on_resource_fields {
 };
 
 // TODO: Fix bug where struct_with_res overlaps bindings of resources in CBFoo
-//semantic_on_resource_fields struct_with_res;
+semantic_on_resource_fields struct_with_res;
 
-ConstantBuffer<semantic_on_resource_fields> CB[1];
+struct s_cp {
+  float4 foo;
+  float f;
+  int i;
+};
+
+struct s_with_patch {
+  //InputPatch<s_fields> ip;
+  InputPatch<s_cp, 4> ip;
+  float value1;
+};
+
+ConstantBuffer<s_with_patch> CB[1];
+
+// This is a by-design error case (objects in ConstantBuffer or TextureBuffer type)
+//ConstantBuffer<semantic_on_resource_fields> CB[1];
 
 //////////////////////////////////////////////////////////////////////////////
 // Locals.
@@ -121,7 +136,8 @@ float4 main() : SV_Target {
 
     float f = tex.Sample(samp, float2(0.25,0.5))
         * tex1.Sample(samp1, float2(0.25,0.5)) * cbvalue1
-//        * struct_with_res.tex.Sample(struct_with_res.samp, float2(0.5,0.25)) * struct_with_res.value1
-        * CB[0].value1;
+        * struct_with_res.tex.Sample(struct_with_res.samp, float2(0.5,0.25)) * struct_with_res.value1
+        * CB[0].value1
+        ;
     return f;
 }
