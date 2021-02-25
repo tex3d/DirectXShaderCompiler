@@ -31,8 +31,8 @@ using namespace hlsl;
 #ifdef _WIN32
 // Temporary: Define these here until a better header location is found.
 namespace hlsl {
-HRESULT CreateDxilShaderReflection(const DxilPartHeader *pModulePart, const DxilPartHeader *pRDATPart, REFIID iid, void **ppvObject);
-HRESULT CreateDxilLibraryReflection(const DxilPartHeader *pModulePart, const DxilPartHeader *pRDATPart, REFIID iid, void **ppvObject);
+HRESULT CreateDxilShaderReflection(const DxilProgramHeader *pProgramHeader, const DxilPartHeader *pRDATPart, REFIID iid, void **ppvObject);
+HRESULT CreateDxilLibraryReflection(const DxilProgramHeader *pProgramHeader, const DxilPartHeader *pRDATPart, REFIID iid, void **ppvObject);
 }
 #endif
 
@@ -345,13 +345,16 @@ public:
   virtual HRESULT STDMETHODCALLTYPE CreateReflection(
     _In_ const DxcBuffer *pData, REFIID iid, void **ppvReflection) override {
 #ifdef _WIN32
-    if (!pData || !pData->Ptr || pData->Size < 8 || pData->Encoding != DXC_CP_ACP ||
-        !ppvReflection)
+    if (!pData || !ppvReflection)
+      return E_POINTER;
+    if (!pData->Ptr || pData->Size < 8 || pData->Size >= UINT32_MAX ||
+        pData->Encoding != DXC_CP_ACP)
       return E_INVALIDARG;
 
     DxcThreadMalloc TM(m_pMalloc);
     try {
-      const DxilPartHeader *pModulePart = nullptr;
+      //const DxilPartHeader *pModulePart = nullptr;
+      const DxilProgramHeader *pProgramHeader = nullptr;
       const DxilPartHeader *pRDATPart = nullptr;
 
       // Is this a valid DxilContainer?
@@ -386,10 +389,21 @@ public:
 
         // For now, pStatsPart contains module without function bodies for reflection.
         // If not found, fall back to DXIL part.
-        pModulePart = pStatsPart ? pStatsPart : pDebugDXILPart ? pDebugDXILPart : pDXILPart;
+        const DxilPartHeader *pModulePart = pStatsPart ? pStatsPart : pDebugDXILPart ? pDebugDXILPart : pDXILPart;
         if (nullptr == pModulePart)
           return DXC_E_MISSING_PART;
 
+        pProgramHeader =
+          reinterpret_cast<const DxilProgramHeader*>(GetDxilPartData(pModulePart));
+        if (!IsValidDxilProgramHeader(pProgramHeader, pModulePart->PartSize))
+          return E_INVALIDARG;
+
+        // If bitcode is too small, it's probably been stripped, and we cannot create reflection with it.
+        if (pModulePart->PartSize - pProgramHeader->BitcodeHeader.BitcodeOffset < 4)
+          return DXC_E_MISSING_PART;
+
+      } else if (IsValidDxilProgramHeader((const DxilProgramHeader*)pData->Ptr, (uint32_t)pData->Size)) {
+        pProgramHeader = reinterpret_cast<const DxilProgramHeader*>(pData->Ptr);
       } else {
         // Not a container, try a statistics part that holds a valid program part.
         // In the future, this will just be the RDAT part.
@@ -399,7 +413,11 @@ public:
           return E_INVALIDARG;
         if (pPart->PartFourCC != DFCC_ShaderStatistics)
           return E_INVALIDARG;
-        pModulePart = pPart;
+        pProgramHeader =
+          reinterpret_cast<const DxilProgramHeader*>(GetDxilPartData(pPart));
+        if (!IsValidDxilProgramHeader(pProgramHeader, pPart->PartSize))
+          return E_INVALIDARG;
+
         UINT32 SizeRemaining = pData->Size - (sizeof(DxilPartHeader) + pPart->PartSize);
         if (SizeRemaining > sizeof(DxilPartHeader)) {
           // Looks like we also have an RDAT part
@@ -413,34 +431,20 @@ public:
         }
       }
 
-      bool bIsLibrary = false;
-
-      if (pModulePart) {
-        if (pModulePart->PartFourCC != DFCC_DXIL &&
-            pModulePart->PartFourCC != DFCC_ShaderDebugInfoDXIL &&
-            pModulePart->PartFourCC != DFCC_ShaderStatistics) {
-          return E_INVALIDARG;
-        }
-        const DxilProgramHeader *pProgramHeader =
-          reinterpret_cast<const DxilProgramHeader*>(GetDxilPartData(pModulePart));
-        if (!IsValidDxilProgramHeader(pProgramHeader, pModulePart->PartSize))
-          return E_INVALIDARG;
-
-        // If bitcode is too small, it's probably been stripped, and we cannot create reflection with it.
-        if (pModulePart->PartSize - pProgramHeader->BitcodeHeader.BitcodeOffset < 4)
-          return DXC_E_MISSING_PART;
-
-        // Detect whether library, or if unrecognized program version.
-        DXIL::ShaderKind SK = GetVersionShaderType(pProgramHeader->ProgramVersion);
-        if (!(SK < DXIL::ShaderKind::Invalid))
-          return E_INVALIDARG;
-        bIsLibrary = DXIL::ShaderKind::Library == SK;
+      if (!pProgramHeader) {
+        return E_INVALIDARG;
       }
 
+      // Detect whether library, or if unrecognized program version.
+      DXIL::ShaderKind SK = GetVersionShaderType(pProgramHeader->ProgramVersion);
+      if (!(SK < DXIL::ShaderKind::Invalid))
+        return E_INVALIDARG;
+      bool bIsLibrary = DXIL::ShaderKind::Library == SK;
+
       if (bIsLibrary) {
-        IFR(hlsl::CreateDxilLibraryReflection(pModulePart, pRDATPart, iid, ppvReflection));
+        IFR(hlsl::CreateDxilLibraryReflection(pProgramHeader, pRDATPart, iid, ppvReflection));
       } else {
-        IFR(hlsl::CreateDxilShaderReflection(pModulePart, pRDATPart, iid, ppvReflection));
+        IFR(hlsl::CreateDxilShaderReflection(pProgramHeader, pRDATPart, iid, ppvReflection));
       }
 
       return S_OK;

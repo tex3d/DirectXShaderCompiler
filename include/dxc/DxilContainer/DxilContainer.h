@@ -480,6 +480,7 @@ DxilPartIterator end(const DxilContainerHeader *pHeader);
 inline bool IsValidDxilBitcodeHeader(const DxilBitcodeHeader *pHeader,
                                      uint32_t length) {
   return length > sizeof(DxilBitcodeHeader) &&
+         pHeader->BitcodeOffset >= sizeof(DxilBitcodeHeader) &&
          pHeader->BitcodeOffset + pHeader->BitcodeSize >
              pHeader->BitcodeOffset &&
          length >= pHeader->BitcodeOffset + pHeader->BitcodeSize &&
