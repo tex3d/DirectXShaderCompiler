@@ -1890,7 +1890,7 @@ static void AddHLSLIntrinsicAttr(FunctionDecl *FD, ASTContext &context,
       opcode = hlsl::GetUnsignedOpcode(opcode);
     }
   }
-  FD->addAttr(HLSLIntrinsicAttr::CreateImplicit(context, tableName, lowering, opcode));
+  FD->addAttr(HLSLIntrinsicAttr::CreateImplicit(context, tableName, lowering, opcode, pIntrinsic->iOverloadParamIndex));
   if (pIntrinsic->bReadNone)
     FD->addAttr(ConstAttr::CreateImplicit(context));
   if (pIntrinsic->bReadOnly)
@@ -2630,7 +2630,7 @@ public:
 
 static void AddHLSLSubscriptAttr(Decl *D, ASTContext &context, HLSubscriptOpcode opcode) {
   StringRef group = GetHLOpcodeGroupName(HLOpcodeGroup::HLSubscript);
-  D->addAttr(HLSLIntrinsicAttr::CreateImplicit(context, group, "", static_cast<unsigned>(opcode)));
+  D->addAttr(HLSLIntrinsicAttr::CreateImplicit(context, group, "", static_cast<unsigned>(opcode), -1));
 }
 
 static void CreateSimpleField(clang::ASTContext &context, CXXRecordDecl *recordDecl, StringRef Name,

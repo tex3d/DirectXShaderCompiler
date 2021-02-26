@@ -25,6 +25,8 @@ const char HLPrefixStr [] = "dx.hl";
 const char * const HLPrefix = HLPrefixStr;
 static const char HLLowerStrategyStr[] = "dx.hlls";
 static const char * const HLLowerStrategy = HLLowerStrategyStr;
+static const char HLOverloadIndexStr[] = "dx.hloidx";
+static const char * const HLOverloadIndex = HLOverloadIndexStr;
 
 static const char HLWaveSensitiveStr[] = "dx.wave-sensitive";
 static const char * const HLWaveSensitive = HLWaveSensitiveStr;
@@ -290,6 +292,15 @@ StringRef GetHLLowerStrategy(Function *F) {
 
 void SetHLLowerStrategy(Function *F, StringRef S) {
   F->addFnAttr(HLLowerStrategy, S);
+}
+
+bool GetHLOverloadIndex(Function *F, int &overloadIndex) {
+  StringRef S = F->getFnAttribute(HLOverloadIndex).getValueAsString();
+  return S.getAsInteger(10, overloadIndex);
+}
+
+void SetHLOverloadIndex(Function *F, int overloadIndex) {
+  F->addFnAttr(HLOverloadIndex, Twine(overloadIndex).str());
 }
 
 // Set function attribute indicating wave-sensitivity

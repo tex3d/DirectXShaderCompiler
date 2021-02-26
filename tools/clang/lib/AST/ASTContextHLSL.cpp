@@ -348,7 +348,7 @@ void hlsl::AddHLSLMatrixTemplate(ASTContext& context, ClassTemplateDecl* vectorT
 
 static void AddHLSLVectorSubscriptAttr(Decl *D, ASTContext &context) {
   StringRef group = GetHLOpcodeGroupName(HLOpcodeGroup::HLSubscript);
-  D->addAttr(HLSLIntrinsicAttr::CreateImplicit(context, group, "", static_cast<unsigned>(HLSubscriptOpcode::VectorSubscript)));
+  D->addAttr(HLSLIntrinsicAttr::CreateImplicit(context, group, "", static_cast<unsigned>(HLSubscriptOpcode::VectorSubscript), -1));
 }
 
 /// <summary>Adds up-front support for HLSL vector types (just the template declaration).</summary>
@@ -912,7 +912,8 @@ CXXRecordDecl* hlsl::DeclareResourceType(ASTContext& context, bool bSampler) {
   // Mark function as createResourceFromHeap intrinsic.
   functionDecl->addAttr(HLSLIntrinsicAttr::CreateImplicit(
       context, "op", "",
-      static_cast<int>(hlsl::IntrinsicOp::IOP_CreateResourceFromHeap)));
+      static_cast<int>(hlsl::IntrinsicOp::IOP_CreateResourceFromHeap),
+      -1));
   return recordDecl;
 }
 
@@ -948,13 +949,14 @@ bool hlsl::GetIntrinsicOp(const clang::FunctionDecl *FD, unsigned &opcode,
   return true;
 }
 
-bool hlsl::GetIntrinsicLowering(const clang::FunctionDecl *FD, llvm::StringRef &S) {
+bool hlsl::GetIntrinsicLowering(const clang::FunctionDecl *FD, llvm::StringRef &S, int &overloadIndex) {
   if (FD == nullptr || !FD->hasAttr<HLSLIntrinsicAttr>()) {
     return false;
   }
 
   HLSLIntrinsicAttr *A = FD->getAttr<HLSLIntrinsicAttr>();
   S = A->getLowering();
+  overloadIndex = A->getOverloadIndex();
   return true;
 }
 

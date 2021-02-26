@@ -1150,9 +1150,13 @@ private:
   // $o:3 would say the overload type is determined by parameter 3.
   static Type *SelectOverloadSlot(CallInst *CI) {
     Type *ty = CI->getType();
-    if (ty->isVoidTy()) {
-      if (CI->getNumArgOperands() > 1)
+    int overloadIndex;
+    if (GetHLOverloadIndex(CI->getCalledFunction(), overloadIndex) && overloadIndex > -1) {
+      ty = CI->getArgOperand(overloadIndex + 1)->getType(); // Skip opcode argument.
+    } else if (ty->isVoidTy()) {
+      if (CI->getNumArgOperands() > 1) {
         ty = CI->getArgOperand(1)->getType(); // First non-opcode argument.
+      }
     }
 
     return ty;

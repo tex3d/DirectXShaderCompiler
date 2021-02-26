@@ -1218,9 +1218,13 @@ void CGMSHLSLRuntime::AddHLSLFunctionInfo(Function *F, const FunctionDecl *FD) {
     F->addFnAttr(hlsl::HLPrefix, intrinsicGroup);
 
     StringRef lower;
-    if (hlsl::GetIntrinsicLowering(FD, lower))
+    int overloadIndex;
+    if (hlsl::GetIntrinsicLowering(FD, lower, overloadIndex)) {
       hlsl::SetHLLowerStrategy(F, lower);
-
+      // don't bother with attribute for default -1 for return.
+      if (overloadIndex != -1)
+        hlsl::SetHLOverloadIndex(F, overloadIndex);
+    }
 
     if (FD->hasAttr<HLSLWaveSensitiveAttr>())
       hlsl::SetHLWaveSensitive(F);

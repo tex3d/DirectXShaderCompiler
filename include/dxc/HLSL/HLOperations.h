@@ -127,6 +127,8 @@ llvm::StringRef GetHLLowerStrategy(llvm::Function *F);
 unsigned  GetHLOpcode(const llvm::CallInst *CI);
 unsigned  GetRowMajorOpcode(HLOpcodeGroup group, unsigned opcode);
 void SetHLLowerStrategy(llvm::Function *F, llvm::StringRef S);
+bool GetHLOverloadIndex(llvm::Function *F, int &overloadIndex);
+void SetHLOverloadIndex(llvm::Function *F, int overloadIndex);
 
 void SetHLWaveSensitive(llvm::Function *F);
 bool IsHLWaveSensitive(llvm::Function *F);
