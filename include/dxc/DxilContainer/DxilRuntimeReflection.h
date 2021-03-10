@@ -38,6 +38,7 @@ enum class RuntimeDataPartType : uint32_t {
   FunctionTable   = 4,
   RawBytes        = 5,
   SubobjectTable  = 6,
+  ExtFeatureSupportTable = 7,
 };
 
 enum RuntimeDataVersion {
@@ -178,6 +179,17 @@ struct RuntimeDataFunctionInfo {
   uint32_t MinShaderTarget;      // minimum shader target.
 };
 
+struct RuntimeDataFunctionInfo2 : public RuntimeDataFunctionInfo {
+  uint32_t ExtFeatureSupport;    // list of ExtFeatureSupport records
+};
+
+struct ExtFeatureSupport {
+  uint32_t FeatureInfo1;         // first 32 bits of feature flag
+  uint32_t FeatureInfo2;         // second 32 bits of feature flag
+  uint32_t ShaderStageFlag;      // valid shader stage flag.
+  uint32_t MinShaderTarget;      // minimum shader target.
+};
+
 class RawBytesReader {
   const void *m_table;
   uint32_t m_size;
@@ -241,6 +253,7 @@ struct RuntimeDataSubobjectInfo {
 class ResourceTableReader;
 class FunctionTableReader;
 class SubobjectTableReader;
+class ExtFeatureSupportTableReader;
 
 struct RuntimeDataContext {
   StringTableReader *pStringTableReader;
@@ -249,6 +262,7 @@ struct RuntimeDataContext {
   ResourceTableReader *pResourceTableReader;
   FunctionTableReader *pFunctionTableReader;
   SubobjectTableReader *pSubobjectTableReader;
+  ExtFeatureSupportTableReader *pExtFeatureSupportTableReader;
 };
 
 class ResourceReader {
@@ -357,13 +371,17 @@ public:
 class FunctionReader {
 private:
   const RuntimeDataFunctionInfo *m_RuntimeDataFunctionInfo;
+  const RuntimeDataFunctionInfo2 *m_RuntimeDataFunctionInfo2;
   RuntimeDataContext *m_Context;
 
 public:
   FunctionReader() : m_RuntimeDataFunctionInfo(nullptr), m_Context(nullptr) {}
   FunctionReader(const RuntimeDataFunctionInfo *functionInfo,
+                 const RuntimeDataFunctionInfo2 *functionInfo2,
                  RuntimeDataContext *context)
-      : m_RuntimeDataFunctionInfo(functionInfo), m_Context(context) {}
+      : m_RuntimeDataFunctionInfo(functionInfo),
+        m_RuntimeDataFunctionInfo2(functionInfo2),
+        m_Context(context) {}
 
   const char *GetName() const {
     return !m_RuntimeDataFunctionInfo ? ""
@@ -374,27 +392,63 @@ public:
       : m_Context->pStringTableReader->Get(
           m_RuntimeDataFunctionInfo->UnmangledName);
   }
-  uint64_t GetFeatureFlag() const {
-    return (static_cast<uint64_t>(GetFeatureInfo2()) << 32)
-           | static_cast<uint64_t>(GetFeatureInfo1());
+  uint32_t GetFeatureSupportCount() const {
+    if (m_RuntimeDataFunctionInfo2 &&
+        m_RuntimeDataFunctionInfo2->ExtFeatureSupport != UINT_MAX) {
+      return m_Context->pIndexTableReader->getRow(
+        m_RuntimeDataFunctionInfo2->ExtFeatureSupport).Count() + 1;
+    } else {
+      return 1;
+    }
   }
-  uint32_t GetFeatureInfo1() const {
-    return !m_RuntimeDataFunctionInfo ? 0
-      : m_RuntimeDataFunctionInfo->FeatureInfo1;
+  const ExtFeatureSupport *GetExtFeatureSupport(uint32_t i=0) const {
+    if (i && i < GetFeatureSupportCount()) {
+      uint32_t index = m_Context->pIndexTableReader
+          ->getRow(m_RuntimeDataFunctionInfo2->ExtFeatureSupport)
+          .At(i - 1);
+      return m_Context->pExtFeatureSupportTableReader->GetItem(index);
+    } else {
+      return nullptr;
+    }
   }
-  uint32_t GetFeatureInfo2() const {
-    return !m_RuntimeDataFunctionInfo ? 0
-      : m_RuntimeDataFunctionInfo->FeatureInfo2;
+  uint64_t GetFeatureFlag(uint32_t i=0) const {
+    return (static_cast<uint64_t>(GetFeatureInfo2(i)) << 32)
+           | static_cast<uint64_t>(GetFeatureInfo1(i));
+  }
+  uint32_t GetFeatureInfo1(uint32_t i=0) const {
+    if (const ExtFeatureSupport *EFS = GetExtFeatureSupport(i)) {
+      return EFS->FeatureInfo1;
+    } else {
+      return !m_RuntimeDataFunctionInfo ? 0
+        : m_RuntimeDataFunctionInfo->FeatureInfo1;
+    }
+  }
+  uint32_t GetFeatureInfo2(uint32_t i=0) const {
+    if (const ExtFeatureSupport *EFS = GetExtFeatureSupport(i)) {
+      return EFS->FeatureInfo2;
+    } else {
+      return !m_RuntimeDataFunctionInfo ? 0
+        : m_RuntimeDataFunctionInfo->FeatureInfo2;
+    }
   }
 
-  uint32_t GetShaderStageFlag() const {
-    return !m_RuntimeDataFunctionInfo ? 0
-      : m_RuntimeDataFunctionInfo->ShaderStageFlag;
+  uint32_t GetShaderStageFlag(uint32_t i=0) const {
+    if (const ExtFeatureSupport *EFS = GetExtFeatureSupport(i)) {
+      return EFS->ShaderStageFlag;
+    } else {
+      return !m_RuntimeDataFunctionInfo ? 0
+        : m_RuntimeDataFunctionInfo->ShaderStageFlag;
+    }
   }
-  uint32_t GetMinShaderTarget() const {
-    return !m_RuntimeDataFunctionInfo ? 0
-      : m_RuntimeDataFunctionInfo->MinShaderTarget;
+  uint32_t GetMinShaderTarget(uint32_t i=0) const {
+    if (const ExtFeatureSupport *EFS = GetExtFeatureSupport(i)) {
+      return EFS->MinShaderTarget;
+    } else {
+      return !m_RuntimeDataFunctionInfo ? 0
+        : m_RuntimeDataFunctionInfo->MinShaderTarget;
+    }
   }
+
   uint32_t GetNumResources() const {
     if (!m_RuntimeDataFunctionInfo ||
         m_RuntimeDataFunctionInfo->Resources == UINT_MAX)
@@ -452,7 +506,9 @@ public:
   FunctionTableReader() : m_Context(nullptr) {}
 
   FunctionReader GetItem(uint32_t i) const {
-    return FunctionReader(m_Table.Row<RuntimeDataFunctionInfo>(i), m_Context);
+    return FunctionReader(m_Table.Row<RuntimeDataFunctionInfo>(i),
+                          m_Table.Row<RuntimeDataFunctionInfo2>(i),
+                          m_Context);
   }
   uint32_t GetNumFunctions() const { return m_Table.Count(); }
 
@@ -589,6 +645,25 @@ public:
   }
 };
 
+class ExtFeatureSupportTableReader {
+private:
+  TableReader m_Table;
+  RuntimeDataContext *m_Context;
+
+public:
+  ExtFeatureSupportTableReader() : m_Context(nullptr) {}
+
+  void SetContext(RuntimeDataContext *context) { m_Context = context; }
+  void SetExtFeatureSupport(const char *ptr, uint32_t count, uint32_t recordStride) {
+    m_Table.Init(ptr, count, recordStride);
+  }
+
+  uint32_t GetCount() const { return m_Table.Count(); }
+  const ExtFeatureSupport *GetItem(uint32_t i) const {
+    return m_Table.Row<ExtFeatureSupport>(i);
+  }
+};
+
 class DxilRuntimeData {
 private:
   StringTableReader m_StringReader;
@@ -597,6 +672,7 @@ private:
   ResourceTableReader m_ResourceTableReader;
   FunctionTableReader m_FunctionTableReader;
   SubobjectTableReader m_SubobjectTableReader;
+  ExtFeatureSupportTableReader m_ExtFeatureSupportTableReader;
   RuntimeDataContext m_Context;
 
 public:
@@ -607,6 +683,7 @@ public:
   FunctionTableReader *GetFunctionTableReader();
   ResourceTableReader *GetResourceTableReader();
   SubobjectTableReader *GetSubobjectTableReader();
+  ExtFeatureSupportTableReader *GetExtFeatureSupportTableReader();
 };
 
 //////////////////////////////////
@@ -623,6 +700,12 @@ struct DxilResourceDesc {
   uint32_t Flags; // hlsl::RDAT::DxilResourceFlag
 };
 
+struct DxilFeatureSupport {
+  uint64_t FeatureInfo;          // 64 bit feature flag
+  uint32_t ShaderStageFlag;      // valid shader stage flag.
+  uint32_t MinShaderTarget;      // minimum shader target.
+};
+
 struct DxilFunctionDesc {
   LPCWSTR Name;
   LPCWSTR UnmangledName;
@@ -634,10 +717,12 @@ struct DxilFunctionDesc {
   uint32_t PayloadSizeInBytes;   // 1) hit, miss, or closest shader: payload count
                                  // 2) call shader: parameter size
   uint32_t AttributeSizeInBytes; // attribute size for closest hit and any hit
-  uint32_t FeatureInfo1;         // first 32 bits of feature flag
-  uint32_t FeatureInfo2;         // second 32 bits of feature flag
-  uint32_t ShaderStageFlag;      // valid shader stage flag.
-  uint32_t MinShaderTarget;      // minimum shader target.
+
+  // Pointer to feature support structures and count
+  // grouped by shader stage sets with matching MinShaderTarget
+  // and FeatureInfo flags (with additional fixed masking).
+  DxilFeatureSupport *FeatureSupportArray;
+  uint32_t FeatureSupportCount;
 };
 
 struct DxilSubobjectDesc {

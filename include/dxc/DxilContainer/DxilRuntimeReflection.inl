@@ -157,6 +157,14 @@ bool DxilRuntimeData::InitFromRDAT(const void *pRDAT, size_t size) {
             table.RecordCount, table.RecordStride);
           break;
         }
+        case RuntimeDataPartType::ExtFeatureSupportTable: {
+          RuntimeDataTableHeader table = PR.Read<RuntimeDataTableHeader>();
+          size_t tableSize = table.RecordCount * table.RecordStride;
+          m_ExtFeatureSupportTableReader.SetExtFeatureSupport(
+              PR.ReadArray<char>(tableSize), table.RecordCount,
+              table.RecordStride);
+          break;
+        }
         default:
           continue; // Skip unrecognized parts
         }
@@ -181,6 +189,10 @@ ResourceTableReader *DxilRuntimeData::GetResourceTableReader() {
 
 SubobjectTableReader *DxilRuntimeData::GetSubobjectTableReader() {
   return &m_SubobjectTableReader;
+}
+
+ExtFeatureSupportTableReader *DxilRuntimeData::GetExtFeatureSupportTableReader() {
+  return &m_ExtFeatureSupportTableReader;
 }
 
 }} // hlsl::RDAT
@@ -208,6 +220,7 @@ private:
   typedef std::vector<DxilResourceDesc *> ResourceRefList;
   typedef std::vector<DxilFunctionDesc> FunctionList;
   typedef std::vector<DxilSubobjectDesc> SubobjectList;
+  typedef std::vector<DxilFeatureSupport> FeatureSupportList;
 
   DxilRuntimeData m_RuntimeData;
   StringMap m_StringMap;
@@ -215,6 +228,7 @@ private:
   ResourceList m_Resources;
   FunctionList m_Functions;
   SubobjectList m_Subobjects;
+  FeatureSupportList m_FeatureSupportList;
   std::unordered_map<ResourceKey, DxilResourceDesc *> m_ResourceMap;
   std::unordered_map<DxilFunctionDesc *, ResourceRefList> m_FuncToResMap;
   std::unordered_map<DxilFunctionDesc *, WStringList> m_FuncToDependenciesMap;
@@ -234,6 +248,9 @@ private:
   DxilResourceDesc *AddResource(const ResourceReader &resourceReader);
   DxilFunctionDesc *AddFunction(const FunctionReader &functionReader);
   DxilSubobjectDesc *AddSubobject(const SubobjectReader &subobjectReader);
+  void AddFunctionFeatureSupport(
+    const FunctionReader &functionReader, uint32_t functionIndex,
+    uint32_t *pFeatureIndex);
 
 public:
   // TODO: Implement pipeline state validation with runtime data
@@ -319,10 +336,12 @@ void DxilRuntimeReflection_impl::InitializeReflection() {
   }
   const FunctionTableReader *functionTableReader = m_RuntimeData.GetFunctionTableReader();
   m_Functions.reserve(functionTableReader->GetNumFunctions());
+  uint32_t featureSupportCount = 0;
   for (uint32_t i = 0; i < functionTableReader->GetNumFunctions(); ++i) {
     FunctionReader functionReader = functionTableReader->GetItem(i);
     AddString(functionReader.GetName());
     AddFunction(functionReader);
+    featureSupportCount += functionReader.GetFeatureSupportCount();
   }
   const SubobjectTableReader *subobjectTableReader = m_RuntimeData.GetSubobjectTableReader();
   m_Subobjects.reserve(subobjectTableReader->GetCount());
@@ -331,6 +350,12 @@ void DxilRuntimeReflection_impl::InitializeReflection() {
     AddString(subobjectReader.GetName());
     AddSubobject(subobjectReader);
   }
+  m_FeatureSupportList.resize(featureSupportCount, {});
+  uint32_t featureIndex = 0;
+  for (uint32_t i = 0; i < functionTableReader->GetNumFunctions(); ++i) {
+    AddFunctionFeatureSupport(functionTableReader->GetItem(i), i, &featureIndex);
+  }
+  assert(featureIndex == featureSupportCount);
 }
 
 DxilResourceDesc *
@@ -398,13 +423,23 @@ DxilRuntimeReflection_impl::AddFunction(const FunctionReader &functionReader) {
   function.ShaderKind = (uint32_t)functionReader.GetShaderKind();
   function.PayloadSizeInBytes = functionReader.GetPayloadSizeInBytes();
   function.AttributeSizeInBytes = functionReader.GetAttributeSizeInBytes();
-  function.FeatureInfo1 = functionReader.GetFeatureInfo1();
-  function.FeatureInfo2 = functionReader.GetFeatureInfo2();
-  function.ShaderStageFlag = functionReader.GetShaderStageFlag();
-  function.MinShaderTarget = functionReader.GetMinShaderTarget();
   return &function;
 }
-
+void DxilRuntimeReflection_impl::AddFunctionFeatureSupport(
+    const FunctionReader &functionReader, uint32_t functionIndex,
+    uint32_t *pFeatureIndex) {
+  DxilFunctionDesc &function = m_Functions[functionIndex];
+  function.FeatureSupportArray = &m_FeatureSupportList[*pFeatureIndex];
+  function.FeatureSupportCount = functionReader.GetFeatureSupportCount();
+  for (uint32_t i = 0; i < function.FeatureSupportCount; ++i) {
+    assert(i + *pFeatureIndex < m_FeatureSupportList.size());
+    DxilFeatureSupport *feature = &m_FeatureSupportList[i + *pFeatureIndex];
+    feature->FeatureInfo = functionReader.GetFeatureFlag(i);
+    feature->ShaderStageFlag = functionReader.GetShaderStageFlag(i);
+    feature->MinShaderTarget = functionReader.GetMinShaderTarget(i);
+  }
+  *pFeatureIndex += function.FeatureSupportCount;
+}
 const wchar_t **DxilRuntimeReflection_impl::GetExportsForAssociation(
   DxilSubobjectDesc &subobject, const SubobjectReader &subobjectReader) {
   auto it = m_SubobjectToExportsMap.insert(std::make_pair(&subobject, WStringList()));
