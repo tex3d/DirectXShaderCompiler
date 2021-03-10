@@ -274,7 +274,7 @@ class db_dxil(object):
             self.name_idx[i].category = "Binary uint"
         for i in "IMul".split(","):
             self.name_idx[i].category = "Binary int with two outputs"
-        for i in "UMul,UDiv".split(","): # Rename this UDiv OpCode to UDivMod
+        for i in "UMul,UDivMod".split(","):
             self.name_idx[i].category = "Binary uint with two outputs"
         for i in "UAddc,USubb".split(","):
             self.name_idx[i].category = "Binary uint with carry or borrow"
@@ -290,10 +290,11 @@ class db_dxil(object):
             self.name_idx[i].category = "Dot"
         for i in "CreateHandle,CBufferLoad,CBufferLoadLegacy,TextureLoad,TextureStore,BufferLoad,BufferStore,BufferUpdateCounter,CheckAccessFullyMapped,GetDimensions,RawBufferLoad,RawBufferStore".split(","):
             self.name_idx[i].category = "Resources"
-        for i in "Sample,SampleBias,SampleLevel,SampleGrad,SampleCmp,SampleCmpLevelZero,Texture2DMSGetSamplePosition,RenderTargetGetSamplePosition,RenderTargetGetSampleCount".split(","):
+        for i in "SampleLevel,SampleGrad,SampleCmpLevelZero,Texture2DMSGetSamplePosition,RenderTargetGetSamplePosition,RenderTargetGetSampleCount".split(","):
             self.name_idx[i].category = "Resources - sample"
         for i in "Sample,SampleBias,SampleCmp".split(","):
-            self.name_idx[i].shader_stages = ("library", "pixel", "compute", "amplification", "mesh")
+            self.name_idx[i].category = "Resources - sample with implicit derivatives"
+            self.name_idx[i].shader_stages = ("library", "pixel", "compute", "amplification", "mesh")   # min SM complicated by new cs/as/ms support
         for i in "RenderTargetGetSamplePosition,RenderTargetGetSampleCount".split(","):
             self.name_idx[i].shader_stages = ("pixel",)
         for i in "TextureGather,TextureGatherCmp".split(","):
@@ -301,11 +302,12 @@ class db_dxil(object):
         for i in "TextureGatherImm,TextureGatherCmpImm".split(","):
             self.name_idx[i].category = "Resources - gather"
             self.name_idx[i].shader_model = 6,15 # Dummy large shader model to prevent accidental inclusion
+            self.name_idx[i].shader_model_translated = 6,0    # we need to support translation downlevel
         for i in "AtomicBinOp,AtomicCompareExchange,Barrier".split(","):
             self.name_idx[i].category = "Synchronization"
         for i in "CalculateLOD,DerivCoarseX,DerivCoarseY,DerivFineX,DerivFineY".split(","):
             self.name_idx[i].category = "Derivatives"
-            self.name_idx[i].shader_stages = ("library", "pixel", "compute", "amplification", "mesh")
+            self.name_idx[i].shader_stages = ("library", "pixel", "compute", "amplification", "mesh")   # min SM complicated by new cs/as/ms support
         for i in "Discard,EvalSnapped,EvalSampleIndex,EvalCentroid,SampleIndex,Coverage,InnerCoverage,AttributeAtVertex".split(","):
             self.name_idx[i].category = "Pixel shader"
             self.name_idx[i].shader_stages = ("pixel",)
@@ -411,8 +413,12 @@ class db_dxil(object):
             self.name_idx[i].category = "Library create handle from resource struct (like HL intrinsic)"
             self.name_idx[i].shader_model = 6,3
             self.name_idx[i].shader_model_translated = 6,0
-        for i in "AnnotateHandle,CreateHandleFromBinding,CreateHandleFromHeap".split(","):
-            self.name_idx[i].category = "Get handle from heap"
+        for i in "AnnotateHandle,CreateHandleFromBinding".split(","):
+            self.name_idx[i].category = "New handle from binding and annotate"
+            self.name_idx[i].shader_model = 6,6
+            self.name_idx[i].shader_model_translated = 6,0    # we need to support translation downlevel
+        for i in "CreateHandleFromHeap".split(","):
+            self.name_idx[i].category = "Create handle from descriptor heap index"
             self.name_idx[i].shader_model = 6,6
         for i in "Dot4AddU8Packed,Dot4AddI8Packed,Dot2AddHalf".split(","):
             self.name_idx[i].category = "Dot product with accumulate"
@@ -433,7 +439,8 @@ class db_dxil(object):
             self.name_idx[i].is_feedback = True
             self.name_idx[i].is_gradient = True
             self.name_idx[i].shader_model = 6,5
-            self.name_idx[i].shader_stages = ("library", "pixel",)
+            self.name_idx[i].shader_stages = ("library", "pixel",)  # Shouldn't this now be allowed with deriv support in cs/as/ms as of SM 6.6 (as/ms opt)?
+            # self.name_idx[i].shader_stages = ("library", "pixel", "compute", "amplification", "mesh")   # min SM complicated by new cs/as/ms support
         for i in "WriteSamplerFeedbackLevel,WriteSamplerFeedbackGrad".split(","):
             self.name_idx[i].category = "Sampler Feedback"
             self.name_idx[i].is_feedback = True
@@ -449,12 +456,15 @@ class db_dxil(object):
         for i in "Unpack4x8".split(","):
             self.name_idx[i].category = "Unpacking intrinsics"
             self.name_idx[i].shader_model = 6,6
+            self.name_idx[i].shader_model_translated = 6,0    # we should support translation downlevel
         for i in "Pack4x8".split(","):
             self.name_idx[i].category = "Packing intrinsics"
             self.name_idx[i].shader_model = 6,6
+            self.name_idx[i].shader_model_translated = 6,0    # we should support translation downlevel
         for i in "IsHelperLane".split(","):
             self.name_idx[i].category = "Helper Lanes"
             self.name_idx[i].shader_model = 6,6
+            self.name_idx[i].shader_model_translated = 6,0    # we need to support translation downlevel
 
     def populate_llvm_instructions(self):
         # Add instructions that map to LLVM instructions.
@@ -653,7 +663,7 @@ class db_dxil(object):
             next_op_idx += 1
 
         # Binary int operations with two outputs
-        for i in "IMul,UMul,UDiv".split(","):
+        for i in "IMul,UMul,UDivMod".split(","):
             self.add_dxil_op(i, next_op_idx, "BinaryWithTwoOuts", "returns the " + i + " of the input values", "i", "rn", [
                 db_dxil_param(0, "twoi32", "", "operation result"),
                 db_dxil_param(2, "$o", "a", "input value"),
