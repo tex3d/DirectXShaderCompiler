@@ -1904,15 +1904,12 @@ FunctionDecl *AddHLSLIntrinsicFunction(
     ASTContext &context, _In_ NamespaceDecl *NS,
     LPCSTR tableName, LPCSTR lowering,
     _In_ const HLSL_INTRINSIC *pIntrinsic,
-    std::vector<QualType> *functionArgQualTypesVector)
+    llvm::MutableArrayRef<QualType> functionArgQualTypes)
 {
   DeclContext *currentDeclContext = context.getTranslationUnitDecl();
-  std::vector<QualType> &functionArgQualTypes = *functionArgQualTypesVector;
   const size_t functionArgTypeCount = functionArgQualTypes.size();
 
   const bool isVariadic = IsVariadicIntrinsicFunction(pIntrinsic);
-  DXASSERT(isVariadic || functionArgTypeCount - 1 <= g_MaxIntrinsicParamCount,
-           "otherwise g_MaxIntrinsicParamCount should be larger");
 
   SmallVector<hlsl::ParameterModifier, g_MaxIntrinsicParamCount> paramMods;
 
@@ -3106,30 +3103,21 @@ private:
 
   // Adds a new template parameter declaration to the specified array and returns the type for the parameter.
   QualType AddTemplateParamToArray(_In_z_ const char* name, _Inout_ CXXRecordDecl* recordDecl, int templateDepth,
-    _Inout_count_c_(g_MaxIntrinsicParamCount + 1) NamedDecl* (&templateParamNamedDecls)[g_MaxIntrinsicParamCount + 1],
-    _Inout_ size_t* templateParamNamedDeclsCount)
+     llvm::SmallVectorImpl<NamedDecl*> &templateParamNamedDecls)
   {
     DXASSERT_NOMSG(name != nullptr);
     DXASSERT_NOMSG(recordDecl != nullptr);
-    DXASSERT_NOMSG(templateParamNamedDecls != nullptr);
-    DXASSERT_NOMSG(templateParamNamedDeclsCount != nullptr);
-    DXASSERT(*templateParamNamedDeclsCount < _countof(templateParamNamedDecls), "otherwise constants should be updated");
-    _Analysis_assume_(*templateParamNamedDeclsCount < _countof(templateParamNamedDecls));
 
     // Create the declaration for the template parameter.
     IdentifierInfo* id = &m_context->Idents.get(StringRef(name));
     TemplateTypeParmDecl* templateTypeParmDecl =
-      TemplateTypeParmDecl::Create(*m_context, recordDecl, NoLoc, NoLoc, templateDepth, *templateParamNamedDeclsCount,
+      TemplateTypeParmDecl::Create(*m_context, recordDecl, NoLoc, NoLoc, templateDepth, templateParamNamedDecls.size(),
       id, TypenameTrue, ParameterPackFalse);
-    templateParamNamedDecls[*templateParamNamedDeclsCount] = templateTypeParmDecl;
+    templateParamNamedDecls.push_back(templateTypeParmDecl);
 
     // Create the type that the parameter represents.
     QualType result = m_context->getTemplateTypeParmType(
-      templateDepth, *templateParamNamedDeclsCount, ParameterPackFalse, templateTypeParmDecl);
-
-    // Increment the declaration count for the array; as long as caller passes in both arguments,
-    // it need not concern itself with maintaining this value.
-    (*templateParamNamedDeclsCount)++;
+      templateDepth, templateParamNamedDecls.size(), ParameterPackFalse, templateTypeParmDecl);
 
     return result;
   }
@@ -3142,11 +3130,7 @@ private:
     DXASSERT_NOMSG(recordDecl != nullptr);
     DXASSERT_NOMSG(intrinsic != nullptr);
     DXASSERT(intrinsic->uNumArgs > 0, "otherwise there isn't even an intrinsic name");
-    DXASSERT(intrinsic->uNumArgs <= (g_MaxIntrinsicParamCount + 1), "otherwise g_MaxIntrinsicParamCount should be updated");
     
-    // uNumArgs includes the result type, g_MaxIntrinsicParamCount doesn't, thus the +1.
-    _Analysis_assume_(intrinsic->uNumArgs <= (g_MaxIntrinsicParamCount + 1));
-
     // TODO: implement template parameter constraints for HLSL intrinsic methods in declarations
 
     //
@@ -3154,15 +3138,10 @@ private:
     // Parameter declarations are built after the function is created, to use it as their scope.
     //
     unsigned int numParams = intrinsic->uNumArgs - 1;
-    NamedDecl* templateParamNamedDecls[g_MaxIntrinsicParamCount + 1];
-    size_t templateParamNamedDeclsCount = 0;
-    QualType argsQTs[g_MaxIntrinsicParamCount];
-    StringRef argNames[g_MaxIntrinsicParamCount];
+    SmallVector<NamedDecl*, g_MaxIntrinsicParamCount + 1> templateParamNamedDecls;
+    SmallVector<QualType, g_MaxIntrinsicParamCount> argsQTs(numParams);
+    SmallVector<StringRef, g_MaxIntrinsicParamCount> argNames;
     QualType functionResultQT = recordDecl->getASTContext().VoidTy;
-
-    DXASSERT(
-      _countof(templateParamNamedDecls) >= numParams + 1,
-      "need enough templates for all parameters and the return type, otherwise constants need updating");
 
     // Handle the return type.
     // functionResultQT = GetSingleQualTypeForMapping(intrinsic, 0);
@@ -3171,8 +3150,7 @@ private:
     // Create template parameter for return type always
     // TODO: reenable the check and skip template argument.
       functionResultQT = AddTemplateParamToArray(
-        "TResult", recordDecl, templateDepth, templateParamNamedDecls,
-        &templateParamNamedDeclsCount);
+        "TResult", recordDecl, templateDepth, templateParamNamedDecls);
     // }
 
     SmallVector<hlsl::ParameterModifier, g_MaxIntrinsicParamCount> paramMods;
@@ -3191,11 +3169,10 @@ private:
       // but the current intrinsic table has rules that are hard to process in their current form
       // to find all cases.
       //
-      char name[g_MaxIntrinsicParamName + 2];
-      name[0] = 'T';
-      name[1] = '\0';
-      strcat_s(name, intrinsic->pArgs[i].pName);
-      argsQTs[i - 1] = AddTemplateParamToArray(name, recordDecl, templateDepth, templateParamNamedDecls, &templateParamNamedDeclsCount);
+      DXASSERT(i < argsQTs.size() + 1, "Otherwise, size for declared argsQTs too small.");
+      llvm::SmallString<g_MaxIntrinsicParamName + 2> name("T");
+      name += intrinsic->pArgs[i].pName;
+      argsQTs[i - 1] = AddTemplateParamToArray(name.c_str(), recordDecl, templateDepth, templateParamNamedDecls);
       // Change out/inout param to reference type.
       if (paramMods[i-1].isAnyOut()) 
         argsQTs[i - 1] = m_context->getLValueReferenceType(argsQTs[i - 1]);
@@ -3207,15 +3184,14 @@ private:
     IdentifierInfo* ii = &m_context->Idents.get(StringRef(intrinsic->pArgs[0].pName));
     DeclarationName declarationName = DeclarationName(ii);
     CXXMethodDecl* functionDecl = CreateObjectFunctionDeclarationWithParams(*m_context, recordDecl,
-      functionResultQT, ArrayRef<QualType>(argsQTs, numParams), ArrayRef<StringRef>(argNames, numParams),
-      declarationName, true);
+      functionResultQT, argsQTs, argNames, declarationName, true);
     functionDecl->setImplicit(true);
 
     // If the function is a template function, create the declaration and cross-reference.
-    if (templateParamNamedDeclsCount > 0)
+    if (templateParamNamedDecls.size())
     {
       hlsl::CreateFunctionTemplateDecl(
-        *m_context, recordDecl, functionDecl, templateParamNamedDecls, templateParamNamedDeclsCount);
+        *m_context, recordDecl, functionDecl, templateParamNamedDecls.data(), templateParamNamedDecls.size());
     }
   }
 
@@ -4407,7 +4383,7 @@ public:
     _In_ QualType objectElement,
     _In_ QualType functionTemplateTypeArg,
     _In_ ArrayRef<Expr *> Args, 
-    _Out_ std::vector<QualType> *,
+    _Inout_ SmallVectorImpl<QualType> &argTypes,
     _Out_ size_t &badArgIdx);
 
   /// <summary>Validate object element on intrinsic to catch case like integer on Sample.</summary>
@@ -4509,13 +4485,10 @@ public:
       const HLSL_INTRINSIC* pIntrinsic = *cursor;
       LPCSTR tableName = cursor.GetTableName();
       LPCSTR lowering = cursor.GetLoweringStrategy();
-      DXASSERT(
-        pIntrinsic->uNumArgs <= g_MaxIntrinsicParamCount + 1,
-        "otherwise g_MaxIntrinsicParamCount needs to be updated for wider signatures");
 
-      std::vector<QualType> functionArgTypes;
+      llvm::SmallVector<QualType, g_MaxIntrinsicParamCount> functionArgTypes;
       size_t badArgIdx;
-      bool argsMatch = MatchArguments(pIntrinsic, QualType(), QualType(), Args, &functionArgTypes, badArgIdx);
+      bool argsMatch = MatchArguments(pIntrinsic, QualType(), QualType(), Args, functionArgTypes, badArgIdx);
       if (!functionArgTypes.size())
         return false;
 
@@ -4529,7 +4502,7 @@ public:
         DXASSERT(tableName, "otherwise IDxcIntrinsicTable::GetTableName() failed");
         intrinsicFuncDecl = AddHLSLIntrinsicFunction(
             *m_context, isVkNamespace ? m_vkNSDecl : m_hlslNSDecl, tableName,
-            lowering, pIntrinsic, &functionArgTypes);
+            lowering, pIntrinsic, functionArgTypes);
         insertResult.first->setFunctionDecl(intrinsicFuncDecl);
       }
       else
@@ -5059,17 +5032,15 @@ public:
     _In_ const HLSL_INTRINSIC* intrinsic,
     _In_ FunctionTemplateDecl *FunctionTemplate,
     ArrayRef<Expr *> Args,
-    _In_count_(parameterTypeCount) QualType* parameterTypes,
-    size_t parameterTypeCount)
+    MutableArrayRef<QualType> parameterTypes)
   {
     DXASSERT_NOMSG(intrinsic != nullptr);
     DXASSERT_NOMSG(FunctionTemplate != nullptr);
-    DXASSERT_NOMSG(parameterTypes != nullptr);
-    DXASSERT(parameterTypeCount >= 1, "otherwise caller didn't initialize - there should be at least a void return type");
+    DXASSERT(parameterTypes.size() >= 1, "otherwise caller didn't initialize - there should be at least a void return type");
 
     // Create the template arguments.
     SmallVector<TemplateArgument, g_MaxIntrinsicParamCount + 1> templateArgs;
-    for (size_t i = 0; i < parameterTypeCount; i++) {
+    for (size_t i = 0; i < parameterTypes.size(); i++) {
       templateArgs.push_back(TemplateArgument(parameterTypes[i]));
     }
 
@@ -5090,7 +5061,7 @@ public:
     SmallVector<ParameterModifier, g_MaxIntrinsicParamCount> paramMods;
     InitParamMods(intrinsic, paramMods);
 
-    for (unsigned int i = 1; i < parameterTypeCount; i++) {
+    for (unsigned int i = 1; i < parameterTypes.size(); i++) {
       // Change out/inout parameter type to rvalue reference type.
       if (paramMods[i - 1].isAnyOut()) {
         parameterTypes[i] = m_context->getLValueReferenceType(parameterTypes[i]);
@@ -5103,7 +5074,7 @@ public:
       // Remove this when update intrinsic table not affect other things.
       // Change vector<float,1> into float for bias.
       const unsigned biasOperandID = 3; // return type, sampler, coord, bias.
-      DXASSERT(parameterTypeCount > biasOperandID,
+      DXASSERT(parameterTypes.size() > biasOperandID,
                "else operation was misrecognized");
       if (const ExtVectorType *VecTy =
               hlsl::ConvertHLSLVecMatTypeToExtVectorType(
@@ -5123,14 +5094,14 @@ public:
     FunctionProtoType::ExtProtoInfo EmptyEPI;
     QualType functionType = m_context->getFunctionType(
         parameterTypes[0],
-        ArrayRef<QualType>(parameterTypes + 1, parameterTypeCount - 1),
+        parameterTypes.slice(1),
         EmptyEPI, paramMods);
     TypeSourceInfo *TInfo = m_context->CreateTypeSourceInfo(functionType, 0);
     FunctionProtoTypeLoc Proto =
         TInfo->getTypeLoc().getAs<FunctionProtoTypeLoc>();
 
     SmallVector<ParmVarDecl*, g_MaxIntrinsicParamCount> Params;
-    for (unsigned int i = 1; i < parameterTypeCount; i++) {
+    for (unsigned int i = 1; i < parameterTypes.size(); i++) {
       IdentifierInfo* id = &m_context->Idents.get(StringRef(intrinsic->pArgs[i - 1].pName));
       ParmVarDecl *paramDecl = ParmVarDecl::Create(
           *m_context, nullptr, NoLoc, NoLoc, id, parameterTypes[i], nullptr,
@@ -5660,28 +5631,37 @@ bool HLSLExternalSource::MatchArguments(
   QualType objectElement,
   QualType functionTemplateTypeArg,
   ArrayRef<Expr *> Args,
-  std::vector<QualType> *argTypesVector,
+  SmallVectorImpl<QualType> &argTypes,
   size_t &badArgIdx)
 {
   DXASSERT_NOMSG(pIntrinsic != nullptr);
-  DXASSERT_NOMSG(argTypesVector != nullptr);
-  std::vector<QualType> &argTypes = *argTypesVector;
   argTypes.clear();
   const bool isVariadic = IsVariadicIntrinsicFunction(pIntrinsic);
 
   static const UINT UnusedSize = 0xFF;
-  static const BYTE MaxIntrinsicArgs = g_MaxIntrinsicParamCount + 1;
+  DXASSERT(g_MaxIntrinsicParamCount + 1 < UnusedSize, "Otherwise, some assumption about maximum size fitting in BYTE is wrong");
+  DXASSERT(Args.size() < UnusedSize, "Otherwise, some assumption about maximum size fitting in BYTE is wrong");
+
 #define CAB(cond,arg) { if (!(cond)) { badArgIdx = (arg); return false; } }
 
-  ArTypeObjectKind Template[MaxIntrinsicArgs];  // Template type for each argument, AR_TOBJ_UNKNOWN if unspecified.
-  ArBasicKind ComponentType[MaxIntrinsicArgs];  // Component type for each argument, AR_BASIC_UNKNOWN if unspecified.
-  UINT uSpecialSize[IA_SPECIAL_SLOTS];          // row/col matching types, UNUSED_INDEX32 if unspecified.
-  badArgIdx = MaxIntrinsicArgs;
+  CAB(std::max((size_t)g_MaxIntrinsicParamCount + 1, Args.size()) < UnusedSize, 0);
 
-  // Reset infos
-  std::fill(Template, Template + _countof(Template), AR_TOBJ_UNKNOWN);
-  std::fill(ComponentType, ComponentType + _countof(ComponentType), AR_BASIC_UNKNOWN);
+  // Template type for each argument, AR_TOBJ_UNKNOWN if unspecified.
+  SmallVector<ArTypeObjectKind, g_MaxIntrinsicParamCount + 1> Template(
+      pIntrinsic->uNumArgs, AR_TOBJ_UNKNOWN);
+
+  // Component type for each argument, AR_BASIC_UNKNOWN if unspecified.
+  SmallVector<ArBasicKind, g_MaxIntrinsicParamCount + 1> ComponentType(
+      pIntrinsic->uNumArgs, AR_BASIC_UNKNOWN);
+
+  UINT uSpecialSize[IA_SPECIAL_SLOTS];          // row/col matching types, UNUSED_INDEX32 if unspecified.
   std::fill(uSpecialSize, uSpecialSize + _countof(uSpecialSize), UnusedSize);
+
+  // Init badArgIdx to Args.size() + 1 because:
+  //  - pIntrinsic->uNumArgs < Args.size() if variadic.
+  //  - badArgIdx is expressed in argTypes index space where 0 is the return value.
+  size_t BadArgInit = Args.size() + 1;
+  badArgIdx = BadArgInit;
   
   const unsigned retArgIdx = 0;
   unsigned retTypeIdx = pIntrinsic->pArgs[retArgIdx].uComponentTypeId;
@@ -5698,7 +5678,7 @@ bool HLSLExternalSource::MatchArguments(
       break;
 
     // Check bounds for non-variadic functions.
-    if (iArg >= MaxIntrinsicArgs || iArg > pIntrinsic->uNumArgs) {
+    if (iArg >= pIntrinsic->uNumArgs) {
       // Currently never reached
       badArgIdx = iArg;
       return false;
@@ -5799,9 +5779,8 @@ bool HLSLExternalSource::MatchArguments(
       badArgIdx = std::min(badArgIdx, iArg); // no struct, arrays or void
     }
 
-    DXASSERT(
-      pIntrinsicArg->uTemplateId < MaxIntrinsicArgs,
-      "otherwise intrinsic table was modified and g_MaxIntrinsicParamCount was not updated (or uTemplateId is out of bounds)");
+    DXASSERT(pIntrinsicArg->uTemplateId < pIntrinsic->uNumArgs,
+             "otherwise uTemplateId is out of bounds");
 
     // Compare template
     if ((AR_TOBJ_UNKNOWN == Template[pIntrinsicArg->uTemplateId]) ||
@@ -5825,9 +5804,8 @@ bool HLSLExternalSource::MatchArguments(
       }
     }
 
-    DXASSERT(
-      pIntrinsicArg->uComponentTypeId < MaxIntrinsicArgs,
-      "otherwise intrinsic table was modified and MaxIntrinsicArgs was not updated (or uComponentTypeId is out of bounds)");
+    DXASSERT(pIntrinsicArg->uComponentTypeId < pIntrinsic->uNumArgs,
+             "otherwise uComponentTypeId is out of bounds");
 
     // Merge ComponentTypes
     if (AR_BASIC_UNKNOWN == ComponentType[pIntrinsicArg->uComponentTypeId]) {
@@ -5893,13 +5871,13 @@ bool HLSLExternalSource::MatchArguments(
   if (pIntrinsic->pArgs[0].qwUsage
     && pIntrinsic->pArgs[0].uTemplateId != INTRIN_TEMPLATE_FROM_TYPE
     && pIntrinsic->pArgs[0].uTemplateId != INTRIN_TEMPLATE_FROM_FUNCTION) {
-    CAB(pIntrinsic->pArgs[0].uTemplateId < MaxIntrinsicArgs, 0);
+    CAB(pIntrinsic->pArgs[0].uTemplateId < pIntrinsic->uNumArgs, 0);
     if (AR_TOBJ_UNKNOWN == Template[pIntrinsic->pArgs[0].uTemplateId]) {
       Template[pIntrinsic->pArgs[0].uTemplateId] =
         g_LegalIntrinsicTemplates[pIntrinsic->pArgs[0].uLegalTemplates][0];
 
       if (pIntrinsic->pArgs[0].uComponentTypeId != INTRIN_COMPTYPE_FROM_TYPE_ELT0) {
-        DXASSERT_NOMSG(pIntrinsic->pArgs[0].uComponentTypeId < MaxIntrinsicArgs);
+        DXASSERT_NOMSG(pIntrinsic->pArgs[0].uComponentTypeId < pIntrinsic->uNumArgs);
         if (AR_BASIC_UNKNOWN == ComponentType[pIntrinsic->pArgs[0].uComponentTypeId]) {
           // half return type should map to float for min precision
           if (pIntrinsic->pArgs[0].uLegalComponentTypes ==
@@ -6187,7 +6165,7 @@ bool HLSLExternalSource::MatchArguments(
              "have as many arguments and types as the intrinsic template");
   }
 
-  return badArgIdx == MaxIntrinsicArgs;
+  return badArgIdx == BadArgInit;
 #undef CAB
 }
 
@@ -9596,7 +9574,7 @@ Sema::TemplateDeductionResult HLSLExternalSource::DeduceTemplateArgumentsForHLSL
     "or the parser let a user-defined template object through");
 
   // Look for an intrinsic for which we can match arguments.
-  std::vector<QualType> argTypes;
+  llvm::SmallVector<QualType, g_MaxIntrinsicParamCount> argTypes;
   StringRef nameIdentifier = FunctionTemplate->getName();
   IntrinsicDefIter cursor = FindIntrinsicByNameAndArgCount(intrinsics, intrinsicCount, objectName, nameIdentifier, Args.size());
   IntrinsicDefIter end = IntrinsicDefIter::CreateEnd(intrinsics, intrinsicCount, IntrinsicTableDefIter::CreateEnd(m_intrinsicTables));
@@ -9604,7 +9582,7 @@ Sema::TemplateDeductionResult HLSLExternalSource::DeduceTemplateArgumentsForHLSL
   while (cursor != end)
   {
     size_t badArgIdx;
-    if (!MatchArguments(*cursor, objectElement, functionTemplateTypeArg, Args, &argTypes, badArgIdx))
+    if (!MatchArguments(*cursor, objectElement, functionTemplateTypeArg, Args, argTypes, badArgIdx))
     {
       ++cursor;
       continue;
@@ -9656,7 +9634,7 @@ Sema::TemplateDeductionResult HLSLExternalSource::DeduceTemplateArgumentsForHLSL
             32, /*signed*/ false);
       }
     }
-    Specialization = AddHLSLIntrinsicMethod(cursor.GetTableName(), cursor.GetLoweringStrategy(), *cursor, FunctionTemplate, Args, argTypes.data(), argTypes.size());
+    Specialization = AddHLSLIntrinsicMethod(cursor.GetTableName(), cursor.GetLoweringStrategy(), *cursor, FunctionTemplate, Args, argTypes);
     DXASSERT_NOMSG(Specialization->getPrimaryTemplate()->getCanonicalDecl() ==
       FunctionTemplate->getCanonicalDecl());
 

@@ -940,7 +940,7 @@ TEST_F(ObjectTest, FunctionInvoke) {
       // This implementation is brain-dead but (a) different from production,
       // so it's a sensible oracle, and (b) very straightforward. We simply
       // keep instantiating argument types until we finished.
-      std::string argumentTypes[g_MaxIntrinsicParamCount];
+      llvm::SmallVector<std::string, g_MaxIntrinsicParamCount> argumentTypes(intrinsic->uNumArgs);
       {
         bool madeProgress = false;
         int argsRemaining = intrinsic->uNumArgs - 1;
