@@ -5915,10 +5915,10 @@ static void VerifyRDATMatches(_In_ ValidationContext &ValCtx,
   // otherwise, load subobject into DxilModule to generate reference RDAT.
   if (!ValCtx.DxilMod.GetSubobjects()) {
     RDAT::DxilRuntimeData rdat(pRDATData, RDATSize);
-    auto *pSubobjReader = rdat.GetSubobjectTableReader();
-    if (pSubobjReader && pSubobjReader->GetCount() > 0) {
+    auto table = rdat.GetSubobjectTable();
+    if (table && table.Count() > 0) {
       ValCtx.DxilMod.ResetSubobjects(new DxilSubobjects());
-      if (!LoadSubobjectsFromRDAT(*ValCtx.DxilMod.GetSubobjects(), pSubobjReader)) {
+      if (!LoadSubobjectsFromRDAT(*ValCtx.DxilMod.GetSubobjects(), rdat)) {
         ValCtx.EmitFormatError(ValidationRule::ContainerPartMatches, { PartName });
         return;
       }

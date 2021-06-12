@@ -1243,8 +1243,8 @@ private:
         uint32_t mangledIndex = m_pStringBufferPart->Insert(mangled);
         uint32_t unmangledIndex = m_pStringBufferPart->Insert(unmangled);
         // Update resource Index
-        uint32_t resourceIndex = UINT_MAX;
-        uint32_t functionDependencies = UINT_MAX;
+        uint32_t resourceIndex = RDAT_NULL_REF;
+        uint32_t functionDependencies = RDAT_NULL_REF;
         uint32_t payloadSizeInBytes = 0;
         uint32_t attrSizeInBytes = 0;
         uint32_t shaderKind = static_cast<uint32_t>(DXIL::ShaderKind::Library);
@@ -1280,9 +1280,7 @@ private:
         info.FunctionDependencies = functionDependencies;
         info.PayloadSizeInBytes = payloadSizeInBytes;
         info.AttributeSizeInBytes = attrSizeInBytes;
-        uint64_t featureFlags = flags.GetFeatureInfo();
-        info.FeatureInfo1 = featureFlags & 0xffffffff;
-        info.FeatureInfo2 = (featureFlags >> 32) & 0xffffffff;
+        info.SetFeatureFlags(flags.GetFeatureInfo());
         // Init min target 6.0
         unsigned minMajor = 6, minMinor = 0;
         // Increase min target based on feature flags:
@@ -1333,9 +1331,9 @@ private:
         __fallthrough;
       case DXIL::SubobjectKind::GlobalRootSignature: {
         const void *Data;
-        obj.GetRootSignature(bLocalRS, Data, info.RootSignature.SizeInBytes);
-        info.RootSignature.RawBytesOffset =
-          m_pRawBytesPart->Insert(Data, info.RootSignature.SizeInBytes);
+        obj.GetRootSignature(bLocalRS, Data, info.RootSignature.Data.Size);
+        info.RootSignature.Data.Offset =
+          m_pRawBytesPart->Insert(Data, info.RootSignature.Data.Size);
         break;
       }
       case DXIL::SubobjectKind::SubobjectToExportsAssociation: {
