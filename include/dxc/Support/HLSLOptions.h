@@ -198,6 +198,9 @@ public:
   bool ForceZeroStoreLifetimes = false; // OPT_force_zero_store_lifetimes
   bool EnableLifetimeMarkers = false; // OPT_enable_lifetime_markers
 
+  // Experimental option to enable short-circuiting operators
+  bool EnableShortCircuit = false; // OPT_enable_short_circuit
+
   // Optimization pass enables, disables and selects
   std::map<std::string, bool> DxcOptimizationToggles; // OPT_opt_enable & OPT_opt_disable
   std::map<std::string, std::string> DxcOptimizationSelects; // OPT_opt_select
