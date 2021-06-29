@@ -9099,7 +9099,6 @@ void HLSLExternalSource::CheckBinOpForHLSL(
     if (BinaryOperatorKindIsLogical(Opc)) {
       if (m_sema->getLangOpts().EnableShortCircuit) {
         // Only allow scalar types for logical operators &&, ||
-        // TODO: maybe integrate into ValidateTypeRequirements adding requiresScalar?
         if (leftObjectKind != ArTypeObjectKind::AR_TOBJ_BASIC ||
             rightObjectKind != ArTypeObjectKind::AR_TOBJ_BASIC) {
           m_sema->Diag(OpLoc, diag::err_hlsl_logical_binop_scalar);
@@ -9376,7 +9375,6 @@ clang::QualType HLSLExternalSource::CheckVectorConditional(
   if (m_sema->getLangOpts().EnableShortCircuit) {
     // Only allow scalar.
     if (condObjectKind == AR_TOBJ_VECTOR || condObjectKind == AR_TOBJ_MATRIX) {
-      // TODO: change diag
       m_sema->Diag(QuestionLoc, diag::err_hlsl_ternary_scalar);
       return QualType();
     }
