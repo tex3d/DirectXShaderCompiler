@@ -841,10 +841,19 @@ void OP::GetMinShaderModelAndMask(OpCode C, bool bWithTranslation,
     mask = SFLAG(Mesh);
     return;
   }
-  // Instructions: AnnotateHandle=216, CreateHandleFromBinding=217,
-  // CreateHandleFromHeap=218, Unpack4x8=219, Pack4x8=220, IsHelperLane=221
-  if ((216 <= op && op <= 221)) {
+  // Instructions: CreateHandleFromHeap=218, Unpack4x8=219, Pack4x8=220,
+  // IsHelperLane=221
+  if ((218 <= op && op <= 221)) {
     major = 6;  minor = 6;
+    return;
+  }
+  // Instructions: AnnotateHandle=216, CreateHandleFromBinding=217
+  if ((216 <= op && op <= 217)) {
+    if (bWithTranslation) {
+      major = 6;  minor = 0;
+    } else {
+      major = 6;  minor = 6;
+    }
     return;
   }
   // OPCODE-SMMASK:END
