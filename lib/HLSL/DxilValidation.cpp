@@ -620,6 +620,14 @@ struct ValidationContext {
           continue;
         }
 
+        // TODO: Verify that handle argument is one of the valid CreateHandle*
+        // intrinsics for this shader model.
+
+        // TODO: Validate users are in supported set for this shader model.
+        // For example, Legal: AnnotateHandle, resource intrinsic calls
+        //          Not Legal: phi, select, store, ExtractValue, any other function calls
+        // Unless this validation occurs when looking at these instructions already.
+
         ResPropMap[CI] = RP;
       }
     }
@@ -896,9 +904,6 @@ static bool ValidateOpcodeInProfile(DXIL::OpCode opcode,
   // Instructions: StorePatchConstant=106, OutputControlPointID=107
   if ((106 <= op && op <= 107))
     return (SK == DXIL::ShaderKind::Hull);
-  // Instructions: QuadReadLaneAt=122, QuadOp=123
-  if ((122 <= op && op <= 123))
-    return (SK == DXIL::ShaderKind::Library || SK == DXIL::ShaderKind::Compute || SK == DXIL::ShaderKind::Amplification || SK == DXIL::ShaderKind::Mesh || SK == DXIL::ShaderKind::Pixel);
   // Instructions: WaveIsFirstLane=110, WaveGetLaneIndex=111,
   // WaveGetLaneCount=112, WaveAnyTrue=113, WaveAllTrue=114,
   // WaveActiveAllEqual=115, WaveActiveBallot=116, WaveReadLaneAt=117,
@@ -907,8 +912,9 @@ static bool ValidateOpcodeInProfile(DXIL::OpCode opcode,
   if ((110 <= op && op <= 121) || (135 <= op && op <= 136))
     return (SK == DXIL::ShaderKind::Library || SK == DXIL::ShaderKind::Compute || SK == DXIL::ShaderKind::Amplification || SK == DXIL::ShaderKind::Mesh || SK == DXIL::ShaderKind::Pixel || SK == DXIL::ShaderKind::Vertex || SK == DXIL::ShaderKind::Hull || SK == DXIL::ShaderKind::Domain || SK == DXIL::ShaderKind::Geometry || SK == DXIL::ShaderKind::RayGeneration || SK == DXIL::ShaderKind::Intersection || SK == DXIL::ShaderKind::AnyHit || SK == DXIL::ShaderKind::ClosestHit || SK == DXIL::ShaderKind::Miss || SK == DXIL::ShaderKind::Callable);
   // Instructions: Sample=60, SampleBias=61, SampleCmp=64, CalculateLOD=81,
-  // DerivCoarseX=83, DerivCoarseY=84, DerivFineX=85, DerivFineY=86
-  if ((60 <= op && op <= 61) || op == 64 || op == 81 || (83 <= op && op <= 86))
+  // DerivCoarseX=83, DerivCoarseY=84, DerivFineX=85, DerivFineY=86,
+  // QuadReadLaneAt=122, QuadOp=123
+  if ((60 <= op && op <= 61) || op == 64 || op == 81 || (83 <= op && op <= 86) || (122 <= op && op <= 123))
     return (SK == DXIL::ShaderKind::Library || SK == DXIL::ShaderKind::Pixel || SK == DXIL::ShaderKind::Compute || SK == DXIL::ShaderKind::Amplification || SK == DXIL::ShaderKind::Mesh);
   // Instructions: RenderTargetGetSamplePosition=76,
   // RenderTargetGetSampleCount=77, Discard=82, EvalSnapped=87,
