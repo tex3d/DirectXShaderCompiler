@@ -33,6 +33,7 @@
 namespace dxc {
 class DxcDllSupport;
 }
+struct IDxcBlob;
 struct IStream;
 struct IXmlReader;
 
@@ -181,7 +182,8 @@ public:
 // Use this class to hold all information needed for a Draw/Dispatch call.
 class ShaderOp {
 public:
-  string_table Strings;
+  ShaderOp(string_table &strings) : Strings(strings) {}
+  string_table &Strings;
   std::vector<D3D12_INPUT_ELEMENT_DESC> InputElements;
   std::vector<ShaderOpResource> Resources;
   std::vector<ShaderOpDescriptorHeap> DescriptorHeaps;
@@ -195,7 +197,7 @@ public:
   LPCSTR CS = nullptr, VS = nullptr, PS = nullptr;
   LPCSTR GS = nullptr, DS = nullptr, HS = nullptr;
   LPCSTR AS = nullptr, MS = nullptr;
-  LPCSTR GetString(LPCSTR str) { return Strings.insert(str); }
+  LPCSTR GetString(LPCSTR str) { return str ? Strings.insert(str) : nullptr; }
   UINT DispatchX = 1, DispatchY = 1, DispatchZ = 1;
   D3D12_PRIMITIVE_TOPOLOGY_TYPE PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
@@ -206,11 +208,16 @@ public:
   }
   LPCSTR GetShaderText(ShaderOpShader *pShader) {
     if (!pShader || !pShader->Text) return nullptr;
-    LPCSTR result = pShader->Text;
+    // Use GetString on Text to canonicalize and cache the text string
+    // Otherwise, shader caching won't work when user overrides text without
+    // using GetString.
+    LPCSTR result = GetString(pShader->Text);
     if (result[0] == '@') {
       for (auto && S : Shaders) {
-        if (S.Name && 0 == strcmp(S.Name, result + 1))
+        if (S.Name && 0 == strcmp(S.Name, result + 1)) {
+          S.Text = GetString(S.Text);
           return S.Text;
+        }
       }
       result = nullptr;
     }
@@ -235,6 +242,7 @@ public:
 // Use this class to hold a set of shader operations.
 class ShaderOpSet {
 public:
+  string_table Strings;
   std::vector<std::unique_ptr<ShaderOp>> ShaderOps;
   ShaderOp *GetShaderOp(LPCSTR pName);
 };
@@ -248,6 +256,22 @@ struct CommandListRefs {
   void CreateForDevice(ID3D12Device *pDevice, bool compute);
 };
 
+struct CachedCompileKey {
+  LPCSTR EntryPoint, Target, Arguments, Text;
+  bool operator<(const CachedCompileKey& other) const {
+    if (EntryPoint < other.EntryPoint) return true;
+    else if (other.EntryPoint < EntryPoint) return false;
+    if (Target < other.Target) return true;
+    else if (other.Target < Target) return false;
+    if (Arguments < other.Arguments) return true;
+    else if (other.Arguments < Arguments) return false;
+    if (Text < other.Text) return true;
+    else if (other.Text < Text) return false;
+    return false;
+  }
+};
+typedef std::map<CachedCompileKey, CComPtr<IDxcBlob>> ShaderCacheType;
+
 // Use this class to run the operation described in a ShaderOp object.
 class ShaderOpTest {
 public:
@@ -259,6 +283,7 @@ public:
   void SetDevice(ID3D12Device* pDevice);
   void SetDxcSupport(dxc::DxcDllSupport *pDxcSupport);
   void SetInitCallback(TInitCallbackFn InitCallbackFn);
+  void SetShaderCache(ShaderCacheType *pShaderCache);
   void SetupRenderTarget(ShaderOp *pShaderOp, ID3D12Device *pDevice,
                          ID3D12CommandQueue *pCommandQueue,
                          ID3D12Resource *pRenderTarget);
@@ -296,6 +321,7 @@ private:
   std::vector<ID3D12DescriptorHeap *> m_DescriptorHeaps;
   std::shared_ptr<ShaderOp> m_OrigShaderOp;
   TInitCallbackFn m_InitCallbackFn = nullptr;
+  ShaderCacheType *m_pShaderCache = nullptr;
   void CopyBackResources();
   void CreateCommandList();
   void CreateDescriptorHeaps();

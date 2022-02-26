@@ -777,10 +777,26 @@ static void splitWStringIntoVectors(LPWSTR str, wchar_t delim, std::vector<LPWST
 }
 void ShaderOpTest::CreateShaders() {
   for (ShaderOpShader &S : m_pShaderOp->Shaders) {
-    CComPtr<ID3DBlob> pCode;
+    CComPtr<IDxcBlob> pCode;
     HRESULT hr = S_OK;
     LPCSTR pText = m_pShaderOp->GetShaderText(&S);
-    if (S.Compiled) {
+
+    // Canonicalize key strings, since some may have been overwritten without
+    // using GetString().  pText is canonicalized in GetShaderText.
+    S.EntryPoint = m_pShaderOp->GetString(S.EntryPoint);
+    S.Target = m_pShaderOp->GetString(S.Target);
+    S.Arguments = m_pShaderOp->GetString(S.Arguments);
+    CachedCompileKey cacheKey = {S.EntryPoint, S.Target, S.Arguments, pText};
+    if (m_pShaderCache) {
+      auto it = m_pShaderCache->find(cacheKey);
+      if (it != m_pShaderCache->end()) {
+        pCode = it->second;
+      }
+    }
+
+    if (pCode) {
+      // Got code from cache, skip decoding or compilation.
+    } else if (S.Compiled) {
       int textLen = (int)strlen(pText);
       int decodedLen = Base64DecodeGetRequiredLength(textLen);
       // Length is an approximation, so we can't creat the final blob yet.
@@ -791,10 +807,14 @@ void ShaderOpTest::CreateShaders() {
         CHECK_HR(E_FAIL);
       }
       // decodedLen should have the correct size now.
-      CHECK_HR(D3DCreateBlob(decodedLen, &pCode));
+      CHECK_HR(D3DCreateBlob(decodedLen, (ID3DBlob**)&pCode));
       memcpy(pCode->GetBufferPointer(), decoded.data(), decodedLen);
+      if (m_pShaderCache) {
+        m_pShaderCache->insert(std::make_pair(cacheKey, pCode));
+      }
     }
     else if (TargetUsesDxil(S.Target)) {
+
       CComPtr<IDxcCompiler> pCompiler;
       CComPtr<IDxcLibrary> pLibrary;
       CComPtr<IDxcBlobEncoding> pTextBlob;
@@ -825,7 +845,10 @@ void ShaderOpTest::CreateShaders() {
                        errors->GetBufferPointer());
       }
       CHECK_HR(resultCode);
-      CHECK_HR(pResult->GetResult((IDxcBlob **)&pCode));
+      CHECK_HR(pResult->GetResult(&pCode));
+      if (m_pShaderCache && pCode) {
+        m_pShaderCache->insert(std::make_pair(cacheKey, pCode));
+      }
 #if 0 // use the following code to test compiled shader
       CComPtr<IDxcBlob> pCode;
       CHECK_HR(pResult->GetResult(&pCode));
@@ -838,10 +861,14 @@ void ShaderOpTest::CreateShaders() {
     } else {
       CComPtr<ID3DBlob> pError;
       hr = D3DCompile(pText, strlen(pText), S.Name, nullptr, nullptr,
-                      S.EntryPoint, S.Target, 0, 0, &pCode, &pError);
+                      S.EntryPoint, S.Target, 0, 0, (ID3DBlob**)&pCode, &pError);
       if (FAILED(hr) && pError != nullptr) {
         ShaderOpLogFmt(L"%*S\r\n", (int)pError->GetBufferSize(),
                        ((LPCSTR)pError->GetBufferPointer()));
+      } else {
+        if (m_pShaderCache && pCode) {
+          m_pShaderCache->insert(std::make_pair(cacheKey, pCode));
+        }
       }
     }
     CHECK_HR(hr);
@@ -1087,6 +1114,11 @@ void ShaderOpTest::SetDxcSupport(dxc::DxcDllSupport *pDxcSupport) {
 void ShaderOpTest::SetInitCallback(TInitCallbackFn InitCallbackFn) {
   m_InitCallbackFn = InitCallbackFn;
 }
+
+void ShaderOpTest::SetShaderCache(ShaderCacheType *pShaderCache) {
+  m_pShaderCache = pShaderCache;
+}
+
 
 void ShaderOpTest::SetupRenderTarget(ShaderOp *pShaderOp, ID3D12Device *pDevice,
                                      ID3D12CommandQueue *pCommandQueue,
@@ -2170,7 +2202,7 @@ void ShaderOpParser::ParseShaderOpSet(IXmlReader *pReader, ShaderOpSet *pShaderO
       LPCWSTR pLocalName;
       CHECK_HR(pReader->GetLocalName(&pLocalName, nullptr));
       if (0 == wcscmp(pLocalName, L"ShaderOp")) {
-        pShaderOpSet->ShaderOps.emplace_back(std::make_unique<ShaderOp>());
+        pShaderOpSet->ShaderOps.emplace_back(std::make_unique<ShaderOp>(pShaderOpSet->Strings));
         ParseShaderOp(pReader, pShaderOpSet->ShaderOps.back().get());
       }
     }

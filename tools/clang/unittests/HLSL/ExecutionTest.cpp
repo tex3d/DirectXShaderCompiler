@@ -275,6 +275,7 @@ typedef struct D3D12_FEATURE_DATA_D3D12_OPTIONS4
 
 // Virtual class to compute the expected result given a set of inputs
 struct TableParameter;
+struct ShaderOpTestResult;
 
 class ExecutionTest {
 public:
@@ -461,6 +462,7 @@ public:
 
   dxc::DxcDllSupport m_support;
   VersionSupportInfo m_ver;
+  st::ShaderCacheType m_ShaderCache;
 
   bool m_D3DInitCompleted = false;
   bool m_ExperimentalModeEnabled = false;
@@ -1560,6 +1562,16 @@ public:
   void WaitForSignal(ID3D12CommandQueue *pCQ, FenceObj &FO) {
     ::WaitForSignal(pCQ, FO.m_fence, FO.m_fenceEvent, FO.m_fenceValue++);
   }
+
+  std::shared_ptr<ShaderOpTestResult>
+  RunShaderOpTestAfterParse(ID3D12Device *pDevice, dxc::DxcDllSupport &support,
+                            LPCSTR pName,
+                            st::ShaderOpTest::TInitCallbackFn pInitCallback,
+                            std::shared_ptr<st::ShaderOpSet> ShaderOpSet);
+  std::shared_ptr<ShaderOpTestResult>
+  RunShaderOpTest(ID3D12Device *pDevice, dxc::DxcDllSupport &support,
+                  IStream *pStream, LPCSTR pName,
+                  st::ShaderOpTest::TInitCallbackFn pInitCallback);
 };
 #define WAVE_INTRINSIC_DXBC_GUARD \
   "#ifdef USING_DXBC\r\n" \
@@ -3003,18 +3015,10 @@ struct ShaderOpTestResult {
   std::shared_ptr<st::ShaderOpTest> Test;
 };
 
-struct SPrimitives {
-  float f_float;
-  float f_float2;
-  float f_float_o;
-  float f_float2_o;
-};
-
-std::shared_ptr<ShaderOpTestResult>
-RunShaderOpTestAfterParse(ID3D12Device *pDevice, dxc::DxcDllSupport &support,
-                          LPCSTR pName,
-                          st::ShaderOpTest::TInitCallbackFn pInitCallback,
-                          std::shared_ptr<st::ShaderOpSet> ShaderOpSet) {
+std::shared_ptr<ShaderOpTestResult> ExecutionTest::RunShaderOpTestAfterParse(
+    ID3D12Device *pDevice, dxc::DxcDllSupport &support, LPCSTR pName,
+    st::ShaderOpTest::TInitCallbackFn pInitCallback,
+    std::shared_ptr<st::ShaderOpSet> ShaderOpSet) {
   st::ShaderOp *pShaderOp;
   if (pName == nullptr) {
     if (ShaderOpSet->ShaderOps.size() != 1) {
@@ -3043,6 +3047,7 @@ RunShaderOpTestAfterParse(ID3D12Device *pDevice, dxc::DxcDllSupport &support,
   pShaderOp->UseWarpDevice = GetTestParamUseWARP(true);
 
   std::shared_ptr<st::ShaderOpTest> test = std::make_shared<st::ShaderOpTest>();
+  test->SetShaderCache(&m_ShaderCache);
   test->SetDxcSupport(&support);
   test->SetInitCallback(pInitCallback);
   test->SetDevice(pDevice);
@@ -3056,10 +3061,9 @@ RunShaderOpTestAfterParse(ID3D12Device *pDevice, dxc::DxcDllSupport &support,
   return result;
 }
 
-std::shared_ptr<ShaderOpTestResult>
-RunShaderOpTest(ID3D12Device *pDevice, dxc::DxcDllSupport &support,
-                IStream *pStream, LPCSTR pName,
-                st::ShaderOpTest::TInitCallbackFn pInitCallback) {
+std::shared_ptr<ShaderOpTestResult> ExecutionTest::RunShaderOpTest(
+    ID3D12Device *pDevice, dxc::DxcDllSupport &support, IStream *pStream,
+    LPCSTR pName, st::ShaderOpTest::TInitCallbackFn pInitCallback) {
   DXASSERT_NOMSG(pStream != nullptr);
   std::shared_ptr<st::ShaderOpSet> ShaderOpSet =
         std::make_shared<st::ShaderOpSet>();
