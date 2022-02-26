@@ -16,6 +16,11 @@ set FailingCmdWritten=0
 set OutputLog=%1\testcmd.log
 set LogOutput=1
 
+set clean_on_failure=1
+if "%TEST_CMD_DBG%"=="1" (
+  set clean_on_failure=0
+)
+
 pushd %1
 
 set testname=Basic Rewriter Smoke Test
@@ -446,9 +451,9 @@ if %Failed% neq 0 goto :failed
 set testname=Test Version macro
 for %%v in (2016 2017 2018 2021) do (
   call :run dxc.exe -HV %%v -P %%v.hlsl.pp %testfiles%\VersionMacro.hlsl
-  if %Failed% neq 0 goto :failed
+  if !Failed! neq 0 goto :failed
   call :check_file %%v.hlsl.pp find %%v del
-  if %Failed% neq 0 goto :failed
+  if !Failed! neq 0 goto :failed
 )
 
 set testname=Test v202x macro
@@ -464,9 +469,9 @@ for %%p in (vs ps gs hs ds cs lib) do (
     if "%%p" == "ms" ( if %%v leq 4 goto :next )
     if "%%p" == "as" ( if %%v leq 4 goto :next )
     call :run dxc.exe -T %%p_6_%%v -P %%p_%%v.hlsl.pp %testfiles%\PipelineStage.hlsl
-    if %Failed% neq 0 goto :failed
+    if !Failed! neq 0 goto :failed
     call :check_file %%p_%%v.hlsl.pp find "%%p 6 %%v" del
-    if %Failed% neq 0 goto :failed
+    if !Failed! neq 0 goto :failed
 
     :next
     rem Skip to the next iteration
@@ -501,7 +506,6 @@ for %%f in (%cleanup_files%) do (
   del %%f 1>nul 2>nul
 )
 popd
-endlocal
 exit /b 0
 
 rem ============================================
@@ -659,6 +663,8 @@ exit /b 0
 rem ============================================
 rem Cleanup and return failure
 :failed
-call :cleanup 2>nul
-if %Failed% eq 0 set Failed=1
+if %clean_on_failure% neq 0 (
+  call :cleanup 2>nul
+)
+if %Failed% equ 0 set Failed=1
 exit /b %Failed%

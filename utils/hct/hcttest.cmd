@@ -11,6 +11,7 @@ set GENERATOR_NINJA=0
 set TEST_ALL=1
 set TEST_CLANG=0
 set TEST_CMD=0
+set TEST_CMD_DBG=0
 set TEST_EXEC=0
 set TEST_DXILCONV=0
 set TEST_DXILCONV_FILTER=
@@ -95,6 +96,10 @@ if "%1"=="-clean" (
 ) else if "%1"=="cmd" (
   set TEST_ALL=0
   set TEST_CMD=1
+) else if "%1"=="cmd-dbg" (
+  set TEST_ALL=0
+  set TEST_CMD=1
+  set TEST_CMD_DBG=1
 ) else if "%1" == "dxilconv" (
   set TEST_ALL=0
   set TEST_DXILCONV=1
