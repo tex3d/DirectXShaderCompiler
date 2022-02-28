@@ -149,7 +149,7 @@ if "%HLSL_TAEF_MINTE%"=="" (
 echo Found TAEF at %HLSL_TAEF_MINTE%
 set HLSL_TAEF_DIR=%HLSL_BLD_DIR%\TAEF
 echo Copying to %HLSL_TAEF_DIR% for use with AgilitySDK
-mkdir "%HLSL_TAEF_DIR%\%BUILD_ARCH:Win32=x86%"" 1>nul 2>nul
+mkdir "%HLSL_TAEF_DIR%\%BUILD_ARCH:Win32=x86%" 1>nul 2>nul
 robocopy /NP /NJH /NJS /S "%HLSL_TAEF_MINTE%" "%HLSL_TAEF_DIR%\%BUILD_ARCH:Win32=x86%" *
 set path=%path%;%HLSL_TAEF_DIR%\%BUILD_ARCH:Win32=x86%
 goto:eof
