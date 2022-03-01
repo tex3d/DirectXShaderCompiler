@@ -36,6 +36,10 @@
 using namespace llvm;
 using namespace hlsl;
 
+namespace hlsl {
+void CreateDxcContainerReflection(IDxcContainerReflection **ppResult);
+}
+
 // This declaration is used for the locally-linked validator.
 HRESULT CreateDxcValidator(_In_ REFIID riid, _Out_ LPVOID *ppv);
 // This internal call allows the validator to avoid having to re-deserialize
@@ -303,8 +307,7 @@ HRESULT SetRootSignature(hlsl::DxilModule *pModule, CComPtr<IDxcBlob> pSource) {
 
   CComPtr<IDxcContainerReflection> pReflection;
   UINT32 partCount;
-  IFT(DxcCreateInstance(CLSID_DxcContainerReflection,
-                    __uuidof(IDxcContainerReflection), (void **)&pReflection));
+  CreateDxcContainerReflection(&pReflection);
   IFT(pReflection->Load(pSource));
   IFT(pReflection->GetPartCount(&partCount));
 

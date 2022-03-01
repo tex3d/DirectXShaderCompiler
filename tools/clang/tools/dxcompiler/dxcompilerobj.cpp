@@ -76,6 +76,9 @@ using std::string;
 // This declaration is used for the locally-linked validator.
 HRESULT CreateDxcValidator(_In_ REFIID riid, _Out_ LPVOID *ppv);
 
+// Use internal function rather than DxcCreateInstance2
+HRESULT CreateDxcContainerBuilder(_In_ REFIID riid, _Out_ LPVOID *ppv);
+
 // This internal call allows the validator to avoid having to re-deserialize
 // the module. It trusts that the caller didn't make any changes and is
 // kept internal because the layout of the module class may change based
@@ -1258,7 +1261,7 @@ public:
           hlsl::DxcCreateBlobWithEncodingFromPinned(pOutputBlob->GetBufferPointer(), pOutputBlob->GetBufferSize(), CP_ACP, &pContainerBlob);
 
           CComPtr<IDxcContainerBuilder> pContainerBuilder;
-          DxcCreateInstance2(this->m_pMalloc, CLSID_DxcContainerBuilder, IID_PPV_ARGS(&pContainerBuilder));
+          IFT(CreateDxcContainerBuilder(IID_PPV_ARGS(&pContainerBuilder)));
           IFT(pContainerBuilder->Load(pOutputBlob));
           IFT(pContainerBuilder->AddPart(hlsl::DFCC_PrivateData, pPdbBlob));
 

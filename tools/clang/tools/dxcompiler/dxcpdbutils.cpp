@@ -49,6 +49,10 @@
 using namespace dxc;
 using namespace llvm;
 
+// Use internal functions rather than DxcCreateInstance2
+HRESULT CreateDxcCompiler(_In_ REFIID riid, _Out_ LPVOID *ppv);
+HRESULT CreateDxcDiaDataSource(_In_ REFIID riid, _Out_ LPVOID *ppv);
+
 static const std::string ToUtf8String(const std::wstring &str) {
   std::wstring_convert<std::codecvt_utf8<wchar_t> > converter;
   return converter.to_bytes(str.data(), str.data()+str.size());
@@ -826,7 +830,7 @@ public:
       return E_FAIL;
 
     if (!m_pCompiler)
-      IFR(DxcCreateInstance2(m_pMalloc, CLSID_DxcCompiler, IID_PPV_ARGS(&m_pCompiler)));
+      IFR(CreateDxcCompiler(IID_PPV_ARGS(&m_pCompiler)));
 
     std::vector<std::wstring> new_args_storage;
     for (unsigned i = 0; i < m_ArgPairs.size(); i++) {
@@ -928,7 +932,7 @@ public:
     DxcThreadMalloc TM(m_pMalloc);
 
     CComPtr<IDiaDataSource> pDataSource;
-    IFR(DxcCreateInstance2(m_pMalloc, CLSID_DxcDiaDataSource, IID_PPV_ARGS(&pDataSource)));
+    IFR(CreateDxcDiaDataSource(IID_PPV_ARGS(&pDataSource)));
 
     CComPtr<IStream> pStream;
     IFR(hlsl::CreateReadOnlyBlobStream(m_pDebugProgramBlob, &pStream));
