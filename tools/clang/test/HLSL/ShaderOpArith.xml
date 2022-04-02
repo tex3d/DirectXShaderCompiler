@@ -3538,8 +3538,8 @@ void MSMain(uint GID : SV_GroupIndex,
     </DescriptorHeap>
 
     <DescriptorHeap Name="SamplerDescriptorHeap" Type="SAMPLER">
-      <Descriptor  Kind="SAMPLER" BorderColorR="1.0" />
-      <Descriptor  Kind="SAMPLER" BorderColorR="1.0" ComparisonFunc="EQUAL"/>
+      <Descriptor  Kind="SAMPLER" AddressU="BORDER" AddressV="BORDER" BorderColorR="1.0" />
+      <Descriptor  Kind="SAMPLER" AddressU="BORDER" AddressV="BORDER" BorderColorR="1.0" ComparisonFunc="EQUAL"/>
     </DescriptorHeap>
     
     <DescriptorHeap Name="RtvHeap" NumDescriptors="1" Type="RTV">
