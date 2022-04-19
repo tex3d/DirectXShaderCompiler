@@ -3485,11 +3485,11 @@ void MSMain(uint GID : SV_GroupIndex,
 
   <ShaderOp Name="DynamicResourcesUniformIndexing" CS="CS66" VS="VS66" PS="PS66">
     <Resource Name="ConstantBuffer" Dimension="BUFFER" Width="256" InitialResourceState="COPY_DEST" Init="FromBytes" ReadBack="true">
-      { 0, 1, 2, 3, 4, 5, 6, 7 }
+      { 0u, 1u, 2u, 3u, 4u, 5u, 6u, 7u }
     </Resource>
    
-    <Resource Name="g_result"      Dimension="BUFFER"     Width="32"            InitialResourceState="COPY_DEST" Init="ZERO"      Flags="ALLOW_UNORDERED_ACCESS" ReadBack="true"/>
-    <Resource Name="g_resultPS"    Dimension="BUFFER"     Width="32"            InitialResourceState="COPY_DEST" Init="ZERO"      Flags="ALLOW_UNORDERED_ACCESS" ReadBack="true"/>
+    <Resource Name="g_result"      Dimension="BUFFER"     Width="32"            InitialResourceState="COPY_DEST" Init="ZERO"      Flags="ALLOW_UNORDERED_ACCESS" ReadBack="true" TransitionTo="UNORDERED_ACCESS" />
+    <Resource Name="g_resultPS"    Dimension="BUFFER"     Width="32"            InitialResourceState="COPY_DEST" Init="ZERO"      Flags="ALLOW_UNORDERED_ACCESS" ReadBack="true" TransitionTo="UNORDERED_ACCESS" />
 
     <Resource Name="T0"            Dimension="BUFFER"     Width="32"            InitialResourceState="COPY_DEST" Init="FromBytes" >
       10.0
@@ -3503,15 +3503,15 @@ void MSMain(uint GID : SV_GroupIndex,
       12.0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
     </Resource>
     
-    <Resource Name="U3"            Dimension="BUFFER"     Width="32"            InitialResourceState="COPY_DEST" Init="FromBytes" Flags="ALLOW_UNORDERED_ACCESS">
+    <Resource Name="U3"            Dimension="BUFFER"     Width="32"            InitialResourceState="COPY_DEST" Init="FromBytes" Flags="ALLOW_UNORDERED_ACCESS" TransitionTo="UNORDERED_ACCESS" >
       23.0
     </Resource>
     
-    <Resource Name="U4"            Dimension="BUFFER"     Width="32"            InitialResourceState="COPY_DEST" Init="FromBytes" Flags="ALLOW_UNORDERED_ACCESS">
+    <Resource Name="U4"            Dimension="BUFFER"     Width="32"            InitialResourceState="COPY_DEST" Init="FromBytes" Flags="ALLOW_UNORDERED_ACCESS" TransitionTo="UNORDERED_ACCESS" >
       24.0
     </Resource>
     
-    <Resource Name="U5"            Dimension="TEXTURE1D"  Width="4"             InitialResourceState="COPY_DEST" Init="FromBytes" Flags="ALLOW_UNORDERED_ACCESS" Format="R32_FLOAT">
+    <Resource Name="U5"            Dimension="TEXTURE1D"  Width="4"             InitialResourceState="COPY_DEST" Init="FromBytes" Flags="ALLOW_UNORDERED_ACCESS" Format="R32_FLOAT" TransitionTo="UNORDERED_ACCESS" >
       25.0 0 0 0
     </Resource>
     

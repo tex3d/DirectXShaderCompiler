@@ -321,6 +321,11 @@ void ShaderOpTest::CreateDescriptorHeaps() {
       }
 
       if (0 == _stricmp(D.Kind, "UAV")) {
+        ShaderOpResource *R = m_pShaderOp->GetResourceByName(D.ResName);
+        if (R && R->TransitionTo != D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
+          ShaderOpLogFmt(L"Resource '%S' used in UAV descriptor, but TransitionTo not set to 'UNORDERED_ACCESS'", D.ResName);
+          CHECK_HR(E_FAIL);
+        }
         ID3D12Resource *pCounterResource = nullptr;
         if (D.CounterName && *D.CounterName) {
           ShaderOpResourceData &CounterData = m_ResourceData[D.CounterName];
