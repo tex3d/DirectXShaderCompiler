@@ -19,7 +19,7 @@
 // CHECK: fadd
 // CHECK: select i1
 // CHECK: cbufferLoadLegacy
-// CHECK: add nuw nsw
+// CHECK: add
 // CHECK: icmp
 // CHECK: br i1
 struct OuterStruct

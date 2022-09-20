@@ -1,6 +1,6 @@
 // RUN: %dxc /Tps_6_2 /Emain > %s | FileCheck %s
 // CHECK: define void @main()
-// CHECK: %{{[a-z0-9]+.*[a-z0-9]*}} = sub nsw i16 %{{[a-z0-9]+.*[a-z0-9]*}}, %{{[a-z0-9]+.*[a-z0-9]*}}
+// CHECK: %{{[a-z0-9]+.*[a-z0-9]*}} = sub i16 %{{[a-z0-9]+.*[a-z0-9]*}}, %{{[a-z0-9]+.*[a-z0-9]*}}
 // CHECK: entry
 
 int foo(int v0, int v1) { return v0 / v1; }

@@ -2,9 +2,9 @@
 
 // CHECK: Minimum-precision data types
 
-// CHECK: add nsw i16
+// CHECK: add i16
 // CHECK: icmp eq i16
-// CHECK: add nsw i16
+// CHECK: add i16
 // CHECK: sitofp i16
 // CHECK: to float
 

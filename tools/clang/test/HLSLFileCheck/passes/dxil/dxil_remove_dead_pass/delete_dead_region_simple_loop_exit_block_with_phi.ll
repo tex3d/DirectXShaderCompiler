@@ -83,7 +83,7 @@ for.body:                                         ; preds = %for.body.lr.ph, %fo
   br label %for.inc, !dbg !16
 
 for.inc:                                          ; preds = %for.body
-  %inc = add nsw i32 %i.0, 1, !dbg !17
+  %inc = add i32 %i.0, 1, !dbg !17
   call void @dx.noop(), !dbg !17
   %cmp = icmp slt i32 %inc, %3, !dbg !10
   %tobool = icmp ne i1 %cmp, false, !dbg !10

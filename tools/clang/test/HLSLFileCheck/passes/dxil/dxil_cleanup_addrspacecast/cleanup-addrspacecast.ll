@@ -40,7 +40,7 @@ entry:
   store float %3, float addrspace(3)* @"\01?gs_Derived0@@3UDerived@@A.1", align 4
   %4 = call %dx.types.CBufRet.i32 @dx.op.cbufferLoadLegacy.i32(i32 59, %dx.types.Handle %"$Globals_cbuffer", i32 1)
   %5 = extractvalue %dx.types.CBufRet.i32 %4, 2
-  %sub = sub nsw i32 1, %5
+  %sub = sub i32 1, %5
   %6 = getelementptr [2 x i32], [2 x i32] addrspace(3)* @"\01?gs_Derived@@3PAUDerived@@A.0.0", i32 0, i32 %sub
   %7 = getelementptr [2 x float], [2 x float] addrspace(3)* @"\01?gs_Derived@@3PAUDerived@@A.1", i32 0, i32 %sub
   %8 = call %dx.types.CBufRet.i32 @dx.op.cbufferLoadLegacy.i32(i32 59, %dx.types.Handle %"$Globals_cbuffer", i32 %5)
@@ -188,7 +188,7 @@ for.body:                                         ; preds = %for.body.preheader,
   %conv26 = sitofp i32 %new.add.1 to float
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  %sub27 = sub nsw i32 1, %j.025
+  %sub27 = sub i32 1, %j.025
   %rem28 = srem i32 %sub27, 2
   %y309 = getelementptr inbounds [2 x float], [2 x float] addrspace(3)* @"\01?gs_Derived@@3PAUDerived@@A.1", i32 0, i32 %rem28
   %54 = load float, float addrspace(3)* %y309, align 4, !tbaa !34
@@ -266,8 +266,8 @@ for.body:                                         ; preds = %for.body.preheader,
   %107 = add i32 3, %106
   %108 = getelementptr [16 x float], [16 x float] addrspace(3)* @"\01?gs_matArray@@3PAY01$$CAV?$matrix@M$01$01@@A.v.v.1dim", i32 0, i32 %107
   store float %88, float addrspace(3)* %108, align 4
-  %sub46 = add nsw i32 %k.024, -1
-  %inc = add nsw i32 %j.025, 1
+  %sub46 = add i32 %k.024, -1
+  %inc = add i32 %j.025, 1
   %exitcond = icmp eq i32 %inc, 4
   br i1 %exitcond, label %for.end.loopexit, label %for.body
 
@@ -279,7 +279,7 @@ for.end:                                          ; preds = %for.end.loopexit, %
   %k.0.lcssa = phi i32 [ 0, %if.end.11 ], [ %phitmp, %for.end.loopexit ]
   %109 = call %dx.types.CBufRet.i32 @dx.op.cbufferLoadLegacy.i32(i32 59, %dx.types.Handle %"$Globals_cbuffer", i32 1)
   %110 = extractvalue %dx.types.CBufRet.i32 %109, 2
-  %sub47 = sub nsw i32 1, %110
+  %sub47 = sub i32 1, %110
   %111 = add i32 %110, 2
   %112 = mul i32 %sub47, 2
   %113 = add i32 %110, %112
@@ -295,7 +295,7 @@ for.end:                                          ; preds = %for.end.loopexit, %
   %123 = load float, float addrspace(3)* %122, align 4
   %124 = call %dx.types.CBufRet.i32 @dx.op.cbufferLoadLegacy.i32(i32 59, %dx.types.Handle %"$Globals_cbuffer", i32 1)
   %125 = extractvalue %dx.types.CBufRet.i32 %124, 2
-  %sub50 = sub nsw i32 1, %125
+  %sub50 = sub i32 1, %125
   %126 = mul i32 %125, 2
   %127 = add i32 %sub50, %126
   %128 = mul i32 %127, 2
@@ -310,7 +310,7 @@ for.end:                                          ; preds = %for.end.loopexit, %
   store float %123, float addrspace(3)* %135, align 4
   %136 = call %dx.types.CBufRet.i32 @dx.op.cbufferLoadLegacy.i32(i32 59, %dx.types.Handle %"$Globals_cbuffer", i32 1)
   %137 = extractvalue %dx.types.CBufRet.i32 %136, 2
-  %sub54 = sub nsw i32 1, %137
+  %sub54 = sub i32 1, %137
   %138 = mul i32 %sub54, 2
   %139 = add i32 %k.0.lcssa, %138
   %140 = mul i32 %139, 2
@@ -325,7 +325,7 @@ for.end:                                          ; preds = %for.end.loopexit, %
   call void @dx.op.bufferStore.i32(i32 69, %dx.types.Handle %sb_Derived_UAV_structbuf27, i32 1, i32 0, i32 %conv57, i32 undef, i32 undef, i32 undef, i8 1)
   %147 = call %dx.types.CBufRet.i32 @dx.op.cbufferLoadLegacy.i32(i32 59, %dx.types.Handle %"$Globals_cbuffer", i32 1)
   %148 = extractvalue %dx.types.CBufRet.i32 %147, 2
-  %sub61 = sub nsw i32 1, %148
+  %sub61 = sub i32 1, %148
   %149 = mul i32 %sub61, 2
   %150 = add i32 %148, %149
   %151 = mul i32 %150, 2

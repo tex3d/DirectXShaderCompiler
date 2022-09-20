@@ -64,7 +64,7 @@ for.body:                                         ; preds = %for.body.lr.ph, %fo
 
 for.inc:                                          ; preds = %for.body
   %9 = load i32, i32* %i, align 4, !dbg !17
-  %inc = add nsw i32 %9, 1, !dbg !17
+  %inc = add i32 %9, 1, !dbg !17
   call void @dx.noop(), !dbg !17
   store i32 %inc, i32* %i, align 4, !dbg !17
   %10 = load i32, i32* %i, align 4, !dbg !8

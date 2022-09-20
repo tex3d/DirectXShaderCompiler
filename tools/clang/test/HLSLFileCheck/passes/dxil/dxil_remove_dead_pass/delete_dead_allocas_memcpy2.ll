@@ -59,7 +59,7 @@ for.body:                                         ; preds = %for.cond
 
 for.inc:                                          ; preds = %for.body
   %10 = load i32, i32* %i, align 4, !dbg !20
-  %inc = add nsw i32 %10, 1, !dbg !20
+  %inc = add i32 %10, 1, !dbg !20
   call void @dx.noop(), !dbg !20
   store i32 %inc, i32* %i, align 4, !dbg !20
   br label %for.cond, !dbg !12, !llvm.loop !21
