@@ -1156,9 +1156,13 @@ void PrintResourceProperties(DxilResourceProperties &RP,
   LPCSTR RW = bUAV ? (RP.Basic.IsROV ? "ROV" : "RW") : "";
   LPCSTR GC = bUAV && RP.Basic.IsGloballyCoherent ? "globallycoherent " : "";
   LPCSTR COUNTER = bUAV && RP.Basic.SamplerCmpOrHasCounter ? ", counter" : "";
+  bool bMS = false;
 
   switch (RP.getResourceKind())
   {
+  case DXIL::ResourceKind::Texture2DMS:
+  case DXIL::ResourceKind::Texture2DMSArray:
+    bMS = true;
   case DXIL::ResourceKind::Texture1D:
   case DXIL::ResourceKind::Texture2D:
   case DXIL::ResourceKind::Texture3D:
@@ -1167,14 +1171,17 @@ void PrintResourceProperties(DxilResourceProperties &RP,
   case DXIL::ResourceKind::Texture2DArray:
   case DXIL::ResourceKind::TextureCubeArray:
   case DXIL::ResourceKind::TypedBuffer:
-  case DXIL::ResourceKind::Texture2DMS:
-  case DXIL::ResourceKind::Texture2DMSArray:
     OS << GC << RW << ResourceKindToString(RP.getResourceKind());
     OS << "<";
     if (RP.Typed.CompCount > 1)
       OS << std::to_string(RP.Typed.CompCount) << "x";
-    OS << CompTypeToString(RP.getCompType())
-       << ">";
+    OS << CompTypeToString(RP.getCompType());
+    if (bMS) {
+      OS << ", " << std::to_string(RP.Typed.SampleCount);
+    } else if (RP.Typed.SampleCount) {
+      OS << ", invalid non-zero samples: " << std::to_string(RP.Typed.SampleCount);
+    }
+    OS << ">";
     break;
 
   case DXIL::ResourceKind::RawBuffer:
