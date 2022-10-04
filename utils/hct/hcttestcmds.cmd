@@ -503,14 +503,16 @@ if %spirv_smoke_success% neq 1 (
 rem SPIR-V Change Ends
 
 call :cleanup
+endlocal
 exit /b 0
 
 :cleanup
-for %%f in (%cleanup_files%) do (
-  del %%f 1>nul 2>nul
+if %skip_cleanup% neq 1 (
+  for %%f in (%cleanup_files%) do (
+    del %%f 1>nul 2>nul
+  )
 )
 popd
-endlocal
 exit /b 0
 
 rem ============================================
@@ -670,4 +672,5 @@ rem Cleanup and return failure
 :failed
 call :cleanup 2>nul
 if %Failed% eq 0 set Failed=1
+endlocal
 exit /b %Failed%

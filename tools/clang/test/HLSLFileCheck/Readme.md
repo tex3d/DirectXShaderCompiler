@@ -1,5 +1,12 @@
 Files in this directory are executed using FileCheck in a batch mode.
 
+To use parallel tasks in TAEF, these tests are broken down into separate test
+groups in `CompilerTest.cpp`.
+If adding a directory here, or under `hlsl` or `samples`, be sure to add the
+corresponding groups to `utils/hct/SortFileCheck.py`, then run the script to
+update timings and generate the sorted macro to copy to `CompilerTest.cpp`,
+otherwise the new tests under the directory will not be run.
+
 There is a confirmation bias problem when testing debug info using file-check.
 
 Say your test file contains:

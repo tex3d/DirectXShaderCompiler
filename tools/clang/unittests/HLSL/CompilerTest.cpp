@@ -117,6 +117,53 @@ public:
   }
 };
 
+// This is used to skip tests that only run on win32 (d3dreflect)
+#ifdef _WIN32
+static const bool kIsWin32Build = true;
+#else
+static const bool kIsWin32Build = false;
+#endif
+
+// The following macro defines all the groups in HLSLFileCheck.
+// Breaking up groups helps parallelize work.
+// Ordering by long run length first would also help.
+// Groups here are broken down into one group per folder under HLSLFileCheck,
+// except for the HLSL folder which is further broken down per sub-folder.
+
+#define DEFINE_BATCH_GROUPS(DECL) \
+  DECL(HLSLIntrinsics, L"hlsl/intrinsics", false) \
+  DECL(SamplesD3D11, L"samples/d3d11", false) \
+  DECL(HLSLObjects, L"hlsl/objects", false) \
+  DECL(HLSLTypes, L"hlsl/types", false) \
+  DECL(SamplesMiniEngine, L"samples/MiniEngine", false) \
+  DECL(HLSLControlFlow, L"hlsl/control_flow", false) \
+  DECL(Dxil, L"dxil", false) \
+  DECL(ShaderTargets, L"shader_targets", false) \
+  DECL(HLSLDiagnostics, L"hlsl/diagnostics", false) \
+  DECL(Passes, L"passes", false) \
+  DECL(HLSLTemplate, L"hlsl/template", false) \
+  DECL(HLSLResourceBinding, L"hlsl/resource_binding", false) \
+  DECL(SamplesOther, L"samples/Other", false) \
+  DECL(D3DReflect, L"d3dreflect", kIsWin32Build) \
+  DECL(HLSLFunctions, L"hlsl/functions", false) \
+  DECL(SamplesD3D12, L"samples/d3d12", false) \
+  DECL(PIX, L"pix", false) \
+  DECL(HLSLSemantics, L"hlsl/semantics", false) \
+  DECL(HLSLPayloadQualifier, L"hlsl/payload_qualifier", false) \
+  DECL(HLSLOperators, L"hlsl/operators", false) \
+  DECL(HLSLCompileOptions, L"hlsl/compile_options", false) \
+  DECL(HLSLLifetimes, L"hlsl/lifetimes", false) \
+  DECL(HLSLNamespace, L"hlsl/namespace", false) \
+  DECL(Validation, L"validation", false) \
+  DECL(Disassembler, L"disassembler", false) \
+  DECL(HLSLOperatorOverloading, L"hlsl/operator_overloading", false) \
+  DECL(HLSLPreprocessor, L"hlsl/preprocessor", false) \
+  DECL(Rewriter, L"rewriter", false) \
+  DECL(HLSLClasses, L"hlsl/classes", false) \
+  DECL(HLSLSignature, L"hlsl/signature", false) \
+  DECL(Infra, L"infra", false) \
+
+
 #ifdef _WIN32
 class CompilerTest {
 #else
@@ -129,6 +176,17 @@ public:
   END_TEST_CLASS()
 
   TEST_CLASS_SETUP(InitSupport);
+
+  // Batch directories first because many of them have many sub-tests, and
+  // ordering by longest first maximizes parallelism.
+
+#define DECL_BATCH_HASH(name, path, skip) BEGIN_TEST_METHOD(CodeGenHashStability_##name) TEST_METHOD_PROPERTY(L"Priority", L"2") END_TEST_METHOD()
+  DEFINE_BATCH_GROUPS(DECL_BATCH_HASH)
+#undef DECL_BATCH_HASH
+
+#define DECL_BATCH(name, path, skip) TEST_METHOD(Batch_##name)
+  DEFINE_BATCH_GROUPS(DECL_BATCH)
+#undef DECL_BATCH
 
   TEST_METHOD(CompileWhenDefinesThenApplied)
   TEST_METHOD(CompileWhenDefinesManyThenApplied)
@@ -232,24 +290,9 @@ public:
   TEST_METHOD(WhenSigMismatchPCFunctionThenFail)
   TEST_METHOD(CompileOtherModesWithDebugOptsThenOk)
 
-  TEST_METHOD(BatchSamples)
-  TEST_METHOD(BatchD3DReflect)
-  TEST_METHOD(BatchDxil)
-  TEST_METHOD(BatchHLSL)
-  TEST_METHOD(BatchInfra)
-  TEST_METHOD(BatchPasses)
-  TEST_METHOD(BatchShaderTargets)
-  TEST_METHOD(BatchValidation)
-  TEST_METHOD(BatchPIX)
-
   TEST_METHOD(SubobjectCodeGenErrors)
   BEGIN_TEST_METHOD(ManualFileCheckTest)
     TEST_METHOD_PROPERTY(L"Ignore", L"true")
-  END_TEST_METHOD()
-
-  // Batch directories
-  BEGIN_TEST_METHOD(CodeGenHashStability)
-      TEST_METHOD_PROPERTY(L"Priority", L"2")
   END_TEST_METHOD()
 
   dxc::DxcDllSupport m_dllSupport;
@@ -3973,45 +4016,24 @@ TEST_F(CompilerTest, DISABLED_ManualFileCheckTest) {
   }
 }
 
+#define DEFINE_BATCH(name, path, skip)                                         \
+  TEST_F(CompilerTest, Batch_##name) {                                         \
+    if (skip) {                                                                \
+      WEX::Logging::Log::Result(WEX::Logging::TestResults::Skipped);           \
+      return;                                                                  \
+    }                                                                          \
+    CodeGenTestCheckBatchDir(path);                                            \
+  }
+  DEFINE_BATCH_GROUPS(DEFINE_BATCH)
+#undef DEFINE_BATCH
 
-#ifdef _WIN32 // Reflection unsupported
-TEST_F(CompilerTest, CodeGenHashStability) {
-  CodeGenTestCheckBatchHash(L"");
-}
-
-TEST_F(CompilerTest, BatchD3DReflect) {
-  CodeGenTestCheckBatchDir(L"d3dreflect");
-}
-#endif // WIN32 - Reflection unsupported
-
-TEST_F(CompilerTest, BatchDxil) {
-  CodeGenTestCheckBatchDir(L"dxil");
-}
-
-TEST_F(CompilerTest, BatchHLSL) {
-  CodeGenTestCheckBatchDir(L"hlsl");
-}
-
-TEST_F(CompilerTest, BatchInfra) {
-  CodeGenTestCheckBatchDir(L"infra");
-}
-
-TEST_F(CompilerTest, BatchPasses) {
-  CodeGenTestCheckBatchDir(L"passes");
-}
-
-TEST_F(CompilerTest, BatchShaderTargets) {
-  CodeGenTestCheckBatchDir(L"shader_targets");
-}
-
-TEST_F(CompilerTest, BatchValidation) {
-  CodeGenTestCheckBatchDir(L"validation");
-}
-
-TEST_F(CompilerTest, BatchPIX) {
-  CodeGenTestCheckBatchDir(L"pix");
-}
-
-TEST_F(CompilerTest, BatchSamples) {
-  CodeGenTestCheckBatchDir(L"samples");
-}
+#define DEFINE_BATCH(name, path, skip)                                         \
+  TEST_F(CompilerTest, CodeGenHashStability_##name) {                          \
+    if (skip) {                                                                \
+      WEX::Logging::Log::Result(WEX::Logging::TestResults::Skipped);           \
+      return;                                                                  \
+    }                                                                          \
+    CodeGenTestCheckBatchHash(path);                                           \
+  }
+  DEFINE_BATCH_GROUPS(DEFINE_BATCH)
+#undef DEFINE_BATCH
