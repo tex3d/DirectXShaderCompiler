@@ -21,7 +21,22 @@
 
 namespace hlsl {
 
-__override HRESULT STDMETHODCALLTYPE DxbcConverter::Convert(_In_reads_bytes_(DxbcSize) LPCVOID pDxbc,
+DxbcConverterFactory::~DxbcConverterFactory() {
+}
+
+DxbcConverter *DxbcConverterFactory::CreateConverter() {
+  return new DxbcConverter();
+}
+
+void DxbcConverterFactory::LogConvertResult(bool InDriver, _In_ const LARGE_INTEGER *pQPCConvertStart,
+  _In_ const LARGE_INTEGER *pQPCConvertEnd, _In_reads_bytes_(DxbcSize) LPCVOID pDxbc, _In_ UINT32 DxbcSize,
+  _In_opt_z_ LPCWSTR pExtraOptions, _In_reads_bytes_(ConvertedSize) LPCVOID pConverted, _In_opt_ UINT32 ConvertedSize,
+  HRESULT hr) {
+  // intentionaly empty - override to report conversion results
+}
+
+__override HRESULT STDMETHODCALLTYPE DxbcConverterInterface::Convert(
+                                               _In_reads_bytes_(DxbcSize) LPCVOID pDxbc,
                                                _In_ UINT32 DxbcSize,
                                                _In_opt_z_ LPCWSTR pExtraOptions,
                                                _Outptr_result_bytebuffer_maybenull_(*pDxilSize) LPVOID *ppDxil,
@@ -43,7 +58,8 @@ __override HRESULT STDMETHODCALLTYPE DxbcConverter::Convert(_In_reads_bytes_(Dxb
         ~StdErrFlusher() { dbgs().flush(); }
       } S;
 
-      ConvertImpl(pDxbc, DxbcSize, pExtraOptions, ppDxil, pDxilSize, ppDiag);
+      unique_ptr<DxbcConverter> pConverter(m_pFactory->CreateConverter());
+      pConverter->ConvertImpl(pDxbc, DxbcSize, pExtraOptions, ppDxil, pDxilSize, ppDiag);
 
       DxcRuntimeEtw_DxcTranslate_TranslateStats(DxbcSize, DxbcSize, (const BYTE *)pDxbc, *pDxilSize);
       hr = S_OK;
@@ -51,11 +67,12 @@ __override HRESULT STDMETHODCALLTYPE DxbcConverter::Convert(_In_reads_bytes_(Dxb
     CATCH_CPP_ASSIGN_HRESULT();
     DxcRuntimeEtw_DxcTranslate_Stop(hr);
     QueryPerformanceCounter(&end);
-    LogConvertResult(false, &start, &end, pDxbc, DxbcSize, pExtraOptions, *ppDxil, *pDxilSize, hr);
+    m_pFactory->LogConvertResult(false, &start, &end, pDxbc, DxbcSize, pExtraOptions, *ppDxil, *pDxilSize, hr);
     return hr;
 }
 
-__override HRESULT STDMETHODCALLTYPE DxbcConverter::ConvertInDriver(_In_reads_bytes_(8) const UINT32 *pBytecode,
+__override HRESULT STDMETHODCALLTYPE DxbcConverterInterface::ConvertInDriver(
+                                                       _In_reads_bytes_(8) const UINT32 *pBytecode,
                                                        _In_opt_z_ LPCVOID pInputSignature,
                                                        _In_ UINT32 NumInputSignatureElements,
                                                        _In_opt_z_ LPCVOID pOutputSignature,
@@ -83,17 +100,18 @@ __override HRESULT STDMETHODCALLTYPE DxbcConverter::ConvertInDriver(_In_reads_by
       struct StdErrFlusher {
         ~StdErrFlusher() { dbgs().flush(); }
       } S;
-
-      ConvertInDriverImpl(pBytecode,
-                          (const D3D12DDIARG_SIGNATURE_ENTRY_0012 *)pInputSignature,
-                          NumInputSignatureElements,
-                          (const D3D12DDIARG_SIGNATURE_ENTRY_0012 *)pOutputSignature,
-                          NumOutputSignatureElements,
-                          (const D3D12DDIARG_SIGNATURE_ENTRY_0012 *)pPatchConstantSignature,
-                          NumPatchConstantSignatureElements,
-                          pExtraOptions,
-                          ppDxilModule,
-                          ppDiag);
+      unique_ptr<DxbcConverter> pConverter(m_pFactory->CreateConverter());
+      DxbcConverter converter;
+      pConverter->ConvertInDriverImpl(pBytecode,
+                                    (const D3D12DDIARG_SIGNATURE_ENTRY_0012 *)pInputSignature,
+                                    NumInputSignatureElements,
+                                    (const D3D12DDIARG_SIGNATURE_ENTRY_0012 *)pOutputSignature,
+                                    NumOutputSignatureElements,
+                                    (const D3D12DDIARG_SIGNATURE_ENTRY_0012 *)pPatchConstantSignature,
+                                    NumPatchConstantSignatureElements,
+                                    pExtraOptions,
+                                    ppDxilModule,
+                                    ppDiag);
 
       pDxilBytes = (const BYTE *)(*ppDxilModule)->GetBufferPointer();
       DxilByteCount = (*ppDxilModule)->GetBufferSize();
@@ -104,13 +122,12 @@ __override HRESULT STDMETHODCALLTYPE DxbcConverter::ConvertInDriver(_In_reads_by
     CATCH_CPP_ASSIGN_HRESULT();
     DxcRuntimeEtw_DxcTranslate_Stop(hr);
     QueryPerformanceCounter(&end);
-    LogConvertResult(true, &start, &end, pBytecode, bcSize, pExtraOptions, pDxilBytes, DxilByteCount, hr);
+    m_pFactory->LogConvertResult(true, &start, &end, pBytecode, bcSize, pExtraOptions, pDxilBytes, DxilByteCount, hr);
     return hr;
 }
 
 DxbcConverter::DxbcConverter()
-: m_dwRef(0)
-, m_pPR(nullptr)
+: m_pPR(nullptr)
 , m_pOP(nullptr)
 , m_pSM(nullptr)
 , m_DxbcMajor(0)
@@ -4513,13 +4530,6 @@ void DxbcConverter::ConvertInstructions(D3D10ShaderBinary::CShaderCodeParser &Pa
   CleanupGEP();
 }
 
-void DxbcConverter::LogConvertResult(bool InDriver, _In_ const LARGE_INTEGER *pQPCConvertStart,
-  _In_ const LARGE_INTEGER *pQPCConvertEnd, _In_reads_bytes_(DxbcSize) LPCVOID pDxbc, _In_ UINT32 DxbcSize,
-  _In_opt_z_ LPCWSTR pExtraOptions, _In_reads_bytes_(ConvertedSize) LPCVOID pConverted, _In_opt_ UINT32 ConvertedSize,
-  HRESULT hr) {
-  // intentionaly empty - override to report conversion results
-}
-
 HRESULT DxbcConverter::PreConvertHook(const CShaderToken *pByteCode) {
   return S_OK;
 }
@@ -7355,7 +7365,9 @@ void DxbcConverter::SerializeDxil(SmallVectorImpl<char> &DxilBitcode) {
 
 HRESULT CreateDxbcConverter(_In_ REFIID riid, _Out_ LPVOID *ppv) {
   try {
-    CComPtr<hlsl::DxbcConverter> result(hlsl::DxbcConverter::Alloc(DxcGetThreadMallocNoRef()));
+    CComPtr<hlsl::DxbcConverterInterface> result(
+        hlsl::DxbcConverterInterface::Alloc(DxcGetThreadMallocNoRef(),
+                                            new hlsl::DxbcConverterFactory()));
     IFROOM(result.p);
     return result.p->QueryInterface(riid, ppv);
   }

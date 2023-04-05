@@ -62,6 +62,7 @@
 #include <vector>
 #include <map>
 #include <algorithm>
+#include <memory>
 
 #pragma once
 namespace llvm {
@@ -265,11 +266,29 @@ public:
     , m_bHasInnerInputCoverage(false) {}
 };
 
+class DxbcConverter;
 
-/// Use this class to implement the IDxbcConverter inteface for DXBC to DXIL translation.
-class DxbcConverter : public IDxbcConverter {
+// Base factory for creating the converter implementation and logging results.
+class DxbcConverterFactory {
+public:
+  virtual ~DxbcConverterFactory();
+  virtual DxbcConverter *CreateConverter();
+  virtual void LogConvertResult(bool InDriver,
+                           _In_ const LARGE_INTEGER *pQPCConvertStart,
+                           _In_ const LARGE_INTEGER *pQPCConvertEnd,
+                           _In_reads_bytes_(DxbcSize) LPCVOID pDxbc,
+                           _In_ UINT32 DxbcSize,
+                           _In_opt_z_ LPCWSTR pExtraOptions,
+                           _In_reads_bytes_(ConvertedSize) LPCVOID pConverted,
+                           _In_opt_ UINT32 ConvertedSize,
+                           HRESULT hr);
+};
+
+// Top-level interface implementation holds only the factory object
+class DxbcConverterInterface : public IDxbcConverter {
 protected:
   DXC_MICROCOM_TM_REF_FIELDS();
+  std::unique_ptr<DxbcConverterFactory> m_pFactory;
 public:
   DXC_MICROCOM_TM_ADDREF_RELEASE_IMPL();
 
@@ -277,18 +296,18 @@ public:
     return DoBasicQueryInterface<IDxbcConverter>(this, iid, ppv);
   }
 
-  DxbcConverter();
-  DxbcConverter(IMalloc *pMalloc) : DxbcConverter() { m_pMalloc = pMalloc; }
-  DXC_MICROCOM_TM_ALLOC(DxbcConverter);
+  DxbcConverterInterface(IMalloc *pMalloc, DxbcConverterFactory *pFactory)
+      : m_dwRef(0), m_pMalloc(pMalloc), m_pFactory(pFactory) {}
+  DXC_MICROCOM_TM_ALLOC(DxbcConverterInterface);
 
-  ~DxbcConverter();
+  ~DxbcConverterInterface() {}
 
   __override HRESULT STDMETHODCALLTYPE Convert(_In_reads_bytes_(DxbcSize) LPCVOID pDxbc,
                                                _In_ UINT32 DxbcSize,
                                                _In_opt_z_ LPCWSTR pExtraOptions,
                                                _Outptr_result_bytebuffer_maybenull_(*pDxilSize) LPVOID *ppDxil,
                                                _Out_ UINT32 *pDxilSize,
-                                               _Outptr_result_maybenull_z_ LPWSTR *ppDiag); 
+                                               _Outptr_result_maybenull_z_ LPWSTR *ppDiag);
 
   __override HRESULT STDMETHODCALLTYPE ConvertInDriver(_In_reads_bytes_(8) const UINT32 *pBytecode,
                                                        _In_opt_z_ LPCVOID pInputSignature,
@@ -300,6 +319,39 @@ public:
                                                        _In_opt_z_ LPCWSTR pExtraOptions,
                                                        _Out_ IDxcBlob **ppDxilModule,
                                                        _Outptr_result_maybenull_z_ LPWSTR *ppDiag);
+};
+
+// This class implements the DXBC to DXIL translation.
+// Derive from this class to extend the converter.
+class DxbcConverter {
+public:
+  DxbcConverter();
+  ~DxbcConverter();
+
+  virtual void ConvertImpl(_In_reads_bytes_(DxbcSize) LPCVOID pDxbc,
+                           _In_ UINT32 DxbcSize,
+                           _In_opt_z_ LPCWSTR pExtraOptions,
+                           _Outptr_result_bytebuffer_maybenull_(*pDxilSize) LPVOID *ppDxil,
+                           _Out_ UINT32 *pDxilSize,
+                           _Outptr_result_maybenull_z_ LPWSTR *ppDiag);
+
+  virtual void ConvertInDriverImpl(_In_reads_bytes_(8) const UINT32 *pByteCode,
+                           _In_opt_ const D3D12DDIARG_SIGNATURE_ENTRY_0012 *pInputSignature,
+                           _In_ UINT32 NumInputSignatureElements,
+                           _In_opt_ const D3D12DDIARG_SIGNATURE_ENTRY_0012 *pOutputSignature,
+                           _In_ UINT32 NumOutputSignatureElements,
+                           _In_opt_ const D3D12DDIARG_SIGNATURE_ENTRY_0012 *pPatchConstantSignature,
+                           _In_ UINT32 NumPatchConstantSignatureElements,
+                           _In_opt_z_ LPCWSTR pExtraOptions,
+                           _Out_ IDxcBlob **ppDxcBlob,
+                           _Outptr_result_maybenull_z_ LPWSTR *ppDiag);
+
+protected:
+  // Callbacks added to support conversion of custom intrinsics.
+  virtual HRESULT PreConvertHook(const CShaderToken *pByteCode);
+  virtual HRESULT PostConvertHook(const CShaderToken *pByteCode);
+  virtual void HandleUnknownInstruction(D3D10ShaderBinary::CInstruction &Inst);
+  virtual unsigned GetResourceSlot(D3D10ShaderBinary::CInstruction &Inst);
 
 protected:
   LLVMContext m_Ctx;
@@ -496,42 +548,6 @@ protected:
   map<unsigned, Interface> m_Interfaces;
   unsigned m_NumIfaces;
   unsigned m_FcallCount;
-
-protected:
-  virtual void ConvertImpl(_In_reads_bytes_(DxbcSize) LPCVOID pDxbc,
-                           _In_ UINT32 DxbcSize,
-                           _In_opt_z_ LPCWSTR pExtraOptions,
-                           _Outptr_result_bytebuffer_maybenull_(*pDxilSize) LPVOID *ppDxil,
-                           _Out_ UINT32 *pDxilSize,
-                           _Outptr_result_maybenull_z_ LPWSTR *ppDiag);
-
-  virtual void ConvertInDriverImpl(_In_reads_bytes_(8) const UINT32 *pByteCode,
-                           _In_opt_ const D3D12DDIARG_SIGNATURE_ENTRY_0012 *pInputSignature,
-                           _In_ UINT32 NumInputSignatureElements,
-                           _In_opt_ const D3D12DDIARG_SIGNATURE_ENTRY_0012 *pOutputSignature,
-                           _In_ UINT32 NumOutputSignatureElements,
-                           _In_opt_ const D3D12DDIARG_SIGNATURE_ENTRY_0012 *pPatchConstantSignature,
-                           _In_ UINT32 NumPatchConstantSignatureElements,
-                           _In_opt_z_ LPCWSTR pExtraOptions,
-                           _Out_ IDxcBlob **ppDxcBlob,
-                           _Outptr_result_maybenull_z_ LPWSTR *ppDiag);
-
-  virtual void LogConvertResult(bool InDriver,
-                           _In_ const LARGE_INTEGER *pQPCConvertStart,
-                           _In_ const LARGE_INTEGER *pQPCConvertEnd,
-                           _In_reads_bytes_(DxbcSize) LPCVOID pDxbc,
-                           _In_ UINT32 DxbcSize,
-                           _In_opt_z_ LPCWSTR pExtraOptions,
-                           _In_reads_bytes_(ConvertedSize) LPCVOID pConverted,
-                           _In_opt_ UINT32 ConvertedSize,
-                           HRESULT hr);
-
-
-  // Callbacks added to support conversion of custom intrinsics.
-  virtual HRESULT PreConvertHook(const CShaderToken *pByteCode);
-  virtual HRESULT PostConvertHook(const CShaderToken *pByteCode);
-  virtual void HandleUnknownInstruction(D3D10ShaderBinary::CInstruction &Inst);
-  virtual unsigned GetResourceSlot(D3D10ShaderBinary::CInstruction &Inst);
 
 protected:
   void ParseExtraOptions(const wchar_t *pStr);
