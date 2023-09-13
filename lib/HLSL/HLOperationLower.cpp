@@ -866,7 +866,30 @@ bool IsValidLoadInput(Value *V) {
 // of scalar value, or specified element (vecIdx) of vector value.
 Value *FindScalarSource(Value *src, unsigned vecIdx = 0) {
   Type *srcTy = src->getType()->getScalarType();
+  bool isBool = srcTy->isIntegerTy() && srcTy->getIntegerBitWidth() == 1;
   while (src && !isa<UndefValue>(src)) {
+    // If overload type is bool, we need to drill through conversions between
+    // i32 and i1.
+    if (isBool) {
+      if (ICmpInst *CmpI = dyn_cast<ICmpInst>(src)) {
+        Value *op0 = CmpI->getOperand(0);
+        Constant *op1 = dyn_cast<Constant>(CmpI->getOperand(1));
+        if (op1 && CmpI->getPredicate() == CmpInst::Predicate::ICMP_NE &&
+            op1->isZeroValue() &&
+            op0->getType()->getScalarType()->getIntegerBitWidth() == 32) {
+          src = op0;
+          continue;
+        }
+      } else if (ZExtInst *ZEI = dyn_cast<ZExtInst>(src)) {
+        Value *op0 = ZEI->getOperand(0);
+        if (op0->getType()->getScalarType()->getIntegerBitWidth() == 1 &&
+            ZEI->getType()->getScalarType()->getIntegerBitWidth() == 32) {
+          src = op0;
+          continue;
+        }
+      }
+    }
+
     if (src->getType()->isVectorTy()) {
       if (InsertElementInst *IE = dyn_cast<InsertElementInst>(src)) {
         unsigned curIdx = (unsigned)cast<ConstantInt>(IE->getOperand(2))
@@ -908,6 +931,16 @@ Value *FindScalarSource(Value *src, unsigned vecIdx = 0) {
 Value *TranslateEvalHelper(CallInst *CI, Value *val, IRBuilder<> &Builder,
     std::function<Value*(Value*, Value*, Value*)> fnTranslateScalarInput) {
   Type *Ty = CI->getType();
+  bool isBool = Ty->getScalarType()->isIntegerTy() &&
+                Ty->getScalarType()->getIntegerBitWidth() == 1;
+  // If Ty is i1 (vector), we must translate to i32 (vector).
+  if (isBool) {
+    if (Ty->isVectorTy())
+      Ty = VectorType::get(IntegerType::get(Ty->getContext(), 32),
+                           Ty->getVectorNumElements());
+    else
+      Ty = IntegerType::get(Ty->getContext(), 32);
+  }
   Value *result = UndefValue::get(Ty);
   if (Ty->isVectorTy()) {
     for (unsigned i = 0; i < Ty->getVectorNumElements(); ++i) {
@@ -938,6 +971,11 @@ Value *TranslateEvalHelper(CallInst *CI, Value *val, IRBuilder<> &Builder,
     Value *colIdx = loadInput->getArgOperand(DXIL::OperandIndex::kLoadInputColOpIdx);
     result = fnTranslateScalarInput(inputElemID, rowIdx, colIdx);
   }
+  if (isBool) {
+    // If original was bool, translate i32 value back to bool for replacement.
+    result = Builder.CreateICmp(CmpInst::Predicate::ICMP_NE, result,
+                                Constant::getNullValue(Ty), "tobool");
+  }
   return result;
 }
 
@@ -949,7 +987,10 @@ Value *TranslateEvalSample(CallInst *CI, IntrinsicOp IOP, OP::OpCode op,
   IRBuilder<> Builder(CI);
   OP::OpCode opcode = OP::OpCode::EvalSampleIndex; 
   Value *opArg = hlslOP->GetU32Const((unsigned)opcode);
-  Function *evalFunc = hlslOP->GetOpFunc(opcode, CI->getType()->getScalarType());
+  Type *scalarTy = val->getType()->getScalarType();
+  if (scalarTy->isIntegerTy() && scalarTy->getScalarSizeInBits() == 1)
+    scalarTy = Type::getInt32Ty(hlslOP->GetCtx());
+  Function *evalFunc = hlslOP->GetOpFunc(opcode, scalarTy);
 
   return TranslateEvalHelper(CI, val, Builder,
     [&](Value *inputElemID, Value *rowIdx, Value *colIdx) -> Value* {
@@ -970,7 +1011,10 @@ Value *TranslateEvalSnapped(CallInst *CI, IntrinsicOp IOP, OP::OpCode op,
   Value *offsetY = Builder.CreateExtractElement(offset, 1);
   OP::OpCode opcode = OP::OpCode::EvalSnapped; 
   Value *opArg = hlslOP->GetU32Const((unsigned)opcode);
-  Function *evalFunc = hlslOP->GetOpFunc(opcode, CI->getType()->getScalarType());
+  Type *scalarTy = val->getType()->getScalarType();
+  if (scalarTy->isIntegerTy() && scalarTy->getScalarSizeInBits() == 1)
+    scalarTy = Type::getInt32Ty(hlslOP->GetCtx());
+  Function *evalFunc = hlslOP->GetOpFunc(opcode, scalarTy);
 
   return TranslateEvalHelper(CI, val, Builder,
     [&](Value *inputElemID, Value *rowIdx, Value *colIdx) -> Value* {
@@ -988,7 +1032,10 @@ Value *TranslateEvalCentroid(CallInst *CI, IntrinsicOp IOP, OP::OpCode op,
   IRBuilder<> Builder(CI);
   OP::OpCode opcode = OP::OpCode::EvalCentroid; 
   Value *opArg = hlslOP->GetU32Const((unsigned)opcode);
-  Function *evalFunc = hlslOP->GetOpFunc(opcode, CI->getType()->getScalarType());
+  Type *scalarTy = val->getType()->getScalarType();
+  if (scalarTy->isIntegerTy() && scalarTy->getScalarSizeInBits() == 1)
+    scalarTy = Type::getInt32Ty(hlslOP->GetCtx());
+  Function *evalFunc = hlslOP->GetOpFunc(opcode, scalarTy);
 
   return TranslateEvalHelper(CI, val, Builder,
     [&](Value *inputElemID, Value *rowIdx, Value *colIdx) -> Value* {
@@ -1005,10 +1052,13 @@ Value *TranslateGetAttributeAtVertex(CallInst *CI, IntrinsicOp IOP, OP::OpCode o
   hlsl::OP *hlslOP = &helper.hlslOP;
   IRBuilder<> Builder(CI);
   Value *val = CI->getArgOperand(DXIL::OperandIndex::kBinarySrc0OpIdx);
+  Type *scalarTy = val->getType()->getScalarType();
+  if (scalarTy->isIntegerTy() && scalarTy->getScalarSizeInBits() == 1)
+    scalarTy = Type::getInt32Ty(hlslOP->GetCtx());
   Value *vertexIdx = CI->getArgOperand(DXIL::OperandIndex::kBinarySrc1OpIdx);
   Value *vertexI8Idx = Builder.CreateTrunc(vertexIdx, Type::getInt8Ty(CI->getContext()));
   Value *opArg = hlslOP->GetU32Const((unsigned)op);
-  Function *evalFunc = hlslOP->GetOpFunc(op, val->getType()->getScalarType());
+  Function *evalFunc = hlslOP->GetOpFunc(op, scalarTy);
 
   return TranslateEvalHelper(CI, val, Builder,
     [&](Value *inputElemID, Value *rowIdx, Value *colIdx) -> Value* {
