@@ -183,7 +183,7 @@ public:
   /// Note: this method not update Metadata for ViewIdState.
   void ReEmitDxilResources();
   /// Deserialize DXIL metadata form into in-memory form.
-  void LoadDxilMetadata();
+  void LoadDxilMetadata(std::vector<std::string> *pErrorList = nullptr);
   /// Return true if non-fatal metadata error was detected.
   bool HasMetadataErrors();
 
@@ -213,7 +213,9 @@ public:
   void StripShaderSourcesAndCompileOptions(bool bReplaceWithDummyData=false);
   llvm::DebugInfoFinder &GetOrCreateDebugInfoFinder();
 
-  static DxilModule *TryGetDxilModule(llvm::Module *pModule);
+  static DxilModule *
+  TryGetDxilModule(llvm::Module *pModule,
+                   std::vector<std::string> *pErrorList = nullptr);
 
   // Helpers for working with precise.
 

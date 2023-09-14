@@ -5391,7 +5391,11 @@ static void ValidateUninitializedOutput(ValidationContext &ValCtx) {
 _Use_decl_annotations_ HRESULT ValidateDxilModule(
     llvm::Module *pModule,
     llvm::Module *pDebugModule) {
-  DxilModule *pDxilModule = DxilModule::TryGetDxilModule(pModule);
+  std::vector<std::string> MetadataErrors;
+  DxilModule *pDxilModule = DxilModule::TryGetDxilModule(pModule, &MetadataErrors);
+  for (auto &message : MetadataErrors) {
+    dxilutil::EmitErrorOnContext(pModule->getContext(), message);
+  }
   if (!pDxilModule) {
     return DXC_E_IR_VERIFICATION_FAILED;
   }
@@ -5674,7 +5678,11 @@ HRESULT ValidateDxilContainerParts(llvm::Module *pModule,
     return DXC_E_CONTAINER_INVALID;
   }
 
-  DxilModule *pDxilModule = DxilModule::TryGetDxilModule(pModule);
+  std::vector<std::string> MetadataErrors;
+  DxilModule *pDxilModule = DxilModule::TryGetDxilModule(pModule, &MetadataErrors);
+  for (auto &message : MetadataErrors) {
+    dxilutil::EmitErrorOnContext(pModule->getContext(), message);
+  }
   if (!pDxilModule) {
     return DXC_E_IR_VERIFICATION_FAILED;
   }

@@ -33,6 +33,7 @@ class NamedMDNode;
 class GlobalVariable;
 class StringRef;
 class Type;
+class Twine;
 }
 
 namespace hlsl {
@@ -59,6 +60,30 @@ struct DxilFunctionProps;
 class DxilSubobjects;
 class DxilSubobject;
 struct DxilCounters;
+
+/// MetaErrorContext is used to capture a context stack for errors
+class MetaErrorContext {
+  MetaErrorContext **HeadContext = nullptr;
+
+public:
+  MetaErrorContext *PriorContext = nullptr;
+  std::string Message;
+
+  MetaErrorContext() = delete;
+  MetaErrorContext(MetaErrorContext&) = delete;
+  MetaErrorContext(const MetaErrorContext&) = delete;
+
+  MetaErrorContext(MetaErrorContext **headContext, std::string message)
+      : HeadContext(headContext), PriorContext(*HeadContext),
+        Message(message) {
+    if (HeadContext)
+      *HeadContext = this;
+  }
+  ~MetaErrorContext() {
+    if (HeadContext)
+      *HeadContext = PriorContext;
+  }
+};
 
 // Additional debug information for SROA'ed array variables,
 // where adjacent elements in DXIL might not have been adjacent
@@ -320,6 +345,7 @@ public:
   public:
     ExtraPropertyHelper(llvm::Module *pModule);
     virtual ~ExtraPropertyHelper() {}
+    void SetErrorOutput(std::vector<std::string> *pErrorList, MetaErrorContext **ppMetaErrorContext);
 
     virtual void EmitSRVProperties(const DxilResource &SRV, std::vector<llvm::Metadata *> &MDVals) = 0;
     virtual void LoadSRVProperties(const llvm::MDOperand &MDO, DxilResource &SRV) = 0;
@@ -337,6 +363,10 @@ public:
     virtual void LoadSignatureElementProperties(const llvm::MDOperand &MDO, DxilSignatureElement &SE) = 0;
 
   protected:
+    void UnknownMetadataTagFound(llvm::Twine forType, unsigned tag);
+    std::unique_ptr<MetaErrorContext> PushErrorContext(llvm::Twine message);
+
+  protected:
     llvm::LLVMContext &m_Ctx;
     llvm::Module *m_pModule;
 
@@ -344,11 +374,16 @@ public:
     unsigned m_ValMajor, m_ValMinor;        // Reported validation version in DXIL
     unsigned m_MinValMajor, m_MinValMinor;  // Minimum validation version dictated by shader model
     bool m_bExtraMetadata;
+    MetaErrorContext **m_ppMetaErrorContext;
+    std::vector<std::string> *m_pErrorList;
   };
 
 public:
   DxilMDHelper(llvm::Module *pModule, std::unique_ptr<ExtraPropertyHelper> EPH);
   ~DxilMDHelper();
+
+  void SetErrorOutput(std::vector<std::string> *pErrorList);
+  std::unique_ptr<MetaErrorContext> PushErrorContext(llvm::Twine message);
 
   void SetShaderModel(const ShaderModel *pSM);
   const ShaderModel *GetShaderModel() const;
@@ -432,7 +467,7 @@ public:
   llvm::Metadata *EmitDxrPayloadFieldAnnotation(const DxilPayloadFieldAnnotation &FA, llvm::Type* fieldType);
   void LoadDxrPayloadAnnotationNode(const llvm::MDTuple &MDT, DxilTypeSystem &TypeSystem);
   void LoadDxrPayloadAnnotations(DxilTypeSystem &TypeSystem);
-  void LoadDxrPayloadFieldAnnoations(const llvm::MDOperand& MDO, DxilPayloadAnnotation& SA);
+  void LoadDxrPayloadFieldAnnoations(const llvm::MDOperand& MDO, DxilPayloadAnnotation& PA, DxilStructAnnotation &SA);
   void LoadDxrPayloadFieldAnnoation(const llvm::MDOperand &MDO, DxilPayloadFieldAnnotation &FA);
   void LoadDxrPayloadAccessQualifiers(const llvm::MDOperand &MDO, DxilPayloadFieldAnnotation &FA);
 
@@ -553,6 +588,9 @@ public:
   static void SetVariableDebugLayout(llvm::DbgDeclareInst *inst,
     unsigned StartOffsetInBits, const std::vector<DxilDIArrayDim> &ArrayDims);
   static void CopyMetadata(llvm::Instruction &I, llvm::Instruction &SrcInst, llvm::ArrayRef<unsigned>WL = llvm::ArrayRef<unsigned>());
+  void UnknownMetadataTagFound(llvm::Twine forType, unsigned tag);
+  void EmitLoadError(llvm::Twine message);
+  static void EmitLoadError(std::vector<std::string> &ErrorList, MetaErrorContext *pMetaErrorContext, llvm::Twine message);
 
 private:
   llvm::LLVMContext &m_Ctx;
@@ -565,6 +603,9 @@ private:
   // Non-fatal if extra metadata is found, but will fail validation.
   // This is how metadata can be exteneded.
   bool m_bExtraMetadata;
+  // MetaErrorContext captures context stack for errors
+  MetaErrorContext *m_pMetaErrorContext = nullptr;
+  std::vector<std::string> *m_pErrorList;
 };
 
 

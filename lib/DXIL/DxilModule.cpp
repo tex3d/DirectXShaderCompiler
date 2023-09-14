@@ -1492,8 +1492,10 @@ bool DxilModule::HasMetadataErrors() {
   return m_bMetadataErrors;
 }
 
-void DxilModule::LoadDxilMetadata() {
+
+void DxilModule::LoadDxilMetadata(std::vector<std::string> *pErrorList) {
   m_bMetadataErrors = false;
+  m_pMDHelper->SetErrorOutput(pErrorList);
   m_pMDHelper->LoadValidatorVersion(m_ValMajor, m_ValMinor);
   const ShaderModel *loadedSM;
   m_pMDHelper->LoadDxilShaderModel(loadedSM);
@@ -1519,11 +1521,21 @@ void DxilModule::LoadDxilMetadata() {
                                  pEntrySignatures, pEntryResources,
                                  pEntryProperties);
 
+  std::string entryCtx;
+  if (loadedSM->IsLib()) {
+    entryCtx = "Library Entry";
+  } else {
+    entryCtx = (Twine("Entry ") + EntryName).str();
+  }
+
   uint64_t rawShaderFlags = 0;
   DxilFunctionProps entryFuncProps;
   entryFuncProps.shaderKind = loadedSM->GetKind();
-  m_pMDHelper->LoadDxilEntryProperties(*pEntryProperties, rawShaderFlags,
-                                       entryFuncProps, m_AutoBindingSpace);
+  {
+    auto errCtx = m_pMDHelper->PushErrorContext(entryCtx);
+    m_pMDHelper->LoadDxilEntryProperties(*pEntryProperties, rawShaderFlags,
+                                         entryFuncProps, m_AutoBindingSpace);
+  }
 
   m_bUseMinPrecision = true;
   if (rawShaderFlags) {
@@ -1549,6 +1561,8 @@ void DxilModule::LoadDxilMetadata() {
                                      pSignatures, pResources, pProperties);
       DxilFunctionProps props;
 
+      auto errCtx =
+          m_pMDHelper->PushErrorContext(Twine("Entry ") + Name);
       uint64_t rawShaderFlags = 0;
       unsigned autoBindingSpace = 0;
       m_pMDHelper->LoadDxilEntryProperties(
@@ -1575,6 +1589,7 @@ void DxilModule::LoadDxilMetadata() {
     std::unique_ptr<DxilEntryProps> pEntryProps =
         make_unique<DxilEntryProps>(entryFuncProps, m_bUseMinPrecision);
     DxilFunctionProps *pFuncProps = &pEntryProps->props;
+    auto errCtx = m_pMDHelper->PushErrorContext(entryCtx);
     m_pMDHelper->LoadDxilSignatures(*pEntrySignatures, pEntryProps->sig);
 
     m_DxilEntryPropsMap.clear();
@@ -1585,7 +1600,10 @@ void DxilModule::LoadDxilMetadata() {
     SetShaderProperties(pFuncProps);
   }
 
-  LoadDxilResources(*pEntryResources);
+  {
+    auto errCtx = m_pMDHelper->PushErrorContext(entryCtx);
+    LoadDxilResources(*pEntryResources);
+  }
 
   // Type system is not required for consumption of dxil.
   try {
@@ -1930,6 +1948,8 @@ void DxilModule::LoadDxilResources(const llvm::MDOperand &MDO) {
   // Load SRV records.
   if (pSRVs != nullptr) {
     for (unsigned i = 0; i < pSRVs->getNumOperands(); i++) {
+      auto errCtx =
+          m_pMDHelper->PushErrorContext("SRV[" + Twine(i) + Twine("]"));
       unique_ptr<DxilResource> pSRV(new DxilResource);
       m_pMDHelper->LoadDxilSRV(pSRVs->getOperand(i), *pSRV);
       AddSRV(std::move(pSRV));
@@ -1939,6 +1959,8 @@ void DxilModule::LoadDxilResources(const llvm::MDOperand &MDO) {
   // Load UAV records.
   if (pUAVs != nullptr) {
     for (unsigned i = 0; i < pUAVs->getNumOperands(); i++) {
+      auto errCtx =
+          m_pMDHelper->PushErrorContext("UAV[" + Twine(i) + Twine("]"));
       unique_ptr<DxilResource> pUAV(new DxilResource);
       m_pMDHelper->LoadDxilUAV(pUAVs->getOperand(i), *pUAV);
       AddUAV(std::move(pUAV));
@@ -1948,6 +1970,8 @@ void DxilModule::LoadDxilResources(const llvm::MDOperand &MDO) {
   // Load CBuffer records.
   if (pCBuffers != nullptr) {
     for (unsigned i = 0; i < pCBuffers->getNumOperands(); i++) {
+      auto errCtx =
+          m_pMDHelper->PushErrorContext("CBuffer[" + Twine(i) + Twine("]"));
       unique_ptr<DxilCBuffer> pCB(new DxilCBuffer);
       m_pMDHelper->LoadDxilCBuffer(pCBuffers->getOperand(i), *pCB);
       AddCBuffer(std::move(pCB));
@@ -1957,6 +1981,8 @@ void DxilModule::LoadDxilResources(const llvm::MDOperand &MDO) {
   // Load Sampler records.
   if (pSamplers != nullptr) {
     for (unsigned i = 0; i < pSamplers->getNumOperands(); i++) {
+      auto errCtx =
+          m_pMDHelper->PushErrorContext("Sampler[" + Twine(i) + Twine("]"));
       unique_ptr<DxilSampler> pSampler(new DxilSampler);
       m_pMDHelper->LoadDxilSampler(pSamplers->getOperand(i), *pSampler);
       AddSampler(std::move(pSampler));

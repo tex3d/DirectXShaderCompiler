@@ -133,6 +133,8 @@ DxilMDHelper::DxilMDHelper(Module *pModule, std::unique_ptr<ExtraPropertyHelper>
 , m_MinValMajor(1)
 , m_MinValMinor(0)
 , m_bExtraMetadata(false)
+, m_pMetaErrorContext(nullptr)
+, m_pErrorList(nullptr)
 {
 }
 
@@ -439,9 +441,20 @@ void DxilMDHelper::LoadDxilSignatures(const MDOperand &MDO, DxilEntrySignature &
   IFTBOOL(pTupleMD != nullptr, DXC_E_INCORRECT_DXIL_METADATA);
   IFTBOOL(pTupleMD->getNumOperands() == kDxilNumSignatureFields, DXC_E_INCORRECT_DXIL_METADATA);
 
-  LoadSignatureMetadata(pTupleMD->getOperand(kDxilInputSignature),         InputSig);
-  LoadSignatureMetadata(pTupleMD->getOperand(kDxilOutputSignature),        OutputSig);
-  LoadSignatureMetadata(pTupleMD->getOperand(kDxilPatchConstantSignature), PCPSig);
+  {
+    auto errCtx = PushErrorContext("InputSig");
+    LoadSignatureMetadata(pTupleMD->getOperand(kDxilInputSignature), InputSig);
+  }
+  {
+    auto errCtx = PushErrorContext("OutputSig");
+    LoadSignatureMetadata(pTupleMD->getOperand(kDxilOutputSignature),
+                          OutputSig);
+  }
+  {
+    auto errCtx = PushErrorContext("PatchContantOrPrimSig");
+    LoadSignatureMetadata(pTupleMD->getOperand(kDxilPatchConstantSignature),
+                          PCPSig);
+  }
 }
 
 MDTuple *DxilMDHelper::EmitSignatureMetadata(const DxilSignature &Sig) {
@@ -466,6 +479,7 @@ void DxilMDHelper::LoadSignatureMetadata(const MDOperand &MDO, DxilSignature &Si
 
   for (unsigned i = 0; i < pTupleMD->getNumOperands(); i++) {
     unique_ptr<DxilSignatureElement> pSE(Sig.CreateElement());
+    auto errCtx = PushErrorContext("element[" + Twine(i) + "]");
     LoadSignatureElement(pTupleMD->getOperand(i), *pSE.get());
     Sig.AppendElement(std::move(pSE));
   }
@@ -551,6 +565,9 @@ void DxilMDHelper::LoadSignatureElement(const MDOperand &MDO, DxilSignatureEleme
   }
   // Name-value list of extended properties.
   m_ExtraPropertyHelper->m_bExtraMetadata = false;
+  auto errCtx = PushErrorContext(
+      pName->getString() +
+      Twine(SemanticIndexVector.empty() ? 0 : SemanticIndexVector[0]));
   m_ExtraPropertyHelper->LoadSignatureElementProperties(pTupleMD->getOperand(kDxilSignatureElementNameValueList), SE);
   m_bExtraMetadata |= m_ExtraPropertyHelper->m_bExtraMetadata;
 }
@@ -848,17 +865,23 @@ void DxilMDHelper::LoadDxilTypeSystemNode(const llvm::MDTuple &MDT,
       IFTBOOL(pGVType != nullptr, DXC_E_INCORRECT_DXIL_METADATA);
 
       DxilStructAnnotation *pSA = TypeSystem.AddStructAnnotation(pGVType);
+      auto errCtx = PushErrorContext("struct[" + Twine(i / 2) + "] " +
+                                     pGVType->getName());
       LoadDxilStructAnnotation(MDT.getOperand(i + 1), *pSA);
       TypeSystem.FinishStructAnnotation(*pSA);
     }
-  } else {
+  } else if (Tag == kDxilTypeSystemFunctionTag) {
     IFTBOOL((MDT.getNumOperands() & 0x1) == 1, DXC_E_INCORRECT_DXIL_METADATA);
     for (unsigned i = 1; i < MDT.getNumOperands(); i += 2) {
       Function *F = dyn_cast<Function>(ValueMDToValue(MDT.getOperand(i)));
       DxilFunctionAnnotation *pFA = TypeSystem.AddFunctionAnnotation(F);
+      auto errCtx =
+          PushErrorContext("function[" + Twine(i / 2) + "] " + F->getName());
       LoadDxilFunctionAnnotation(MDT.getOperand(i + 1), *pFA);
       TypeSystem.FinishFunctionAnnotation(*pFA);
     }
+  } else {
+    UnknownMetadataTagFound("type annotation system", Tag);
   }
 }
 
@@ -867,6 +890,7 @@ void DxilMDHelper::LoadDxilTypeSystem(DxilTypeSystem &TypeSystem) {
   if (pDxilTypeAnnotationsMD == nullptr)
     return;
 
+  auto errCtx = PushErrorContext(kDxilTypeSystemMDName);
   IFTBOOL(pDxilTypeAnnotationsMD->getNumOperands() <= 2, DXC_E_INCORRECT_DXIL_METADATA);
   for (unsigned i = 0; i < pDxilTypeAnnotationsMD->getNumOperands(); i++) {
     const MDTuple *pTupleMD = dyn_cast<MDTuple>(pDxilTypeAnnotationsMD->getOperand(i));
@@ -919,15 +943,15 @@ void DxilMDHelper::LoadDxrPayloadAccessQualifiers(const MDOperand &MDO,
                                                DxilPayloadFieldAnnotation &FA) {
   unsigned fieldBitmask = ConstMDToInt32(MDO);
   if (fieldBitmask & ~DXIL::PayloadAccessQualifierValidMask) {
-    DXASSERT(false, "Unknown payload access qualifier bits set");
     m_bExtraMetadata = true;
+    EmitLoadError("Unknown payload access qualifier bits set");
   }
   fieldBitmask &= DXIL::PayloadAccessQualifierValidMask;
   FA.SetPayloadFieldQualifierMask(fieldBitmask);
 }
 
-void DxilMDHelper::LoadDxrPayloadFieldAnnoation(
-    const MDOperand &MDO, DxilPayloadFieldAnnotation &FA) {
+void DxilMDHelper::LoadDxrPayloadFieldAnnoation(const MDOperand &MDO,
+                                                DxilPayloadFieldAnnotation &FA) {
   IFTBOOL(MDO.get() != nullptr, DXC_E_INCORRECT_DXIL_METADATA);
   const MDTuple *pTupleMD = dyn_cast<MDTuple>(MDO.get()); // Tag-Value list.
   IFTBOOL(pTupleMD != nullptr, DXC_E_INCORRECT_DXIL_METADATA);
@@ -943,22 +967,26 @@ void DxilMDHelper::LoadDxrPayloadFieldAnnoation(
       LoadDxrPayloadAccessQualifiers(MDO, FA);
       break;
     default:
-      DXASSERT(false, "Unknown payload field annotation tag");
-      m_bExtraMetadata = true;
+      UnknownMetadataTagFound("DXR payload field annotation", Tag);
       break;
     }
   }
 }
 
 void DxilMDHelper::LoadDxrPayloadFieldAnnoations(const MDOperand &MDO,
-                                                DxilPayloadAnnotation &SA) {
+                                                 DxilPayloadAnnotation &PA,
+                                                 DxilStructAnnotation &SA) {
   IFTBOOL(MDO.get() != nullptr, DXC_E_INCORRECT_DXIL_METADATA);
   const MDTuple *pTupleMD = dyn_cast<MDTuple>(MDO.get());
   IFTBOOL(pTupleMD != nullptr, DXC_E_INCORRECT_DXIL_METADATA);
-  IFTBOOL(pTupleMD->getNumOperands() == SA.GetNumFields(),
+  IFTBOOL(pTupleMD->getNumOperands() == PA.GetNumFields(),
           DXC_E_INCORRECT_DXIL_METADATA);
-  for (unsigned i = 0; i < SA.GetNumFields(); ++i) {
-    LoadDxrPayloadFieldAnnoation(pTupleMD->getOperand(i), SA.GetFieldAnnotation(i));
+  for (unsigned i = 0; i < PA.GetNumFields(); ++i) {
+    auto errCtx = PushErrorContext(
+        "field '" + Twine(SA.GetFieldAnnotation(i).GetFieldName()) + "' #" +
+        Twine(i));
+    LoadDxrPayloadFieldAnnoation(pTupleMD->getOperand(i),
+                                 PA.GetFieldAnnotation(i));
   }
 }
 
@@ -975,8 +1003,11 @@ void DxilMDHelper::LoadDxrPayloadAnnotationNode(const llvm::MDTuple &MDT,
 
   // Check if this struct is already part of the DXIL Type System
   DxilPayloadAnnotation *pPA = TypeSystem.AddPayloadAnnotation(pGVType);
+  DxilStructAnnotation *pSA = TypeSystem.GetStructAnnotation(pGVType);
 
-  LoadDxrPayloadFieldAnnoations(MDT.getOperand(2), *pPA);
+  auto errCtx = PushErrorContext("payload annotation for '" +
+                                 pSA->GetStructType()->getName() + "'");
+  LoadDxrPayloadFieldAnnoations(MDT.getOperand(2), *pPA, *pSA);
 }
 
 void DxilMDHelper::LoadDxrPayloadAnnotations(DxilTypeSystem &TypeSystem) {
@@ -995,6 +1026,7 @@ void DxilMDHelper::LoadDxrPayloadAnnotations(DxilTypeSystem &TypeSystem) {
     const MDTuple *pTupleMD =
         dyn_cast<MDTuple>(pDxilPayloadAnnotationsMD->getOperand(i));
     IFTBOOL(pTupleMD != nullptr, DXC_E_INCORRECT_DXIL_METADATA);
+    auto errCtx = PushErrorContext("DXR payload annotation [" + Twine(i) + "]");
     LoadDxrPayloadAnnotationNode(*pTupleMD, TypeSystem);
   }
 }
@@ -1010,7 +1042,8 @@ Metadata *DxilMDHelper::EmitDxilTemplateArgAnnotation(const DxilTemplateArgAnnot
   }
   return MDNode::get(m_Ctx, MDVals);
 }
-void DxilMDHelper::LoadDxilTemplateArgAnnotation(const llvm::MDOperand &MDO, DxilTemplateArgAnnotation &annotation) {
+void DxilMDHelper::LoadDxilTemplateArgAnnotation(
+    const llvm::MDOperand &MDO, DxilTemplateArgAnnotation &annotation) {
   IFTBOOL(MDO.get() != nullptr, DXC_E_INCORRECT_DXIL_METADATA);
   const MDTuple *pTupleMD = dyn_cast<MDTuple>(MDO.get());
   IFTBOOL(pTupleMD != nullptr, DXC_E_INCORRECT_DXIL_METADATA);
@@ -1028,8 +1061,7 @@ void DxilMDHelper::LoadDxilTemplateArgAnnotation(const llvm::MDOperand &MDO, Dxi
     annotation.SetIntegral((int64_t)ConstMDToUint64(pTupleMD->getOperand(kDxilTemplateArgValue)));
     break;
   default:
-    DXASSERT(false, "Unknown template argument type tag.");
-    m_bExtraMetadata = true;
+    UnknownMetadataTagFound("template argument", Tag);
     break;
   }
 }
@@ -1068,6 +1100,9 @@ void DxilMDHelper::LoadDxilStructAnnotation(const MDOperand &MDO, DxilStructAnno
   if (pTupleMD->getNumOperands() == 1) {
     SA.MarkEmptyStruct();
   }
+  StringRef structName = SA.GetStructType()->getName();
+  auto errCtx =
+      PushErrorContext("struct '" + SA.GetStructType()->getName() + "'");
   if (pTupleMD->getNumOperands() == SA.GetNumFields()+2) {
     DXASSERT(DXIL::CompareVersions(m_MinValMajor, m_MinValMinor, 1, 5) >= 0,
       "otherwise, template annotation emitted for dxil version < 1.5");
@@ -1090,8 +1125,7 @@ void DxilMDHelper::LoadDxilStructAnnotation(const MDOperand &MDO, DxilStructAnno
           }
         } break;
         default:
-          DXASSERT(false, "unknown extended tag for struct annotation.");
-          m_bExtraMetadata = true;
+          UnknownMetadataTagFound("struct", Tag);
           break;
         }
       }
@@ -1104,6 +1138,7 @@ void DxilMDHelper::LoadDxilStructAnnotation(const MDOperand &MDO, DxilStructAnno
   for (unsigned i = 0; i < SA.GetNumFields(); i++) {
     const MDOperand &MDO = pTupleMD->getOperand(i+1);
     DxilFieldAnnotation &FA = SA.GetFieldAnnotation(i);
+    auto errCtx = PushErrorContext("field[" + Twine(i) + "]");
     LoadDxilFieldAnnotation(MDO, FA);
   }
 }
@@ -1136,10 +1171,12 @@ void DxilMDHelper::LoadDxilParamAnnotations(const llvm::MDOperand &MDO,
   IFTBOOL(pTupleMD->getNumOperands() == FA.GetNumParameters() + 1,
           DXC_E_INCORRECT_DXIL_METADATA);
   DxilParameterAnnotation &retTyAnnotation = FA.GetRetTypeAnnotation();
+  auto errCtx = PushErrorContext("return param[0]");
   LoadDxilParamAnnotation(pTupleMD->getOperand(0), retTyAnnotation);
   for (unsigned i = 0; i < FA.GetNumParameters(); i++) {
     const MDOperand &MDO = pTupleMD->getOperand(i + 1);
     DxilParameterAnnotation &PA = FA.GetParameterAnnotation(i);
+    auto errCtx = PushErrorContext("param[" + Twine(i + 1) + "]");
     LoadDxilParamAnnotation(MDO, PA);
   }
 }
@@ -1239,7 +1276,8 @@ Metadata *DxilMDHelper::EmitDxilFieldAnnotation(const DxilFieldAnnotation &FA) {
 }
 
 
-void DxilMDHelper::LoadDxilFieldAnnotation(const MDOperand &MDO, DxilFieldAnnotation &FA) {
+void DxilMDHelper::LoadDxilFieldAnnotation(const MDOperand &MDO,
+                                           DxilFieldAnnotation &FA) {
   IFTBOOL(MDO.get() != nullptr, DXC_E_INCORRECT_DXIL_METADATA);
   const MDTuple *pTupleMD = dyn_cast<MDTuple>(MDO.get());
   IFTBOOL(pTupleMD != nullptr, DXC_E_INCORRECT_DXIL_METADATA);
@@ -1288,25 +1326,19 @@ void DxilMDHelper::LoadDxilFieldAnnotation(const MDOperand &MDO, DxilFieldAnnota
         FA.SetResourceProperties(resource_helper::loadPropsFromConstant(*C));
       break;
     case kDxilFieldAnnotationBitFieldsTag: {
-      if (DXIL::CompareVersions(m_MinValMajor, m_MinValMinor, 1, 7) < 0) {
-        DXASSERT(false, "bitfields tag emitted for dxil version < 1.7");
-      }
       const MDTuple *pBitFieldsTupleMD = dyn_cast<MDTuple>(MDO.get());
       std::vector<DxilFieldAnnotation> BitFields(pBitFieldsTupleMD->getNumOperands());
       for (unsigned i = 0; i < pBitFieldsTupleMD->getNumOperands(); ++i) {
+        auto errCtx = PushErrorContext("bitfield[" + Twine(i) + "]");
         LoadDxilFieldAnnotation(pBitFieldsTupleMD->getOperand(i), BitFields[i]);
       }
       FA.SetBitFields(BitFields);
     } break;
     case kDxilFieldAnnotationBitFieldWidthTag:
-      if (DXIL::CompareVersions(m_MinValMajor, m_MinValMinor, 1, 7) < 0) {
-        DXASSERT(false, "bitfields width tag emitted for dxil version < 1.7");
-      }
       FA.SetBitFieldWidth(ConstMDToUint32(MDO));
       break;
     default:
-      DXASSERT(false, "Unknown extended shader properties tag");
-      m_bExtraMetadata = true;
+      UnknownMetadataTagFound("field annotation", Tag);
       break;
     }
   }
@@ -1688,8 +1720,7 @@ void DxilMDHelper::LoadDxilEntryProperties(const MDOperand &MDO,
       LoadSerializedRootSignature(pNode, props.serializedRootSignature, m_Ctx);
     } break;
     default:
-      DXASSERT(false, "Unknown extended shader properties tag");
-      m_bExtraMetadata = true;
+      UnknownMetadataTagFound("shader properties", Tag);
       break;
     }
   }
@@ -1879,8 +1910,11 @@ void DxilMDHelper::LoadSubobjects(DxilSubobjects &Subobjects) {
   if (!pSubobjectsNamedMD)
     return;
 
-  for (unsigned i = 0; i < pSubobjectsNamedMD->getNumOperands(); ++i)
+  for (unsigned i = 0; i < pSubobjectsNamedMD->getNumOperands(); ++i) {
+    auto errCtx =
+        PushErrorContext(Twine(kDxilSubobjectsMDName) + "[" + Twine(i) + "]");
     LoadSubobject(*pSubobjectsNamedMD->getOperand(i), Subobjects);
+  }
 }
 
 Metadata *DxilMDHelper::EmitSubobject(const DxilSubobject &obj) {
@@ -2044,8 +2078,7 @@ void DxilMDHelper::LoadSubobject(const llvm::MDNode &MD, DxilSubobjects &Subobje
     break;
   }
   default:
-    DXASSERT(false, "otherwise, we didn't handle a valid subobject kind");
-    m_bExtraMetadata = true;
+    EmitLoadError("Unknown SubobjectKind (" + Twine((unsigned)kind) + ")");
     break;
   }
 }
@@ -2329,7 +2362,8 @@ void DxilMDHelper::LoadDxilCounters(DxilCounters &counters) const {
 DxilMDHelper::ExtraPropertyHelper::ExtraPropertyHelper(Module *pModule)
 : m_Ctx(pModule->getContext())
 , m_pModule(pModule)
-, m_bExtraMetadata(false) {
+, m_bExtraMetadata(false)
+, m_pErrorList(nullptr) {
 }
 
 DxilExtraPropertyHelper::DxilExtraPropertyHelper(Module *pModule)
@@ -2375,8 +2409,7 @@ void DxilExtraPropertyHelper::LoadSRVProperties(const MDOperand &MDO, DxilResour
       SRV.SetElementStride(DxilMDHelper::ConstMDToUint32(MDO));
       break;
     default:
-      DXASSERT(false, "Unknown resource record tag");
-      m_bExtraMetadata = true;
+      UnknownMetadataTagFound("SRV", Tag);
       break;
     }
   }
@@ -2438,8 +2471,7 @@ void DxilExtraPropertyHelper::LoadUAVProperties(const MDOperand &MDO, DxilResour
       UAV.SetHasAtomic64Use(DxilMDHelper::ConstMDToBool(MDO));
       break;
     default:
-      DXASSERT(false, "Unknown resource record tag");
-      m_bExtraMetadata = true;
+      UnknownMetadataTagFound("UAV", Tag);
       break;
     }
   }
@@ -2474,8 +2506,7 @@ void DxilExtraPropertyHelper::LoadCBufferProperties(const MDOperand &MDO, DxilCB
       }
       break;
     default:
-      DXASSERT(false, "Unknown cbuffer tag");
-      m_bExtraMetadata = true;
+      UnknownMetadataTagFound("CBuffer", Tag);
       break;
     }
   }
@@ -2538,8 +2569,7 @@ void DxilExtraPropertyHelper::LoadSignatureElementProperties(const MDOperand &MD
       SE.SetUsageMask(DxilMDHelper::ConstMDToUint32(MDO));
       break;
     default:
-      DXASSERT(false, "Unknown signature element tag");
-      m_bExtraMetadata = true;
+      UnknownMetadataTagFound("SignatureElement", Tag);
       break;
     }
   }
@@ -2795,6 +2825,77 @@ void DxilMDHelper::CopyMetadata(Instruction &I, Instruction &SrcInst, ArrayRef<u
   }
   if (WL.empty() || WLS.count(LLVMContext::MD_dbg))
     I.setDebugLoc(SrcInst.getDebugLoc());
+}
+
+void DxilMDHelper::SetErrorOutput(std::vector<std::string> *pErrorList) {
+  m_pErrorList = pErrorList;
+  if (m_ExtraPropertyHelper)
+    m_ExtraPropertyHelper->SetErrorOutput(pErrorList, &m_pMetaErrorContext);
+}
+
+void DxilMDHelper::ExtraPropertyHelper::SetErrorOutput(std::vector<std::string> *pErrorList, MetaErrorContext **ppMetaErrorContext) {
+  m_pErrorList = pErrorList;
+  m_ppMetaErrorContext = ppMetaErrorContext;
+}
+
+std::unique_ptr<MetaErrorContext>
+DxilMDHelper::PushErrorContext(Twine message) {
+  // Only track context if we are emitting errors.
+  if (!m_pErrorList)
+    return nullptr;
+  return std::make_unique<MetaErrorContext>(&m_pMetaErrorContext,
+                                            message.str());
+}
+
+std::unique_ptr<MetaErrorContext>
+DxilMDHelper::ExtraPropertyHelper::PushErrorContext(llvm::Twine message) {
+  // Only track context if we are emitting errors.
+  if (!m_pErrorList)
+    return nullptr;
+  return std::make_unique<MetaErrorContext>(m_ppMetaErrorContext,
+                                            message.str());
+}
+
+void DxilMDHelper::ExtraPropertyHelper::UnknownMetadataTagFound(
+    llvm::Twine forType, unsigned tag) {
+  m_bExtraMetadata = true;
+  if (m_pErrorList)
+    DxilMDHelper::EmitLoadError(*m_pErrorList, *m_ppMetaErrorContext,
+                                "Unrecognized extended property tag (" +
+                                    Twine(tag) + ") in " + forType);
+}
+
+void DxilMDHelper::UnknownMetadataTagFound(llvm::Twine forType, unsigned tag) {
+  EmitLoadError("Unrecognized extended property tag (" + Twine(tag) + ") in " +
+                forType);
+}
+
+void DxilMDHelper::EmitLoadError(llvm::Twine message) {
+  m_bExtraMetadata = true;
+  if (m_pErrorList)
+    EmitLoadError(*m_pErrorList, m_pMetaErrorContext, message);
+}
+
+static std::string UnwrapContext(MetaErrorContext *pMetaErrorContext) {
+  if (!pMetaErrorContext)
+    return std::string();
+  if (pMetaErrorContext->PriorContext) {
+    std::string inner = UnwrapContext(pMetaErrorContext->PriorContext);
+    if (!inner.empty())
+      return (Twine(inner) + " --> " + Twine(pMetaErrorContext->Message)).str();
+  }
+  return pMetaErrorContext->Message;
+}
+
+void DxilMDHelper::EmitLoadError(std::vector<std::string> &ErrorList,
+                                 MetaErrorContext *pMetaErrorContext,
+                                 llvm::Twine message) {
+  std::string context = UnwrapContext(pMetaErrorContext);
+  if (context.empty())
+    ErrorList.push_back(message.str());
+  else
+    ErrorList.push_back(
+        (message + " - context: " + Twine(context) + ".").str());
 }
 
 } // namespace hlsl

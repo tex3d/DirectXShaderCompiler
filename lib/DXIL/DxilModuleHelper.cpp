@@ -88,15 +88,21 @@ void ClearDxilHook(Module &M) {
     M.pfnRemoveGlobal = nullptr;
 }
 
-hlsl::DxilModule *hlsl::DxilModule::TryGetDxilModule(llvm::Module *pModule) {
+hlsl::DxilModule *
+hlsl::DxilModule::TryGetDxilModule(llvm::Module *pModule,
+                                   std::vector<std::string> *pErrorList) {
+  if (pModule->HasDxilModule())
+    return &pModule->GetDxilModule();
+
   LLVMContext &Ctx = pModule->getContext();
   std::string diagStr;
   raw_string_ostream diagStream(diagStr);
 
-  hlsl::DxilModule *pDxilModule = nullptr;
   // TODO: add detail error in DxilMDHelper.
+  hlsl::DxilModule *pDxilModule = nullptr;
   try {
-    pDxilModule = &pModule->GetOrCreateDxilModule();
+    pDxilModule = &pModule->GetOrCreateDxilModule(/*skipInit*/true);
+    pDxilModule->LoadDxilMetadata(pErrorList);
   } catch (const ::hlsl::Exception &hlslException) {
     diagStream << "load dxil metadata failed -";
     try {
