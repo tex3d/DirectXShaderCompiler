@@ -318,6 +318,9 @@ public:
   static const unsigned kDxilNodeInputsTag = 20;
   static const unsigned kDxilNodeOutputsTag = 21;
   static const unsigned kDxilNodeMaxDispatchGridTag = 22;
+  static const unsigned kDxilNodeMaxVertexCountTag = 23;
+  static const unsigned kDxilNodeMaxPrimitiveCountTag = 24;
+  static const unsigned kDxilNodeOutputTopologyTag = 25;
 
   // Node Input/Output State.
   static const unsigned kDxilNodeOutputIDTag = 0;

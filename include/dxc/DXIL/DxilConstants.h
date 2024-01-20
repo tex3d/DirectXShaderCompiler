@@ -1583,9 +1583,10 @@ enum class TessellatorPartitioning : unsigned {
 
 enum class NodeLaunchType {
   Invalid = 0,
-  Broadcasting,
-  Coalescing,
-  Thread,
+  Broadcasting = 1,
+  Coalescing = 2,
+  Thread = 3,
+  Mesh = 4,
 
   LastEntry
 };

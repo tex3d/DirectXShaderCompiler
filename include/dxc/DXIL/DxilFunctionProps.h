@@ -147,10 +147,10 @@ struct DxilFunctionProps {
   }
   bool IsMS() const { return shaderKind == DXIL::ShaderKind::Mesh; }
   bool IsAS() const { return shaderKind == DXIL::ShaderKind::Amplification; }
-  bool IsNode() const {
-    return shaderKind == DXIL::ShaderKind::Node ||
-           Node.LaunchType != DXIL::NodeLaunchType::Invalid;
-  };
+  bool IsNode() const { return shaderKind == DXIL::ShaderKind::Node; };
+  bool IsMeshNode() const {
+    return IsNode() && Node.LaunchType == DXIL::NodeLaunchType::Mesh;
+  }
 };
 
 } // namespace hlsl

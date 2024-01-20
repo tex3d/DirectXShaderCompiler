@@ -196,6 +196,7 @@ RDAT_ENUM_START(NodeFuncAttribKind, uint32_t)
   RDAT_ENUM_VALUE(MaxRecursionDepth, 5)
   RDAT_ENUM_VALUE(LocalRootArgumentsTableIndex, 6)
   RDAT_ENUM_VALUE(MaxDispatchGrid, 7)
+  RDAT_ENUM_VALUE(MeshShaderInfo, 8)
   RDAT_ENUM_VALUE_NODEF(LastValue)
 RDAT_ENUM_END()
 
@@ -304,6 +305,10 @@ RDAT_STRUCT_TABLE(NodeShaderFuncAttrib, NodeShaderFuncAttribTable)
                     getAttribKind() ==
                         hlsl::RDAT::NodeFuncAttribKind::MaxDispatchGrid)
       RDAT_INDEX_ARRAY_REF(MaxDispatchGrid)
+    RDAT_UNION_ELIF(MeshShaderInfo,
+                    getAttribKind() ==
+                        hlsl::RDAT::NodeFuncAttribKind::MeshShaderInfo)
+      RDAT_RECORD_REF(MSInfo, MeshShaderInfo)
     RDAT_UNION_ENDIF()
   RDAT_UNION_END()
 RDAT_STRUCT_END()
