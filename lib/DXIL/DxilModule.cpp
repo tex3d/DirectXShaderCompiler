@@ -209,6 +209,10 @@ llvm::SmallVector<llvm::Function *, 64> DxilModule::GetExportedFunctions() {
   llvm::SmallVector<llvm::Function *, 64> ret;
   for (auto const &fn : m_DxilEntryPropsMap) {
     if (fn.first != nullptr) {
+      // FIXME: This doesn't gather patch constant functions attached to hull
+      // shader entry functions.  That will also require a set to avoid adding
+      // the same patch constant function multiple times, since multiple hull
+      // shader entry functions can share the same patch constant function.
       ret.push_back(const_cast<llvm::Function *>(fn.first));
     }
   }
@@ -1220,6 +1224,9 @@ void DxilModule::SetPatchConstantFunctionForHS(
   DXASSERT(props.IsHS(), "else hullShaderFunc is not a Hull Shader");
   auto &HS = props.ShaderProps.HS;
   if (HS.patchConstantFunc != patchConstantFunc) {
+    // FIXME: Multiple hull shaders could use the same patch constant function,
+    // if that's the case, then replacing one will remove a patch constant
+    // function that may still be used from the set.
     if (HS.patchConstantFunc)
       m_PatchConstantFunctions.erase(HS.patchConstantFunc);
     HS.patchConstantFunc = patchConstantFunc;

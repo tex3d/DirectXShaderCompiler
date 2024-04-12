@@ -125,7 +125,7 @@ float4 PSMain(int idx : INDEX) : SV_Target {
 // CHECK:       InterpolationMode: Constant
 // CHECK:       StartRow: 0
 // CHECK:       ColsAndStream: 0
-// CHECK:       UsageAndDynIndexMasks: 0
+// CHECK:       UsageAndDynIndexMasks: 1
 // CHECK:     }
 // CHECK:     <1:SignatureElement> = {
 // CHECK:       SemanticName: "SV_Target"
@@ -135,7 +135,7 @@ float4 PSMain(int idx : INDEX) : SV_Target {
 // CHECK:       InterpolationMode: Undefined
 // CHECK:       StartRow: 0
 // CHECK:       ColsAndStream: 3
-// CHECK:       UsageAndDynIndexMasks: 0
+// CHECK:       UsageAndDynIndexMasks: 15
 // CHECK:     }
 // CHECK:   }
 // CHECK:   RecordTable (stride = {{[0-9]+}} bytes) PSInfoTable[1] = {

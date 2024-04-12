@@ -287,83 +287,96 @@ static bool GetUnsignedVal(Value *V, uint32_t *pValue) {
   return true;
 }
 
-static void MarkUsedSignatureElements(Function *F, DxilModule &DM) {
-  DXASSERT_NOMSG(F != nullptr);
-  // For every loadInput/storeOutput, update the corresponding ReadWriteMask.
-  // F is a pointer to a Function instance
-  for (llvm::inst_iterator I = llvm::inst_begin(F), E = llvm::inst_end(F);
-       I != E; ++I) {
-    DxilInst_LoadInput LI(&*I);
-    DxilInst_StoreOutput SO(&*I);
-    DxilInst_LoadPatchConstant LPC(&*I);
-    DxilInst_StorePatchConstant SPC(&*I);
-    DxilInst_StoreVertexOutput SVO(&*I);
-    DxilInst_StorePrimitiveOutput SPO(&*I);
-    DxilSignature *pSig;
-    uint32_t col, row, sigId;
-    bool bDynIdx = false;
-    if (LI) {
-      if (!GetUnsignedVal(LI.get_inputSigId(), &sigId))
-        continue;
-      if (!GetUnsignedVal(LI.get_colIndex(), &col))
-        continue;
-      if (!GetUnsignedVal(LI.get_rowIndex(), &row))
-        bDynIdx = true;
-      pSig = &DM.GetInputSignature();
-    } else if (SO) {
-      if (!GetUnsignedVal(SO.get_outputSigId(), &sigId))
-        continue;
-      if (!GetUnsignedVal(SO.get_colIndex(), &col))
-        continue;
-      if (!GetUnsignedVal(SO.get_rowIndex(), &row))
-        bDynIdx = true;
-      pSig = &DM.GetOutputSignature();
-    } else if (SPC) {
-      if (!GetUnsignedVal(SPC.get_outputSigID(), &sigId))
-        continue;
-      if (!GetUnsignedVal(SPC.get_col(), &col))
-        continue;
-      if (!GetUnsignedVal(SPC.get_row(), &row))
-        bDynIdx = true;
-      pSig = &DM.GetPatchConstOrPrimSignature();
-    } else if (LPC) {
-      if (!GetUnsignedVal(LPC.get_inputSigId(), &sigId))
-        continue;
-      if (!GetUnsignedVal(LPC.get_col(), &col))
-        continue;
-      if (!GetUnsignedVal(LPC.get_row(), &row))
-        bDynIdx = true;
-      pSig = &DM.GetPatchConstOrPrimSignature();
-    } else if (SVO) {
-      if (!GetUnsignedVal(SVO.get_outputSigId(), &sigId))
-        continue;
-      if (!GetUnsignedVal(SVO.get_colIndex(), &col))
-        continue;
-      if (!GetUnsignedVal(SVO.get_rowIndex(), &row))
-        bDynIdx = true;
-      pSig = &DM.GetOutputSignature();
-    } else if (SPO) {
-      if (!GetUnsignedVal(SPO.get_outputSigId(), &sigId))
-        continue;
-      if (!GetUnsignedVal(SPO.get_colIndex(), &col))
-        continue;
-      if (!GetUnsignedVal(SPO.get_rowIndex(), &row))
-        bDynIdx = true;
-      pSig = &DM.GetPatchConstOrPrimSignature();
-    } else {
-      continue;
-    }
+static void MarkUsedSignatureElements(DxilModule &DM) {
+  auto MarkElement = [](Value * Id, Value * Row, Value * Col, DxilSignature *pSig) {
+    uint32_t sigId, col, row;
+    if (!GetUnsignedVal(Id, &sigId) || !GetUnsignedVal(Col, &col))
+      return;
 
     // Consider being more fine-grained about masks.
     // We report sometimes-read on input as always-read.
     auto &El = pSig->GetElement(sigId);
     unsigned UsageMask = El.GetUsageMask();
     unsigned colBit = 1 << col;
-    if (!(colBit & UsageMask)) {
+    if (!(colBit & UsageMask))
       El.SetUsageMask(UsageMask | colBit);
-    }
-    if (bDynIdx && (El.GetDynIdxCompMask() & colBit) == 0) {
+    if (!GetUnsignedVal(Row, &row) && (El.GetDynIdxCompMask() & colBit) == 0)
       El.SetDynIdxCompMask(El.GetDynIdxCompMask() | colBit);
+  };
+
+  struct Accessor {
+    DXIL::OpCode opCode;
+    unsigned idxSigId;
+    unsigned idxRow;
+    unsigned idxCol;
+    DxilSignature DxilEntrySignature::*sig;
+  };
+  Accessor Accessors[] = {
+      {DXIL::OpCode::LoadInput, DxilInst_LoadInput::arg_inputSigId,
+       DxilInst_LoadInput::arg_rowIndex, DxilInst_LoadInput::arg_colIndex,
+       &DxilEntrySignature::InputSignature},
+      {DXIL::OpCode::StoreOutput, DxilInst_StoreOutput::arg_outputSigId,
+       DxilInst_StoreOutput::arg_rowIndex, DxilInst_StoreOutput::arg_colIndex,
+       &DxilEntrySignature::OutputSignature},
+      {DXIL::OpCode::LoadPatchConstant,
+       DxilInst_LoadPatchConstant::arg_inputSigId,
+       DxilInst_LoadPatchConstant::arg_row, DxilInst_LoadPatchConstant::arg_col,
+       &DxilEntrySignature::PatchConstOrPrimSignature},
+      {DXIL::OpCode::StorePatchConstant,
+       DxilInst_StorePatchConstant::arg_outputSigID,
+       DxilInst_StorePatchConstant::arg_row,
+       DxilInst_StorePatchConstant::arg_col,
+       &DxilEntrySignature::PatchConstOrPrimSignature},
+      {DXIL::OpCode::StoreVertexOutput,
+       DxilInst_StoreVertexOutput::arg_outputSigId,
+       DxilInst_StoreVertexOutput::arg_rowIndex,
+       DxilInst_StoreVertexOutput::arg_colIndex,
+       &DxilEntrySignature::OutputSignature},
+      {DXIL::OpCode::StorePrimitiveOutput,
+       DxilInst_StorePrimitiveOutput::arg_outputSigId,
+       DxilInst_StorePrimitiveOutput::arg_rowIndex,
+       DxilInst_StorePrimitiveOutput::arg_colIndex,
+       &DxilEntrySignature::PatchConstOrPrimSignature},
+  };
+
+  // Build map from hull patch constant functions to a SmallVector of hull
+  // shader entry functions that use each patch constant function.
+  std::unordered_map<Function *, SmallVector<Function *, 4>>
+      HSFuncsByPatchConstFunc;
+  for (Function &F : DM.GetModule()->functions()) {
+    if (DM.HasDxilEntryProps(&F)) {
+      DxilFunctionProps &props = DM.GetDxilFunctionProps(&F);
+      if (props.IsHS()) {
+        HSFuncsByPatchConstFunc[props.ShaderProps.HS.patchConstantFunc]
+            .push_back(&F);
+      }
+    }
+  }
+
+  // Iterate accessors and mark used elements.
+  for (Accessor &acc : Accessors) {
+    // For each dxil operation overload, iterate users and mark elements.
+    for (auto it : DM.GetOP()->GetOpFuncList(acc.opCode)) {
+      for (auto U : it.second->users()) {
+        CallInst *CI = cast<CallInst>(U);
+        Function *EntryF = CI->getParent()->getParent();
+        if (DM.HasDxilEntryProps(EntryF)) {
+          DxilEntryProps &entryProps = DM.GetDxilEntryProps(EntryF);
+          MarkElement(
+              CI->getArgOperand(acc.idxSigId), CI->getArgOperand(acc.idxRow),
+              CI->getArgOperand(acc.idxCol), &(entryProps.sig.*(acc.sig)));
+        } else if (HSFuncsByPatchConstFunc.count(EntryF)) {
+          // Iterate hull shader entry functions that use this patch constant
+          // function and mark the elements.
+          for (Function *HSFunc : HSFuncsByPatchConstFunc[EntryF]) {
+            DxilEntryProps &entryProps = DM.GetDxilEntryProps(HSFunc);
+            MarkElement(
+                CI->getArgOperand(acc.idxSigId), CI->getArgOperand(acc.idxRow),
+                CI->getArgOperand(acc.idxCol), &(entryProps.sig.*(acc.sig)));
+          }
+          continue;
+        }
+      }
     }
   }
 }
@@ -841,12 +854,7 @@ public:
       // Remove store undef output.
       RemoveStoreUndefOutput(M, hlslOP);
 
-      if (!IsLib) {
-        // Set used masks for signature elements
-        MarkUsedSignatureElements(DM.GetEntryFunction(), DM);
-        if (DM.GetShaderModel()->IsHS())
-          MarkUsedSignatureElements(DM.GetPatchConstantFunction(), DM);
-      }
+      MarkUsedSignatureElements(DM);
 
       // Adding warning for pixel shader with unassigned target
       if (DM.GetShaderModel()->IsPS()) {

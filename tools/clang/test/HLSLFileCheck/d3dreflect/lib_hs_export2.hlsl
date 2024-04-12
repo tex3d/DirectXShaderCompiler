@@ -217,7 +217,7 @@ HSPerPatchData HSPerPatchFunc1()
 // CHECK:       InterpolationMode: Undefined
 // CHECK:       StartRow: 0
 // CHECK:       ColsAndStream: 12
-// CHECK:       UsageAndDynIndexMasks: 0
+// CHECK:       UsageAndDynIndexMasks: 1
 // CHECK:     }
 // CHECK:     <4:SignatureElement> = {
 // CHECK:       SemanticName: "SV_InsideTessFactor"
@@ -227,7 +227,7 @@ HSPerPatchData HSPerPatchFunc1()
 // CHECK:       InterpolationMode: Undefined
 // CHECK:       StartRow: 3
 // CHECK:       ColsAndStream: 0
-// CHECK:       UsageAndDynIndexMasks: 0
+// CHECK:       UsageAndDynIndexMasks: 1
 // CHECK:     }
 // CHECK:   }
 // CHECK:   RecordTable (stride = {{[0-9]+}} bytes) HSInfoTable[2] = {

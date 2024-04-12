@@ -136,7 +136,7 @@ void RayGen() {
 // CHECK:       InterpolationMode: Undefined
 // CHECK:       StartRow: 0
 // CHECK:       ColsAndStream: 2
-// CHECK:       UsageAndDynIndexMasks: 0
+// CHECK:       UsageAndDynIndexMasks: 7
 // CHECK:     }
 // CHECK:     <1:SignatureElement> = {
 // CHECK:       SemanticName: "SV_Position"
@@ -146,7 +146,7 @@ void RayGen() {
 // CHECK:       InterpolationMode: LinearNoperspective
 // CHECK:       StartRow: 0
 // CHECK:       ColsAndStream: 3
-// CHECK:       UsageAndDynIndexMasks: 0
+// CHECK:       UsageAndDynIndexMasks: 15
 // CHECK:     }
 // CHECK:   }
 // CHECK:   RecordTable (stride = {{[0-9]+}} bytes) VSInfoTable[1] = {
