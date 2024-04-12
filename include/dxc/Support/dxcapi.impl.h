@@ -464,10 +464,11 @@ public:
     UINT32 numOutputs = 0;
     unsigned i = 0;
     for (; i < kNumDxcOutputTypes; ++i) {
+      if (m_outputs[i].kind == DXC_OUT_NONE)
+        continue;
       if (Index == numOutputs)
         return m_outputs[i].kind;
-      if (m_outputs[i].kind != DXC_OUT_NONE)
-        numOutputs++;
+      numOutputs++;
     }
     return DXC_OUT_NONE;
   }
