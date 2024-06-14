@@ -233,7 +233,7 @@ bool isAcceptedSpecConstantBinaryOp(spv::Op op) {
 
 /// Returns true if the given expression is an accepted initializer for a spec
 /// constant.
-bool isAcceptedSpecConstantInit(const Expr *init) {
+bool isAcceptedSpecConstantInit(const Expr *init, ASTContext &astContext) {
   // Allow numeric casts
   init = init->IgnoreParenCasts();
 
@@ -244,7 +244,12 @@ bool isAcceptedSpecConstantInit(const Expr *init) {
   // Allow the minus operator which is used to specify negative values
   if (const auto *unaryOp = dyn_cast<UnaryOperator>(init))
     return unaryOp->getOpcode() == UO_Minus &&
-           isAcceptedSpecConstantInit(unaryOp->getSubExpr());
+           isAcceptedSpecConstantInit(unaryOp->getSubExpr(), astContext);
+
+  // Allow values that can be evaluated to const.
+  if (init->isEvaluatable(astContext)) {
+    return true;
+  }
 
   return false;
 }
@@ -1512,10 +1517,9 @@ void SpirvEmitter::doFunctionDecl(const FunctionDecl *decl) {
         spvBuilder.createReturn(returnLoc);
       } else {
         // If the source code does not provide a proper return value for some
-        // control flow path, it's undefined behavior. We just return null
-        // value here.
-        spvBuilder.createReturnValue(spvBuilder.getConstantNull(retType),
-                                     returnLoc);
+        // control flow path, it's undefined behavior. We just return an
+        // undefined value here.
+        spvBuilder.createReturnValue(spvBuilder.getUndef(retType), returnLoc);
       }
     }
   }
@@ -3868,11 +3872,24 @@ SpirvInstruction *SpirvEmitter::processRWByteAddressBufferAtomicMethods(
                              expr->getArg(3)->getLocStart(), range);
     }
   } else {
-    auto *value = doExpr(expr->getArg(1));
+    const Expr *value = expr->getArg(1);
+    SpirvInstruction *valueInstr = doExpr(expr->getArg(1));
+
+    // Since a RWAB is represented by an array of 32-bit unsigned integers, the
+    // destination pointee type will always be unsigned, and thus the SPIR-V
+    // instruction's result type and value type must also be unsigned. The
+    // signedness of the opcode is determined correctly by frontend and will
+    // correctly determine the signedness of the actual operation, but the
+    // necessary argument type cast will not be added by the frontend in the
+    // case of a signed value.
+    valueInstr =
+        castToType(valueInstr, value->getType(), astContext.UnsignedIntTy,
+                   value->getExprLoc(), range);
+
     SpirvInstruction *originalVal = spvBuilder.createAtomicOp(
         translateAtomicHlslOpcodeToSpirvOpcode(opcode),
         astContext.UnsignedIntTy, ptr, spv::Scope::Device,
-        spv::MemorySemanticsMask::MaskNone, value,
+        spv::MemorySemanticsMask::MaskNone, valueInstr,
         expr->getCallee()->getExprLoc(), range);
     if (expr->getNumArgs() > 2) {
       originalVal = castToType(originalVal, astContext.UnsignedIntTy,
@@ -5125,10 +5142,13 @@ SpirvEmitter::processIntrinsicMemberCall(const CXXMemberCallExpr *expr,
     retVal = processTextureSampleGrad(expr);
     break;
   case IntrinsicOp::MOP_SampleCmp:
-    retVal = processTextureSampleCmpCmpLevelZero(expr, /*isCmp=*/true);
+    retVal = processTextureSampleCmp(expr);
     break;
   case IntrinsicOp::MOP_SampleCmpLevelZero:
-    retVal = processTextureSampleCmpCmpLevelZero(expr, /*isCmp=*/false);
+    retVal = processTextureSampleCmpLevelZero(expr);
+    break;
+  case IntrinsicOp::MOP_SampleCmpLevel:
+    retVal = processTextureSampleCmpLevel(expr);
     break;
   case IntrinsicOp::MOP_GatherRed:
     retVal = processTextureGatherRGBACmpRGBA(expr, /*isCmp=*/false, 0);
@@ -5555,8 +5575,7 @@ SpirvEmitter::processTextureSampleGrad(const CXXMemberCallExpr *expr) {
 }
 
 SpirvInstruction *
-SpirvEmitter::processTextureSampleCmpCmpLevelZero(const CXXMemberCallExpr *expr,
-                                                  const bool isCmp) {
+SpirvEmitter::processTextureSampleCmp(const CXXMemberCallExpr *expr) {
   // .SampleCmp() Signature:
   //
   // For Texture1D, Texture1DArray, Texture2D, Texture2DArray:
@@ -5577,10 +5596,55 @@ SpirvEmitter::processTextureSampleCmpCmpLevelZero(const CXXMemberCallExpr *expr,
   //   [, float Clamp]
   //   [, out uint Status]
   // );
-  //
+
+  const auto numArgs = expr->getNumArgs();
+  const bool hasStatusArg =
+      expr->getArg(numArgs - 1)->getType()->isUnsignedIntegerType();
+  auto *status = hasStatusArg ? doExpr(expr->getArg(numArgs - 1)) : nullptr;
+
+  SpirvInstruction *clamp = nullptr;
+  if (numArgs > 3 && expr->getArg(3)->getType()->isFloatingType())
+    clamp = doExpr(expr->getArg(3));
+  else if (numArgs > 4 && expr->getArg(4)->getType()->isFloatingType())
+    clamp = doExpr(expr->getArg(4));
+  const bool hasClampArg = clamp != nullptr;
+
+  const auto *imageExpr = expr->getImplicitObjectArgument();
+  auto *image = loadIfGLValue(imageExpr);
+  auto *sampler = doExpr(expr->getArg(0));
+  auto *coordinate = doExpr(expr->getArg(1));
+  auto *compareVal = doExpr(expr->getArg(2));
+  // If offset is present in .SampleCmp(), it will be the fourth argument.
+  SpirvInstruction *constOffset = nullptr, *varOffset = nullptr;
+
+  // Subtract 1 for clamp (if it exists), 1 for status (if it exists),
+  // and 3 for sampler_state, location, and compare_value.
+  const bool hasOffsetArg = numArgs - hasStatusArg - hasClampArg - 3 > 0;
+  if (hasOffsetArg)
+    handleOffsetInMethodCall(expr, 3, &constOffset, &varOffset);
+
+  const auto retType = expr->getDirectCallee()->getReturnType();
+  const auto imageType = imageExpr->getType();
+
+  if (spvContext.isCS()) {
+    addDerivativeGroupExecutionMode();
+  }
+
+  return createImageSample(
+      retType, imageType, image, sampler, coordinate, compareVal,
+      /*bias*/ nullptr, /*lod*/ nullptr, std::make_pair(nullptr, nullptr),
+      constOffset, varOffset, /*constOffsets*/ nullptr,
+      /*sampleNumber*/ nullptr, /*minLod*/ clamp, status,
+      expr->getCallee()->getLocStart(), expr->getSourceRange());
+}
+
+SpirvInstruction *
+SpirvEmitter::processTextureSampleCmpLevelZero(const CXXMemberCallExpr *expr) {
   // .SampleCmpLevelZero() is identical to .SampleCmp() on mipmap level 0 only.
   // It never takes a clamp argument, which is good because lod and clamp may
   // not be used together.
+  // .SampleCmpLevel() is identical to .SampleCmpLevel, except the LOD level
+  // is taken as a float argument.
   //
   // .SampleCmpLevelZero() Signature:
   //
@@ -5606,46 +5670,82 @@ SpirvEmitter::processTextureSampleCmpCmpLevelZero(const CXXMemberCallExpr *expr,
       expr->getArg(numArgs - 1)->getType()->isUnsignedIntegerType();
   auto *status = hasStatusArg ? doExpr(expr->getArg(numArgs - 1)) : nullptr;
 
-  SpirvInstruction *clamp = nullptr;
-  // The .SampleCmpLevelZero() methods do not take the clamp argument.
-  if (isCmp) {
-    if (numArgs > 3 && expr->getArg(3)->getType()->isFloatingType())
-      clamp = doExpr(expr->getArg(3));
-    else if (numArgs > 4 && expr->getArg(4)->getType()->isFloatingType())
-      clamp = doExpr(expr->getArg(4));
-  }
-  const bool hasClampArg = clamp != nullptr;
+  const auto *imageExpr = expr->getImplicitObjectArgument();
+  auto *image = loadIfGLValue(imageExpr);
+  auto *sampler = doExpr(expr->getArg(0));
+  auto *coordinate = doExpr(expr->getArg(1));
+  auto *compareVal = doExpr(expr->getArg(2));
+  auto *lod =
+      spvBuilder.getConstantFloat(astContext.FloatTy, llvm::APFloat(0.0f));
 
-  // Subtract 1 for clamp (if it exists), 1 for status (if it exists),
-  // and 3 for sampler_state, location, and compare_value.
-  const bool hasOffsetArg = numArgs - hasClampArg - hasStatusArg - 3 > 0;
+  // If offset is present in .SampleCmp(), it will be the fourth argument.
+  SpirvInstruction *constOffset = nullptr, *varOffset = nullptr;
+  const bool hasOffsetArg = numArgs - hasStatusArg - 3 > 0;
+  if (hasOffsetArg)
+    handleOffsetInMethodCall(expr, 3, &constOffset, &varOffset);
+
+  const auto retType = expr->getDirectCallee()->getReturnType();
+  const auto imageType = imageExpr->getType();
+
+  return createImageSample(
+      retType, imageType, image, sampler, coordinate, compareVal,
+      /*bias*/ nullptr, /*lod*/ lod, std::make_pair(nullptr, nullptr),
+      constOffset, varOffset, /*constOffsets*/ nullptr,
+      /*sampleNumber*/ nullptr, /*clamp*/ nullptr, status,
+      expr->getCallee()->getLocStart(), expr->getSourceRange());
+}
+
+SpirvInstruction *
+SpirvEmitter::processTextureSampleCmpLevel(const CXXMemberCallExpr *expr) {
+  // .SampleCmpLevel() is identical to .SampleCmpLevel, except the LOD level
+  // is taken as a float argument.
+  //
+  // For Texture1D, Texture1DArray, Texture2D, Texture2DArray:
+  // float Object.SampleCmpLevel(
+  //   SamplerComparisonState S,
+  //   float Location,
+  //   float CompareValue,
+  //   float LOD,
+  //   [, int Offset]
+  //   [, out uint Status]
+  // );
+  //
+  // For TextureCube and TextureCubeArray:
+  // float Object.SampleCmpLevel(
+  //   SamplerComparisonState S,
+  //   float Location,
+  //   float CompareValue
+  //   float LOD,
+  //   [, out uint Status]
+  // );
+
+  const auto numArgs = expr->getNumArgs();
+  const bool hasStatusArg =
+      expr->getArg(numArgs - 1)->getType()->isUnsignedIntegerType();
+  auto *status = hasStatusArg ? doExpr(expr->getArg(numArgs - 1)) : nullptr;
 
   const auto *imageExpr = expr->getImplicitObjectArgument();
   auto *image = loadIfGLValue(imageExpr);
   auto *sampler = doExpr(expr->getArg(0));
   auto *coordinate = doExpr(expr->getArg(1));
   auto *compareVal = doExpr(expr->getArg(2));
+  auto *lod = doExpr(expr->getArg(3));
+
   // If offset is present in .SampleCmp(), it will be the fourth argument.
   SpirvInstruction *constOffset = nullptr, *varOffset = nullptr;
+  const bool hasOffsetArg = numArgs - hasStatusArg - 4 > 0;
   if (hasOffsetArg)
-    handleOffsetInMethodCall(expr, 3, &constOffset, &varOffset);
-  auto *lod = isCmp ? nullptr
-                    : spvBuilder.getConstantFloat(astContext.FloatTy,
-                                                  llvm::APFloat(0.0f));
+    handleOffsetInMethodCall(expr, 4, &constOffset, &varOffset);
 
   const auto retType = expr->getDirectCallee()->getReturnType();
   const auto imageType = imageExpr->getType();
 
-  if (!lod && spvContext.isCS()) {
-    addDerivativeGroupExecutionMode();
-  }
-
   return createImageSample(
       retType, imageType, image, sampler, coordinate, compareVal,
-      /*bias*/ nullptr, lod, std::make_pair(nullptr, nullptr), constOffset,
-      varOffset,
-      /*constOffsets*/ nullptr, /*sampleNumber*/ nullptr, /*minLod*/ clamp,
-      status, expr->getCallee()->getLocStart(), expr->getSourceRange());
+      /*bias*/ nullptr, /*lod*/ lod, std::make_pair(nullptr, nullptr),
+      constOffset, varOffset, /*constOffsets*/ nullptr,
+      /*sampleNumber*/ nullptr, /*clamp*/ nullptr, status,
+      expr->getCallee()->getLocStart(), expr->getSourceRange());
 }
 
 SpirvInstruction *
@@ -7847,7 +7947,7 @@ void SpirvEmitter::createSpecConstant(const VarDecl *varDecl) {
     emitError("missing default value for specialization constant",
               varDecl->getLocation());
     hasError = true;
-  } else if (!isAcceptedSpecConstantInit(init)) {
+  } else if (!isAcceptedSpecConstantInit(init, astContext)) {
     emitError("unsupported specialization constant initializer",
               init->getLocStart())
         << init->getSourceRange();
@@ -7859,7 +7959,8 @@ void SpirvEmitter::createSpecConstant(const VarDecl *varDecl) {
 
   SpecConstantEnvRAII specConstantEnvRAII(&isSpecConstantMode);
 
-  const auto specConstant = doExpr(init);
+  const auto specConstant =
+      constEvaluator.tryToEvaluateAsConst(init, isSpecConstantMode);
 
   // We are not creating a variable to hold the spec constant, instead, we
   // translate the varDecl directly into the spec constant here.
@@ -8709,6 +8810,18 @@ SpirvEmitter::processIntrinsicCallExpr(const CallExpr *callExpr) {
         callExpr, translateWaveOp(hlslOpcode, retType, srcLoc),
         spv::GroupOperation::ExclusiveScan);
   } break;
+  case hlsl::IntrinsicOp::IOP_WaveMultiPrefixUSum:
+  case hlsl::IntrinsicOp::IOP_WaveMultiPrefixSum:
+  case hlsl::IntrinsicOp::IOP_WaveMultiPrefixUProduct:
+  case hlsl::IntrinsicOp::IOP_WaveMultiPrefixProduct:
+  case hlsl::IntrinsicOp::IOP_WaveMultiPrefixBitAnd:
+  case hlsl::IntrinsicOp::IOP_WaveMultiPrefixBitOr:
+  case hlsl::IntrinsicOp::IOP_WaveMultiPrefixBitXor: {
+    const auto retType = callExpr->getCallReturnType(astContext);
+    retVal = processWaveReductionOrPrefix(
+        callExpr, translateWaveOp(hlslOpcode, retType, srcLoc),
+        spv::GroupOperation::PartitionedExclusiveScanNV);
+  } break;
   case hlsl::IntrinsicOp::IOP_WavePrefixCountBits:
     retVal = processWaveCountBits(callExpr, spv::GroupOperation::ExclusiveScan);
     break;
@@ -8979,8 +9092,10 @@ SpirvEmitter::processIntrinsicFirstbit(const CallExpr *callExpr,
   const SourceRange srcRange = callExpr->getSourceRange();
   const QualType argType = callExpr->getArg(0)->getType();
 
-  if (astContext.getTypeSize(argType) == 64) {
-    emitError("%0 is not yet implemented for 64-bit width components when "
+  const uint32_t bitwidth = getElementSpirvBitwidth(
+      astContext, argType, spirvOptions.enable16BitTypes);
+  if (bitwidth != 32) {
+    emitError("%0 is currently limited to 32-bit width components when "
               "targetting SPIR-V",
               srcLoc)
         << getFunctionOrOperatorName(callee, true);
@@ -9197,21 +9312,7 @@ SpirvEmitter::processIntrinsicInterlockedMethod(const CallExpr *expr,
       writeToOutputArg(originalVal, expr, 3);
   } else {
     auto *value = doArg(expr, 1);
-    // Since these atomic operations write through the provided pointer, the
-    // signed vs. unsigned opcode must be decided based on the pointee type
-    // of the first argument. However, the frontend decides the opcode based on
-    // the second argument (value). Therefore, the HLSL opcode provided by the
-    // frontend may be wrong. Therefore we need the following code to make sure
-    // we are using the correct SPIR-V opcode.
     spv::Op atomicOp = translateAtomicHlslOpcodeToSpirvOpcode(opcode);
-    if (atomicOp == spv::Op::OpAtomicUMax && baseType->isSignedIntegerType())
-      atomicOp = spv::Op::OpAtomicSMax;
-    if (atomicOp == spv::Op::OpAtomicSMax && baseType->isUnsignedIntegerType())
-      atomicOp = spv::Op::OpAtomicUMax;
-    if (atomicOp == spv::Op::OpAtomicUMin && baseType->isSignedIntegerType())
-      atomicOp = spv::Op::OpAtomicSMin;
-    if (atomicOp == spv::Op::OpAtomicSMin && baseType->isUnsignedIntegerType())
-      atomicOp = spv::Op::OpAtomicUMin;
     auto *originalVal = spvBuilder.createAtomicOp(
         atomicOp, baseType, ptr, scope, spv::MemorySemanticsMask::MaskNone,
         value, srcLoc);
@@ -9414,8 +9515,8 @@ SpirvInstruction *SpirvEmitter::processWaveQuery(const CallExpr *callExpr,
   featureManager.requestTargetEnv(SPV_ENV_VULKAN_1_1, "Wave Operation",
                                   callExpr->getExprLoc());
   const QualType retType = callExpr->getCallReturnType(astContext);
-  return spvBuilder.createGroupNonUniformElect(
-      opcode, retType, spv::Scope::Subgroup, callExpr->getExprLoc());
+  return spvBuilder.createGroupNonUniformOp(
+      opcode, retType, spv::Scope::Subgroup, {}, callExpr->getExprLoc());
 }
 
 SpirvInstruction *SpirvEmitter::processIsHelperLane(const CallExpr *callExpr,
@@ -9456,8 +9557,9 @@ SpirvInstruction *SpirvEmitter::processWaveVote(const CallExpr *callExpr,
                                   callExpr->getExprLoc());
   auto *predicate = doExpr(callExpr->getArg(0));
   const QualType retType = callExpr->getCallReturnType(astContext);
-  return spvBuilder.createGroupNonUniformUnaryOp(
-      callExpr->getExprLoc(), opcode, retType, spv::Scope::Subgroup, predicate);
+  return spvBuilder.createGroupNonUniformOp(opcode, retType,
+                                            spv::Scope::Subgroup, {predicate},
+                                            callExpr->getExprLoc());
 }
 
 spv::Op SpirvEmitter::translateWaveOp(hlsl::IntrinsicOp op, QualType type,
@@ -9516,6 +9618,13 @@ spv::Op SpirvEmitter::translateWaveOp(hlsl::IntrinsicOp op, QualType type,
     WAVE_OP_CASE_SINT_UINT_FLOAT(ActiveMax, SMax, UMax, FMax);
     WAVE_OP_CASE_SINT_UINT_FLOAT(ActiveUMin, SMin, UMin, FMin);
     WAVE_OP_CASE_SINT_UINT_FLOAT(ActiveMin, SMin, UMin, FMin);
+    WAVE_OP_CASE_INT_FLOAT(MultiPrefixUSum, IAdd, FAdd);
+    WAVE_OP_CASE_INT_FLOAT(MultiPrefixSum, IAdd, FAdd);
+    WAVE_OP_CASE_INT_FLOAT(MultiPrefixUProduct, IMul, FMul);
+    WAVE_OP_CASE_INT_FLOAT(MultiPrefixProduct, IMul, FMul);
+    WAVE_OP_CASE_INT(MultiPrefixBitAnd, BitwiseAnd);
+    WAVE_OP_CASE_INT(MultiPrefixBitOr, BitwiseOr);
+    WAVE_OP_CASE_INT(MultiPrefixBitXor, BitwiseXor);
   default:
     // Only Simple Wave Ops are handled here.
     break;
@@ -9544,14 +9653,13 @@ SpirvEmitter::processWaveCountBits(const CallExpr *callExpr,
   const QualType u32Type = astContext.UnsignedIntTy;
   const QualType v4u32Type = astContext.getExtVectorType(u32Type, 4);
   const QualType retType = callExpr->getCallReturnType(astContext);
-  auto *ballot = spvBuilder.createGroupNonUniformUnaryOp(
-      srcLoc, spv::Op::OpGroupNonUniformBallot, v4u32Type, spv::Scope::Subgroup,
-      predicate);
+  auto *ballot = spvBuilder.createGroupNonUniformOp(
+      spv::Op::OpGroupNonUniformBallot, v4u32Type, spv::Scope::Subgroup,
+      {predicate}, srcLoc);
 
-  return spvBuilder.createGroupNonUniformUnaryOp(
-      srcLoc, spv::Op::OpGroupNonUniformBallotBitCount, retType,
-      spv::Scope::Subgroup, ballot,
-      llvm::Optional<spv::GroupOperation>(groupOp));
+  return spvBuilder.createGroupNonUniformOp(
+      spv::Op::OpGroupNonUniformBallotBitCount, retType, spv::Scope::Subgroup,
+      {ballot}, srcLoc, groupOp);
 }
 
 SpirvInstruction *SpirvEmitter::processWaveReductionOrPrefix(
@@ -9568,13 +9676,32 @@ SpirvInstruction *SpirvEmitter::processWaveReductionOrPrefix(
   //
   // <type> WavePrefixProduct(<type> value)
   // <type> WavePrefixSum(<type> value)
-  assert(callExpr->getNumArgs() == 1);
+  //
+  // <type> WaveMultiPrefixSum( <type> val, uint4 mask )
+  // <type> WaveMultiPrefixProduct( <type> val, uint4 mask )
+  // <int_type> WaveMultiPrefixBitAnd( <int_type> val, uint4 mask )
+  // <int_type> WaveMultiPrefixBitOr( <int_type> val, uint4 mask )
+  // <int_type> WaveMultiPrefixBitXor( <int_type> val, uint4 mask )
+
+  bool isMultiPrefix =
+      groupOp == spv::GroupOperation::PartitionedExclusiveScanNV;
+  assert(callExpr->getNumArgs() == (isMultiPrefix ? 2 : 1));
+
   featureManager.requestTargetEnv(SPV_ENV_VULKAN_1_1, "Wave Operation",
                                   callExpr->getExprLoc());
-  auto *predicate = doExpr(callExpr->getArg(0));
+
+  llvm::SmallVector<SpirvInstruction *, 4> operands;
+  auto *value = doExpr(callExpr->getArg(0));
+  if (isMultiPrefix) {
+    SpirvInstruction *mask = doExpr(callExpr->getArg(1));
+    operands = {value, mask};
+  } else {
+    operands = {value};
+  }
+
   const QualType retType = callExpr->getCallReturnType(astContext);
-  return spvBuilder.createGroupNonUniformUnaryOp(
-      callExpr->getExprLoc(), opcode, retType, spv::Scope::Subgroup, predicate,
+  return spvBuilder.createGroupNonUniformOp(
+      opcode, retType, spv::Scope::Subgroup, operands, callExpr->getExprLoc(),
       llvm::Optional<spv::GroupOperation>(groupOp));
 }
 
@@ -9593,13 +9720,13 @@ SpirvInstruction *SpirvEmitter::processWaveBroadcast(const CallExpr *callExpr) {
     // WaveReadLaneAt is in fact not a broadcast operation (even though its name
     // might incorrectly suggest so). The proper mapping to SPIR-V for
     // it is OpGroupNonUniformShuffle, *not* OpGroupNonUniformBroadcast.
-    return spvBuilder.createGroupNonUniformBinaryOp(
-        spv::Op::OpGroupNonUniformShuffle, retType, spv::Scope::Subgroup, value,
-        doExpr(callExpr->getArg(1)), srcLoc);
+    return spvBuilder.createGroupNonUniformOp(
+        spv::Op::OpGroupNonUniformShuffle, retType, spv::Scope::Subgroup,
+        {value, doExpr(callExpr->getArg(1))}, srcLoc);
   else
-    return spvBuilder.createGroupNonUniformUnaryOp(
-        srcLoc, spv::Op::OpGroupNonUniformBroadcastFirst, retType,
-        spv::Scope::Subgroup, value);
+    return spvBuilder.createGroupNonUniformOp(
+        spv::Op::OpGroupNonUniformBroadcastFirst, retType, spv::Scope::Subgroup,
+        {value}, srcLoc);
 }
 
 SpirvInstruction *
@@ -9641,8 +9768,8 @@ SpirvEmitter::processWaveQuadWideShuffle(const CallExpr *callExpr,
     llvm_unreachable("case should not appear here");
   }
 
-  return spvBuilder.createGroupNonUniformBinaryOp(
-      opcode, retType, spv::Scope::Subgroup, value, target, srcLoc);
+  return spvBuilder.createGroupNonUniformOp(
+      opcode, retType, spv::Scope::Subgroup, {value, target}, srcLoc);
 }
 
 SpirvInstruction *
@@ -9666,9 +9793,9 @@ SpirvEmitter::processWaveActiveAllEqual(const CallExpr *callExpr) {
 SpirvInstruction *
 SpirvEmitter::processWaveActiveAllEqualScalar(SpirvInstruction *arg,
                                               clang::SourceLocation srcLoc) {
-  return spvBuilder.createGroupNonUniformUnaryOp(
-      srcLoc, spv::Op::OpGroupNonUniformAllEqual, astContext.BoolTy,
-      spv::Scope::Subgroup, arg);
+  return spvBuilder.createGroupNonUniformOp(
+      spv::Op::OpGroupNonUniformAllEqual, astContext.BoolTy,
+      spv::Scope::Subgroup, {arg}, srcLoc);
 }
 
 SpirvInstruction *
@@ -14021,9 +14148,17 @@ SpirvEmitter::processSpvIntrinsicCallExpr(const CallExpr *expr) {
       spvArgs.push_back(argInst);
     } else if (param->hasAttr<VKLiteralExtAttr>()) {
       auto constArg = dyn_cast<SpirvConstant>(argInst);
-      assert(constArg != nullptr);
+      if (constArg == nullptr) {
+        constArg = constEvaluator.tryToEvaluateAsConst(arg, isSpecConstantMode);
+      }
+      if (constArg == nullptr) {
+        emitError("vk::ext_literal may only be applied to parameters that can "
+                  "be evaluated to a literal value",
+                  expr->getExprLoc());
+        return nullptr;
+      }
       constArg->setLiteral();
-      spvArgs.push_back(argInst);
+      spvArgs.push_back(constArg);
     } else {
       spvArgs.push_back(loadIfGLValue(arg, argInst));
     }
@@ -14279,6 +14414,8 @@ bool SpirvEmitter::spirvToolsValidate(std::vector<uint32_t> *mod,
   } else {
     options.SetRelaxBlockLayout(true);
   }
+  options.SetUniversalLimit(spv_validator_limit_max_id_bound,
+                            spirvOptions.maxId);
 
   return tools.Validate(mod->data(), mod->size(), options);
 }
@@ -14351,6 +14488,7 @@ bool SpirvEmitter::spirvToolsTrimCapabilities(std::vector<uint32_t> *mod,
   spvtools::OptimizerOptions options;
   options.set_run_validator(false);
   options.set_preserve_bindings(spirvOptions.preserveBindings);
+  options.set_max_id_bound(spirvOptions.maxId);
 
   optimizer.RegisterPass(spvtools::CreateTrimCapabilitiesPass());
 
@@ -14373,6 +14511,7 @@ bool SpirvEmitter::spirvToolsOptimize(std::vector<uint32_t> *mod,
   spvtools::OptimizerOptions options;
   options.set_run_validator(false);
   options.set_preserve_bindings(spirvOptions.preserveBindings);
+  options.set_max_id_bound(spirvOptions.maxId);
 
   if (spirvOptions.optConfig.empty()) {
     // Add performance passes.
@@ -14414,6 +14553,8 @@ bool SpirvEmitter::spirvToolsLegalize(std::vector<uint32_t> *mod,
   spvtools::OptimizerOptions options;
   options.set_run_validator(false);
   options.set_preserve_bindings(spirvOptions.preserveBindings);
+  options.set_max_id_bound(spirvOptions.maxId);
+
   // Add interface variable SROA if the signature packing is enabled.
   if (spirvOptions.signaturePacking) {
     optimizer.RegisterPass(

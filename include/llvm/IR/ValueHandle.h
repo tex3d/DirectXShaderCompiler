@@ -45,59 +45,62 @@ protected:
   ///
   /// This is to avoid having a vtable for the light-weight handle pointers. The
   /// fully general Callback version does have a vtable.
-  enum HandleBaseKind {
-    Assert,
-    Callback,
-    Tracking,
-    Weak
-  };
+  enum HandleBaseKind { Assert, Callback, Weak };
 
 private:
   PointerIntPair<ValueHandleBase**, 2, HandleBaseKind> PrevPair;
   ValueHandleBase *Next;
 
-  Value* V;
+  Value *Val;
+
+  void setValPtr(Value *V) { Val = V; }
 
   ValueHandleBase(const ValueHandleBase&) = delete;
 public:
   explicit ValueHandleBase(HandleBaseKind Kind)
-    : PrevPair(nullptr, Kind), Next(nullptr), V(nullptr) {}
+      : PrevPair(nullptr, Kind), Next(nullptr), Val(nullptr) {}
   ValueHandleBase(HandleBaseKind Kind, Value *V)
-    : PrevPair(nullptr, Kind), Next(nullptr), V(V) {
-    if (isValid(V))
+      : PrevPair(nullptr, Kind), Next(nullptr), Val(V) {
+    if (isValid(getValPtr()))
       AddToUseList();
   }
   ValueHandleBase(HandleBaseKind Kind, const ValueHandleBase &RHS)
-    : PrevPair(nullptr, Kind), Next(nullptr), V(RHS.V) {
-    if (isValid(V))
+      : PrevPair(nullptr, Kind), Next(nullptr), Val(RHS.getValPtr()) {
+    if (isValid(getValPtr()))
       AddToExistingUseList(RHS.getPrevPtr());
   }
   ~ValueHandleBase() {
-    if (isValid(V))
+    if (isValid(getValPtr()))
       RemoveFromUseList();
   }
 
   Value *operator=(Value *RHS) {
-    if (V == RHS) return RHS;
-    if (isValid(V)) RemoveFromUseList();
-    V = RHS;
-    if (isValid(V)) AddToUseList();
+    if (getValPtr() == RHS)
+      return RHS;
+    if (isValid(getValPtr()))
+      RemoveFromUseList();
+    setValPtr(RHS);
+    if (isValid(getValPtr()))
+      AddToUseList();
     return RHS;
   }
 
   Value *operator=(const ValueHandleBase &RHS) {
-    if (V == RHS.V) return RHS.V;
-    if (isValid(V)) RemoveFromUseList();
-    V = RHS.V;
-    if (isValid(V)) AddToExistingUseList(RHS.getPrevPtr());
-    return V;
+    if (getValPtr() == RHS.getValPtr())
+      return RHS.getValPtr();
+    if (isValid(getValPtr()))
+      RemoveFromUseList();
+    setValPtr(RHS.getValPtr());
+    if (isValid(getValPtr()))
+      AddToExistingUseList(RHS.getPrevPtr());
+    return getValPtr();
   }
 
-  Value *operator->() const { return V; }
-  Value &operator*() const { return *V; }
+  Value *operator->() const { return getValPtr(); }
+  Value &operator*() const { return *getValPtr(); }
 
 protected:
-  Value *getValPtr() const { return V; }
+  Value *getValPtr() const { return Val; }
 
   static bool isValid(Value *V) {
     return V &&
@@ -156,6 +159,10 @@ public:
 
   operator Value*() const {
     return getValPtr();
+  }
+
+  bool pointsToAliveValue() const {
+    return ValueHandleBase::isValid(getValPtr());
   }
 };
 
@@ -267,46 +274,65 @@ struct isPodLike<AssertingVH<T> > {
 #endif
 };
 
-
 /// \brief Value handle that tracks a Value across RAUW.
 ///
 /// TrackingVH is designed for situations where a client needs to hold a handle
 /// to a Value (or subclass) across some operations which may move that value,
 /// but should never destroy it or replace it with some unacceptable type.
 ///
-/// It is an error to do anything with a TrackingVH whose value has been
-/// destroyed, except to destruct it.
-///
 /// It is an error to attempt to replace a value with one of a type which is
 /// incompatible with any of its outstanding TrackingVHs.
-template<typename ValueTy>
-class TrackingVH : public ValueHandleBase {
-  void CheckValidity() const {
-    Value *VP = ValueHandleBase::getValPtr();
+///
+/// It is an error to read from a TrackingVH that does not point to a valid
+/// value.  A TrackingVH is said to not point to a valid value if either it
+/// hasn't yet been assigned a value yet or because the value it was tracking
+/// has since been deleted.
+///
+/// Assigning a value to a TrackingVH is always allowed, even if said TrackingVH
+/// no longer points to a valid value.
+template <typename ValueTy> class TrackingVH {
+  WeakVH InnerHandle;
 
-    // Null is always ok.
-    if (!VP) return;
+public:
+  ValueTy *getValPtr() const {
+    // HLSL Change begin
+    // The original upstream change will assert here when accessing a TrackingVH
+    // is deleted.
+    //
+    // However, the llvm code that DXC forked has the implicit code like:
+    // TrackingVH V = nullptr;
+    //
+    // It will invoke setValPtr(nullptr) and then getValPtr(nullptr). So pull in
+    // the original upstream change in DXC will always assert here for debug
+    // build even this code is valid.
+    //
+    // The original upstream change works because of another upstream change
+    // https://github.com/llvm/llvm-project/commit/70a6051ddfd5f04777f2bc42503bb11bc8f1723a
+    // cleaned up the problematic code in DXC already.
+    //
+    // Untill we decide to pull that upstream change into DXC, DXC should follow
+    // the original TrackingVH implementation. return Null is always ok here
+    // instead of assert it.
+    if (InnerHandle.operator llvm::Value *() == nullptr)
+      return nullptr;
+    // HLSL Change end.
 
-    // Check that this value is valid (i.e., it hasn't been deleted). We
-    // explicitly delay this check until access to avoid requiring clients to be
-    // unnecessarily careful w.r.t. destruction.
-    assert(ValueHandleBase::isValid(VP) && "Tracked Value was deleted!");
+    assert(InnerHandle.pointsToAliveValue() &&
+           "TrackingVH must be non-null and valid on dereference!");
 
     // Check that the value is a member of the correct subclass. We would like
     // to check this property on assignment for better debugging, but we don't
     // want to require a virtual interface on this VH. Instead we allow RAUW to
     // replace this value with a value of an invalid type, and check it here.
-    assert(isa<ValueTy>(VP) &&
+    assert(isa<ValueTy>(InnerHandle) &&
            "Tracked Value was replaced by one with an invalid type!");
+    return cast<ValueTy>(InnerHandle);
   }
 
-  ValueTy *getValPtr() const {
-    CheckValidity();
-    return (ValueTy*)ValueHandleBase::getValPtr();
-  }
   void setValPtr(ValueTy *P) {
-    CheckValidity();
-    ValueHandleBase::operator=(GetAsValue(P));
+    // Assigning to non-valid TrackingVH's are fine so we just unconditionally
+    // assign here.
+    InnerHandle = GetAsValue(P);
   }
 
   // Convert a ValueTy*, which may be const, to the type the base
@@ -315,9 +341,11 @@ class TrackingVH : public ValueHandleBase {
   static Value *GetAsValue(const Value *V) { return const_cast<Value*>(V); }
 
 public:
-  TrackingVH() : ValueHandleBase(Tracking) {}
-  TrackingVH(ValueTy *P) : ValueHandleBase(Tracking, GetAsValue(P)) {}
-  TrackingVH(const TrackingVH &RHS) : ValueHandleBase(Tracking, RHS) {}
+  TrackingVH() {}
+  TrackingVH(ValueTy *P) { setValPtr(P); }
+  TrackingVH(const TrackingVH &RHS) {
+    setValPtr(RHS.getValPtr());
+  } // HLSL Change
 
   operator ValueTy*() const {
     return getValPtr();

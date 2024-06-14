@@ -615,7 +615,8 @@ private:
   SpirvInstruction *processWaveCountBits(const CallExpr *,
                                          spv::GroupOperation groupOp);
 
-  /// Processes SM6.0 wave reduction or scan/prefix intrinsic calls.
+  /// Processes SM6.0 wave reduction or scan/prefix and SM6.5 wave multiprefix
+  /// intrinsic calls.
   SpirvInstruction *processWaveReductionOrPrefix(const CallExpr *, spv::Op op,
                                                  spv::GroupOperation groupOp);
 
@@ -984,11 +985,15 @@ private:
   /// \brief Processes .SampleGrad() method call for texture objects.
   SpirvInstruction *processTextureSampleGrad(const CXXMemberCallExpr *expr);
 
-  /// \brief Processes .SampleCmp() or .SampleCmpLevelZero() method call for
-  /// texture objects.
+  /// \brief Processes .SampleCmp() method call for texture objects.
+  SpirvInstruction *processTextureSampleCmp(const CXXMemberCallExpr *expr);
+
+  /// \brief Processes .SampleCmpLevelZero() method call for texture objects.
   SpirvInstruction *
-  processTextureSampleCmpCmpLevelZero(const CXXMemberCallExpr *expr,
-                                      bool isCmp);
+  processTextureSampleCmpLevelZero(const CXXMemberCallExpr *expr);
+
+  /// \brief Processes .SampleCmpLevel() method call for texture objects.
+  SpirvInstruction *processTextureSampleCmpLevel(const CXXMemberCallExpr *expr);
 
   /// \brief Handles .Gather{|Cmp}{Red|Green|Blue|Alpha}() calls on texture
   /// types.
