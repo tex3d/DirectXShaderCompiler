@@ -10,6 +10,14 @@ float4 FetchFromIndexMap( uniform Texture2D Tex, uniform SamplerState SS, const 
 
 struct S { float f; };
 
+enum class E1 : uint { A, B };
+enum E2 { E2_A, E2_B };
+struct ContainsEnums {
+  E1 e1;
+  E2 e2;
+};
+RWStructuredBuffer<ContainsEnums> uav0 : register(u0);
+
 RWByteAddressBuffer uav1 : register(u3);
 [shader("pixel")]
 float4 RWByteAddressBufferMain(uint2 a : A, uint2 b : B) : SV_Target
@@ -37,6 +45,7 @@ float4 RWByteAddressBufferMain(uint2 a : A, uint2 b : B) : SV_Target
   r += (float4)uav1.Load<float2x2>(20);
   r += (float4)uav1.Load<float[4]>(20);
   r += uav1.Load<S>(20).f.xxxx;
+  r += (uint)uav1.Load<ContainsEnums>(20).e1;
 
   r += uav1.Load<half4>(4, status);
   r += uav1.Load<float4>(12, status);
@@ -47,6 +56,7 @@ float4 RWByteAddressBufferMain(uint2 a : A, uint2 b : B) : SV_Target
   r += (float4)uav1.Load<float2x2>(20, status);
   r += (float4)uav1.Load<float[4]>(20, status);
   r += uav1.Load<S>(20, status).f.xxxx;
+  r += (uint)uav1.Load<ContainsEnums>(20, status).e2;
 
   // errors
   r += uav1.Load<float, float3>(16);                        /* expected-error {{Explicit template arguments on intrinsic Load must be a single numeric type}} */
@@ -78,10 +88,18 @@ float4 RWByteAddressBufferMain(uint2 a : A, uint2 b : B) : SV_Target
   uav1.Store(0, (double3)r.xyz);
   uav1.Store(0, (uint64_t4)r);
   uav1.Store(0, (MyStruct)0);
+  uav1.Store(0, (ContainsEnums)0);
   // errors
   uav1.Store2<float>(0, r.xy);                              /* expected-error {{Explicit template arguments on intrinsic Store2 are not supported}} */
   uav1.Store3<float>(0, r.xyz);                             /* expected-error {{Explicit template arguments on intrinsic Store3 are not supported}} */
   uav1.Store4<float>(0, r);                                 /* expected-error {{Explicit template arguments on intrinsic Store4 are not supported}} */
+
+  // StructuredBuffer with enums
+  ContainsEnums CE = uav0[1];
+  uav0[2] = CE;
+  uav0[3].e1 = uav0[2].e1;
+  uav0[3].e2 = uav0[2].e2;
+
   return r;
 }
 
