@@ -4478,10 +4478,6 @@ void TranslateStore(DxilResource::Kind RK, Value *handle, Value *val,
   case DxilResource::Kind::StructuredBuffer:
     isTyped = false;
     opcode = OP::OpCode::RawBufferStore;
-    // Where shader model and type allows, use vector store intrinsic.
-    if (OP->GetModule()->GetHLModule().GetShaderModel()->IsSM69Plus() &&
-        Ty->isVectorTy() && Ty->getVectorNumElements() > 1)
-      opcode = OP::OpCode::RawBufferVectorStore;
     break;
   case DxilResource::Kind::TypedBuffer:
     opcode = OP::OpCode::BufferStore;
@@ -4524,6 +4520,7 @@ void TranslateStore(DxilResource::Kind RK, Value *handle, Value *val,
     EltTy = i32Ty;
   }
 
+  Function *F = OP->GetOpFunc(opcode, EltTy);
   llvm::Constant *opArg = OP->GetU32Const((unsigned)opcode);
 
   llvm::Value *undefI =
@@ -4537,7 +4534,6 @@ void TranslateStore(DxilResource::Kind RK, Value *handle, Value *val,
 
   unsigned OffsetIdx = 0;
   if (opcode == OP::OpCode::RawBufferStore ||
-      opcode == OP::OpCode::RawBufferVectorStore ||
       opcode == OP::OpCode::BufferStore) {
     // Append Coord0 (Index) value.
     if (Idx->getType()->isVectorTy()) {
@@ -4557,6 +4553,7 @@ void TranslateStore(DxilResource::Kind RK, Value *handle, Value *val,
       OffsetIdx = storeArgs.size() - 1;
 
     // Coord1 (Offset).
+    // Only relevant when storing more than 4 elements to structured buffers.
     storeArgs.emplace_back(offset);
   } else {
     // texture store
@@ -4576,16 +4573,6 @@ void TranslateStore(DxilResource::Kind RK, Value *handle, Value *val,
     }
     // TODO: support mip for texture ST
   }
-
-  // RawBufferVectorStore only takes a single value and alignment arguments.
-  if (opcode == DXIL::OpCode::RawBufferVectorStore) {
-    storeArgs.emplace_back(val);
-    storeArgs.emplace_back(Alignment);
-    Function *F = OP->GetOpFunc(DXIL::OpCode::RawBufferVectorStore, Ty);
-    Builder.CreateCall(F, storeArgs);
-    return;
-  }
-  Function *F = OP->GetOpFunc(opcode, EltTy);
 
   constexpr unsigned MaxStoreElemCount = 4;
   const unsigned CompCount = Ty->isVectorTy() ? Ty->getVectorNumElements() : 1;
@@ -6256,6 +6243,51 @@ Value *TranslateSelect(CallInst *CI, IntrinsicOp IOP, OP::OpCode opcode,
   }
   return Builder.CreateSelect(cond, t, f);
 }
+
+Value *TranslateMatVecMul(CallInst *CI, IntrinsicOp IOP, OP::OpCode opcode,
+                       HLOperationLowerHelper &helper,
+                       HLObjectOperationLowerHelper *pObjHelper,
+                       bool &Translated) {
+
+  hlsl::OP *hlslOP = &helper.hlslOP;
+  IRBuilder<> Builder(CI);
+  Function *dxilFunc = hlslOP->GetOpFunc(opcode, CI->getType());
+  Constant *opArg = hlslOP->GetU32Const((unsigned)opcode);
+  Value *inputVector = CI->getArgOperand(HLOperandIndex::kInputVectorIdx);
+  Value *isInputSigned = Builder.getInt1(0);
+  Value *inputInterpretation =
+      CI->getArgOperand(HLOperandIndex::kInputInterpretationIdx);
+  Value *matrixBuffer = CI->getArgOperand(HLOperandIndex::kMatrixBufferIdx);
+  Value *matrixOffset = CI->getArgOperand(HLOperandIndex::kMatrixOffsetIdx);
+  Value *matrixInterpretation =
+      CI->getArgOperand(HLOperandIndex::kMatrixInterpretationIdx);
+  Value *matrixM = CI->getArgOperand(HLOperandIndex::kMatrixMIdx);
+  Value *matrixK = CI->getArgOperand(HLOperandIndex::kMatrixKIdx);
+  Value *matrixLayout = CI->getArgOperand(HLOperandIndex::kMatrixLayoutIdx);
+  Value *matrixTranspose =
+      CI->getArgOperand(HLOperandIndex::kMatrixTransposeIdx);
+  Value *matrixStride = CI->getArgOperand(HLOperandIndex::kMatrixStrideIdx);
+  Value *isOutputSigned = Builder.getInt1(0);
+   
+
+   return Builder.CreateCall(dxilFunc,
+                              {opArg, 
+                              inputVector, 
+                              isInputSigned, 
+                              inputInterpretation, 
+                              matrixBuffer, 
+                              matrixOffset, 
+                              matrixInterpretation, 
+                              matrixM,
+                              matrixK,
+                              matrixLayout,
+                              matrixTranspose,
+                              matrixStride,
+                              isOutputSigned});
+  
+  /* IRBuilder<> Builder(CI);
+  return UndefValue::get(CI->getType());*/
+}
 } // namespace
 
 // Lower table.
@@ -6566,6 +6598,7 @@ IntrinsicLower gLowerTable[] = {
     {IntrinsicOp::IOP_log10, TranslateLog10, DXIL::OpCode::NumOpCodes},
     {IntrinsicOp::IOP_log2, TrivialUnaryOperation, DXIL::OpCode::Log},
     {IntrinsicOp::IOP_mad, TranslateFUITrinary, DXIL::OpCode::IMad},
+    {IntrinsicOp::IOP_MatMul, TranslateMatVecMul, DXIL::OpCode::MatVecMul},
     {IntrinsicOp::IOP_max, TranslateFUIBinary, DXIL::OpCode::IMax},
     {IntrinsicOp::IOP_min, TranslateFUIBinary, DXIL::OpCode::IMin},
     {IntrinsicOp::IOP_modf, TranslateModF, DXIL::OpCode::NumOpCodes},

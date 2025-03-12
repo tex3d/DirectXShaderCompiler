@@ -429,6 +429,18 @@ const unsigned kNodeHandleToResCastOpIdx = 1;
 const unsigned kAnnotateNodeHandleNodePropIdx = 2;
 const unsigned kAnnotateNodeRecordHandleNodeRecordPropIdx = 2;
 
+// Linear Algebra MatVecMul(Add)
+const unsigned kInputVectorIdx = 1;
+const unsigned kInputInterpretationIdx = 2;
+const unsigned kMatrixBufferIdx = 3;
+const unsigned kMatrixOffsetIdx = 4;
+const unsigned kMatrixInterpretationIdx = 5;
+const unsigned kMatrixMIdx = 6;
+const unsigned kMatrixKIdx = 7;
+const unsigned kMatrixLayoutIdx = 8;
+const unsigned kMatrixTransposeIdx = 9;
+const unsigned kMatrixStrideIdx = 10;
+
 } // namespace HLOperandIndex
 
 llvm::Function *GetOrCreateHLFunction(llvm::Module &M,

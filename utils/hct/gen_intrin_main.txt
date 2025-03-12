@@ -380,6 +380,8 @@ void [[]] Barrier(in NodeRecordOrUAV o, in uint SemanticFlags);
 
 uint [[]] GetRemainingRecursionLevels();
 
+// Linear Algebra Intrinsics
+numeric<c> [[]] MatMul(in numeric<c> input_vector, in uint input_interpretation, in ByteAddressBuffer input_matrix, in uint matrix_offset, in uint matrix_interpretation, in uint M, in uint K, in uint matrix_layout, in bool matrix_is_transposed, in uint matrix_stride);
 } namespace
 
 

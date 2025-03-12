@@ -700,6 +700,10 @@ class db_dxil(object):
             self.name_idx[i].shader_stages = ("vertex",)
             self.name_idx[i].shader_model = 6, 8
 
+        for i in "MatVecMul".split(","):
+            self.name_idx[i].category = "LinearAlgebraIntrinsics"
+            self.name_idx[i].shader_model = 6, 9
+
     def populate_llvm_instructions(self):
         # Add instructions that map to LLVM instructions.
         # This is basically include\llvm\IR\Instruction.def
@@ -5656,9 +5660,34 @@ class db_dxil(object):
         )
         next_op_idx += 1
 
+        self.add_dxil_op(
+             "MatVecMul",
+             next_op_idx,
+             "MatVecMul",
+             "Matrix-Vector Multiply",
+             "t",
+             "",
+             [
+                 db_dxil_param(0, "$o", "outputVector", "output vector"),
+                 db_dxil_param(2, "$o", "inputVector", "input vector"),
+                 db_dxil_param(3, "i1", "isInputSigned", "input signed op kind"),
+                 db_dxil_param(4, "i32", "inputInterpretation", "input interpretation"),
+                 db_dxil_param(5, "res", "matrixBuffer", "matrix resoource"),
+                 db_dxil_param(6, "i32", "matrixOffset", "matrix offset"),
+                 db_dxil_param(7, "i32", "matrixIntepretation", "matrix intepretation"),
+                 db_dxil_param(8, "i32", "M", "matrix M dimension"),
+                 db_dxil_param(9, "i32", "K", "matrix K dimension"),
+                 db_dxil_param(10, "i32", "matrixLayout", "matrix layout"),
+                 db_dxil_param(11, "i1", "matrixTranspose", "matrix transpose"),
+                 db_dxil_param(12, "i32", "matrixStride", "matrix stride"),
+                 db_dxil_param(13, "i1", "isOutputSigned", "output signed op kind"),
+             ],
+         )
+        next_op_idx += 1
+
         # End of DXIL 1.9 opcodes.
         self.set_op_count_for_version(1, 9, next_op_idx)
-        assert next_op_idx == 305, (
+        assert next_op_idx == 306, (
             "260 is expected next operation index but encountered %d and thus opcodes are broken"
             % next_op_idx
         )

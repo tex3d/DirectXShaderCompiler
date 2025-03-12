@@ -168,6 +168,7 @@ enum class IntrinsicOp {
   IOP_log10,
   IOP_log2,
   IOP_mad,
+  IOP_MatMul,
   IOP_max,
   IOP_min,
   IOP_modf,
