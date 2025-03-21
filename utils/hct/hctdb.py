@@ -8373,6 +8373,14 @@ class db_hlsl(object):
         self.populate_attributes()
         self.opcode_namespace = "hlsl::IntrinsicOp"
 
+        # Filled in by assign_opcodes():
+        self.intrinsic_names = []
+        self.unsigned_intrinsic_names = []
+        self.intrinsics_by_name = {}
+
+        # Sort the intrinsics by key.
+        self.intrinsics.sort(key=lambda x: x.key)
+
         # Populate opcode data for HLSL intrinsics.
         self.opcode_data = opcode_data
         # If opcode data is empty, create the default structure.
@@ -8906,27 +8914,45 @@ class db_hlsl(object):
         )
         self.attributes = attributes
 
-    # Iterate through all intrinsics, assigning opcodes to each one.
-    # This uses the opcode_data to preserve already-assigned opcodes.
     def assign_opcodes(self):
-        "Assign opcodes to the intrinsics."
+        "Assign opcodes to the intrinsics; initialize name lists."
+        # This uses the opcode_data to preserve already-assigned opcodes.
         IntrinsicOpDict = self.opcode_data["IntrinsicOpCodes"]
         Num_Intrinsics = self.opcode_data["IntrinsicOpCodes"]["Num_Intrinsics"]
+        name_set = set()
+        unsigned_name_set = set()
 
-        def add_intrinsic(name):
-            nonlocal Num_Intrinsics
-            opcode = IntrinsicOpDict.setdefault(name, Num_Intrinsics)
-            if opcode == Num_Intrinsics:
+        # Assign opcodes to main intrinsic name,
+        # create a dictionary of intrinsics by name,
+        # and create lists of normal and unsigned intrinsic names.
+        for i in self.intrinsics:
+            self.intrinsics_by_name.setdefault(i.enum_name, []).append(i)
+            i.opcode = IntrinsicOpDict.setdefault(i.enum_name, Num_Intrinsics)
+            if i.opcode == Num_Intrinsics:
                 Num_Intrinsics += 1
-            return opcode
-
-        sorted_intrinsics = sorted(self.intrinsics, key=lambda x: x.key)
-        for i in sorted_intrinsics:
-            i.opcode = add_intrinsic(i.enum_name)
-        for i in sorted_intrinsics:
+            if i.enum_name not in name_set:
+                name_set.add(i.enum_name)
+                self.intrinsic_names.append(i.enum_name)
             if i.unsigned_op == "":
                 continue
-            i.unsigned_opcode = add_intrinsic(i.unsigned_op)
+            # Unsigned
+            self.intrinsics_by_name.setdefault(i.unsigned_op, []).append(i)
+            if i.unsigned_op not in unsigned_name_set:
+                unsigned_name_set.add(i.unsigned_op)
+                assert(
+                    i.unsigned_op not in name_set,
+                    "unsigned intrinsic name %s collides with normal intrinsic name" % i.unsigned_op
+                )
+                self.unsigned_intrinsic_names.append(i.unsigned_op)
+
+        # Assign unsigned opcodes to intrinsics.
+        for unsigned_name in self.unsigned_intrinsic_names:
+            for i in self.intrinsics_by_name[unsigned_name]:
+                i.unsigned_opcode = IntrinsicOpDict.setdefault(unsigned_name, Num_Intrinsics)
+                if i.unsigned_opcode == Num_Intrinsics:
+                    Num_Intrinsics += 1
+
+        # Update Num_Intrinsics in the opcode data.
         self.opcode_data["IntrinsicOpCodes"]["Num_Intrinsics"] = Num_Intrinsics
 
 

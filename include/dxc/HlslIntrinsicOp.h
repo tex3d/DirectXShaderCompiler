@@ -437,11 +437,9 @@ inline unsigned GetUnsignedIntrinsicOpcode(IntrinsicOp opcode) {
   case IntrinsicOp::IOP_sign:
     return static_cast<unsigned>(IntrinsicOp::IOP_usign);
   case IntrinsicOp::MOP_InterlockedMax:
-    return static_cast<unsigned>(IntrinsicOp::MOP_InterlockedUMax);
   case IntrinsicOp::MOP_InterlockedMax64:
     return static_cast<unsigned>(IntrinsicOp::MOP_InterlockedUMax);
   case IntrinsicOp::MOP_InterlockedMin:
-    return static_cast<unsigned>(IntrinsicOp::MOP_InterlockedUMin);
   case IntrinsicOp::MOP_InterlockedMin64:
     return static_cast<unsigned>(IntrinsicOp::MOP_InterlockedUMin);
   default:

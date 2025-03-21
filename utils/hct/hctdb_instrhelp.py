@@ -923,7 +923,7 @@ def get_hlsl_intrinsic_stats():
     longest_fn = db.intrinsics[0]
     longest_param = None
     longest_arglist_fn = db.intrinsics[0]
-    for i in sorted(db.intrinsics, key=lambda x: x.key):
+    for i in db.intrinsics:
         # Get some values for maximum lengths.
         if len(i.name) > len(longest_fn.name):
             longest_fn = i
@@ -988,7 +988,7 @@ def get_hlsl_intrinsics():
     id_prefix = ""
     arg_idx = 0
     opcode_namespace = db.opcode_namespace
-    for i in sorted(db.intrinsics, key=lambda x: x.key):
+    for i in db.intrinsics:
         if last_ns != i.ns:
             last_ns = i.ns
             id_prefix = (
@@ -1075,23 +1075,17 @@ def wrap_with_ifdef_if_vulkan_specific(intrinsic, text):
 
 def enum_hlsl_intrinsics():
     db = get_db_hlsl()
+    IntrinsicOpCodes = db.opcode_data["IntrinsicOpCodes"]
     result = ""
-    enumed = set()
-    for i in sorted(db.intrinsics, key=lambda x: x.key):
-        if i.enum_name not in enumed:
-            result += "  %s = %d,\n" % (i.enum_name, i.opcode)
-            enumed.add(i.enum_name)
+    for name in db.intrinsic_names:
+        result += "  %s = %d,\n" % (name, IntrinsicOpCodes[name])
+
     # unsigned
     result += "  // unsigned\n"
+    for name in db.unsigned_intrinsic_names:
+        result += "  %s = %d,\n" % (name, IntrinsicOpCodes[name])
 
-    for i in sorted(db.intrinsics, key=lambda x: x.key):
-        if i.unsigned_op != "":
-            if i.unsigned_op not in enumed:
-                result += "  %s = %d,\n" % (i.unsigned_op, i.unsigned_opcode)
-                enumed.add(i.unsigned_op)
-
-    Num_Intrinsics = get_hlsl_opcode_data()["IntrinsicOpCodes"]["Num_Intrinsics"]
-    result += "  Num_Intrinsics = %d,\n" % (Num_Intrinsics)
+    result += "  Num_Intrinsics = %d,\n" % (IntrinsicOpCodes["Num_Intrinsics"])
     return result
 
 
@@ -1100,11 +1094,12 @@ def has_unsigned_hlsl_intrinsics():
     result = ""
     enumed = []
     # unsigned
-    for i in sorted(db.intrinsics, key=lambda x: x.key):
-        if i.unsigned_op != "":
+    for unsigned_name in db.unsigned_intrinsic_names:
+        for i in db.intrinsics_by_name[unsigned_name]:
             if i.enum_name not in enumed:
-                result += "  case IntrinsicOp::%s:\n" % (i.enum_name)
                 enumed.append(i.enum_name)
+                result += "  case IntrinsicOp::%s:\n" % (i.enum_name)
+        enumed.clear()
     return result
 
 
@@ -1113,14 +1108,15 @@ def get_unsigned_hlsl_intrinsics():
     result = ""
     enumed = []
     # unsigned
-    for i in sorted(db.intrinsics, key=lambda x: x.key):
-        if i.unsigned_op != "":
+    for unsigned_name in db.unsigned_intrinsic_names:
+        for i in db.intrinsics_by_name[unsigned_name]:
             if i.enum_name not in enumed:
                 enumed.append(i.enum_name)
                 result += "  case IntrinsicOp::%s:\n" % (i.enum_name)
-                result += "    return static_cast<unsigned>(IntrinsicOp::%s);\n" % (
-                    i.unsigned_op
-                )
+        result += "    return static_cast<unsigned>(IntrinsicOp::%s);\n" % (
+            unsigned_name
+        )
+        enumed.clear()
     return result
 
 
