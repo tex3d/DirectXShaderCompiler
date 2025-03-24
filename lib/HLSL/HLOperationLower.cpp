@@ -6264,7 +6264,6 @@ Value *TranslateMatVecMul(CallInst *CI, IntrinsicOp IOP, OP::OpCode opcode,
 
   hlsl::OP *hlslOP = &helper.hlslOP;
   IRBuilder<> Builder(CI);
-  Function *dxilFunc = hlslOP->GetOpFunc(opcode, CI->getType());
   Constant *opArg = hlslOP->GetU32Const((unsigned)opcode);
   Value *inputVector = CI->getArgOperand(HLOperandIndex::kInputVectorIdx);
   Value *isInputSigned = Builder.getInt1(0);
@@ -6281,6 +6280,8 @@ Value *TranslateMatVecMul(CallInst *CI, IntrinsicOp IOP, OP::OpCode opcode,
       CI->getArgOperand(HLOperandIndex::kMatrixTransposeIdx);
   Value *matrixStride = CI->getArgOperand(HLOperandIndex::kMatrixStrideIdx);
   Value *isOutputSigned = Builder.getInt1(0);
+  Function *dxilFunc =
+      hlslOP->GetOpFunc(opcode, {CI->getType(), inputVector->getType()});
    
 
    return Builder.CreateCall(dxilFunc,

@@ -5790,11 +5790,11 @@ class db_dxil(object):
              next_op_idx,
              "MatVecMul",
              "Matrix-Vector Multiply",
-             "t",
+             "<hfwi,<hfwi",
              "",
              [
-                 db_dxil_param(0, "$o", "outputVector", "output vector"),
-                 db_dxil_param(2, "$o", "inputVector", "input vector"),
+                 db_dxil_param(0, "$x0", "outputVector", "output vector"),
+                 db_dxil_param(2, "$x1", "inputVector", "input vector"),
                  db_dxil_param(3, "i1", "isInputSigned", "input signed op kind"),
                  db_dxil_param(4, "i32", "inputInterpretation", "input interpretation"),
                  db_dxil_param(5, "res", "matrixBuffer", "matrix resoource"),
@@ -5811,11 +5811,12 @@ class db_dxil(object):
         next_op_idx += 1
 
         # End of DXIL 1.9 opcodes.
-        self.set_op_count_for_version(1, 9, next_op_idx)
-        assert next_op_idx == 306, (
-            "260 is expected next operation index but encountered %d and thus opcodes are broken"
-            % next_op_idx
-        )
+        # Update and uncomment when DXIL 1.9 opcodes are finalized:
+        # self.set_op_count_for_version(1, 9, next_op_idx)
+        # assert next_op_idx == NNN, (
+        #     "NNN is expected next operation index but encountered %d and thus opcodes are broken"
+        #     % next_op_idx
+        # )
 
         # Set interesting properties.
         self.build_indices()
