@@ -1567,7 +1567,7 @@ class db_dxil(object):
                 next_op_idx,
                 "Binary",
                 "returns the " + i + " of the input values",
-                "hfdt",
+                "hfd<",
                 "rn",
                 [
                     db_dxil_param(0, "$o", "", "operation result"),
@@ -1585,7 +1585,7 @@ class db_dxil(object):
                 next_op_idx,
                 "Binary",
                 "returns the " + i + " of the input values",
-                "wilt",
+                "wil<",
                 "rn",
                 [
                     db_dxil_param(0, "$o", "", "operation result"),
@@ -1657,7 +1657,7 @@ class db_dxil(object):
             next_op_idx,
             "Tertiary",
             "performs a fused multiply add (FMA) of the form a * b + c",
-            "dt",
+            "d<",
             "rn",
             [
                 db_dxil_param(
@@ -5752,7 +5752,7 @@ class db_dxil(object):
             next_op_idx,
             "RawBufferVectorLoad",
             "reads from a raw buffer and structured buffer",
-            "t",
+            "<hfdwil",
             "ro",
             [
                 db_dxil_param(0, "$r", "", "the loaded value"),
@@ -5786,7 +5786,7 @@ class db_dxil(object):
             next_op_idx,
             "RawBufferVectorStore",
             "writes to a RWByteAddressBuffer or RWStructuredBuffer",
-            "t",
+            "<hfdwil",
             "",
             [
                 db_dxil_param(0, "v", "", ""),
@@ -5838,7 +5838,8 @@ class db_dxil(object):
             self.name_idx[i].is_deriv = True
 
         for i in "Atan,Htan,Exp,Log".split(","):
-            self.name_idx[i].oload_types = "hft"
+            self.name_idx[i].oload_types = "hf<"
+            self.name_idx[i].process_oload_types()
 
         # TODO - some arguments are required to be immediate constants in DXIL, eg resource kinds; add this information
         # consider - report instructions that are overloaded on a single type, then turn them into non-overloaded version of that type
