@@ -2996,9 +2996,11 @@ private:
   ClassTemplateDecl *m_matrixTemplateDecl;
   ClassTemplateDecl *m_vectorTemplateDecl;
 
-  ClassTemplateDecl *m_vkIntegralConstantTemplateDecl;
-  ClassTemplateDecl *m_vkLiteralTemplateDecl;
-  ClassTemplateDecl *m_vkBufferPointerTemplateDecl;
+#ifdef ENABLE_SPIRV_CODEGEN
+  ClassTemplateDecl *m_vkIntegralConstantTemplateDecl = nullptr;
+  ClassTemplateDecl *m_vkLiteralTemplateDecl = nullptr;
+  ClassTemplateDecl *m_vkBufferPointerTemplateDecl = nullptr;
+#endif // ENABLE_SPIRV_CODEGEN
 
   // Declarations for Work Graph Output Record types
   ClassTemplateDecl *m_GroupNodeOutputRecordsTemplateDecl;
@@ -3007,8 +3009,10 @@ private:
   // Namespace decl for hlsl intrinsic functions
   NamespaceDecl *m_hlslNSDecl;
 
+#ifdef ENABLE_SPIRV_CODEGEN
   // Namespace decl for Vulkan-specific intrinsic functions
-  NamespaceDecl *m_vkNSDecl;
+  NamespaceDecl *m_vkNSDecl = nullptr;
+#endif // ENABLE_SPIRV_CODEGEN
 
   // Namespace decl for dx intrinsic functions
   NamespaceDecl *m_dxNSDecl;
@@ -3504,6 +3508,7 @@ private:
         templateTypeParmDecls.push_back(templateTypeParmDecl);
         continue;
       }
+#ifdef ENABLE_SPIRV_CODEGEN
       if (pArgs[i].uTemplateId == INTRIN_TEMPLATE_FROM_FUNCTION_2) {
         if (TInfo == nullptr) {
           TInfo = m_sema->getASTContext().CreateTypeSourceInfo(
@@ -3523,6 +3528,7 @@ private:
         templateTypeParmDecls.push_back(templateTypeParmDecl);
         templateTypeParmDecls.push_back(nonTypeTemplateParmDecl);
       }
+#endif // ENABLE_SPIRV_CODEGEN
     }
     return templateTypeParmDecls;
   }
@@ -3702,7 +3708,7 @@ private:
   }
 
   // Adds intrinsic function declarations to the "dx" namespace.
-  // Assumes the implicit "vk" namespace has already been created.
+  // Assumes the implicit "dx" namespace has already been created.
   void AddDxIntrinsicFunctions() {
     DXASSERT(m_dxNSDecl, "caller has not created the dx namespace yet");
 
@@ -4101,10 +4107,7 @@ private:
 public:
   HLSLExternalSource()
       : m_matrixTemplateDecl(nullptr), m_vectorTemplateDecl(nullptr),
-        m_vkIntegralConstantTemplateDecl(nullptr),
-        m_vkLiteralTemplateDecl(nullptr),
-        m_vkBufferPointerTemplateDecl(nullptr), m_hlslNSDecl(nullptr),
-        m_vkNSDecl(nullptr), m_dxNSDecl(nullptr), m_context(nullptr),
+        m_hlslNSDecl(nullptr), m_dxNSDecl(nullptr), m_context(nullptr),
         m_sema(nullptr), m_hlslStringTypedef(nullptr) {
     memset(m_matrixTypes, 0, sizeof(m_matrixTypes));
     memset(m_matrixShorthandTypes, 0, sizeof(m_matrixShorthandTypes));
@@ -4371,9 +4374,11 @@ public:
         return AR_TOBJ_MATRIX;
       else if (decl == m_vectorTemplateDecl)
         return AR_TOBJ_VECTOR;
+#ifdef ENABLE_SPIRV_CODEGEN
       else if (decl == m_vkIntegralConstantTemplateDecl ||
                decl == m_vkLiteralTemplateDecl)
         return AR_TOBJ_COMPOUND;
+#endif // ENABLE_SPIRV_CODEGEN
       else if (!decl->isImplicit())
         return AR_TOBJ_COMPOUND;
       return AR_TOBJ_OBJECT;
@@ -5167,10 +5172,14 @@ public:
         ULE->getQualifier() &&
         ULE->getQualifier()->getKind() == NestedNameSpecifier::Global;
 
+#ifdef ENABLE_SPIRV_CODEGEN
     const bool isVkNamespace =
         ULE->getQualifier() &&
         ULE->getQualifier()->getKind() == NestedNameSpecifier::Namespace &&
         ULE->getQualifier()->getAsNamespace()->getName() == "vk";
+#else
+    const bool isVkNamespace = false;
+#endif // ENABLE_SPIRV_CODEGEN
 
     const bool isDxNamespace =
         ULE->getQualifier() &&
@@ -5235,10 +5244,12 @@ public:
       bool insertedNewValue = insertResult.second;
       if (insertedNewValue) {
         NamespaceDecl *nsDecl = m_hlslNSDecl;
-        if (isVkNamespace)
-          nsDecl = m_vkNSDecl;
-        else if (isDxNamespace)
+        if (isDxNamespace)
           nsDecl = m_dxNSDecl;
+#ifdef ENABLE_SPIRV_CODEGEN
+        else if (isVkNamespace)
+          nsDecl = m_vkNSDecl;
+#endif // ENABLE_SPIRV_CODEGEN
         DXASSERT(tableName,
                  "otherwise IDxcIntrinsicTable::GetTableName() failed");
         intrinsicFuncDecl =
@@ -7068,6 +7079,7 @@ bool HLSLExternalSource::MatchArguments(
       } else {
         pNewType = functionTemplateTypeArg;
       }
+#ifdef ENABLE_SPIRV_CODEGEN
     } else if (pArgument->uTemplateId == INTRIN_TEMPLATE_FROM_FUNCTION_2) {
       if (i == 0 &&
           (builtinOp == hlsl::IntrinsicOp::IOP_Vkreinterpret_pointer_cast ||
@@ -7076,6 +7088,7 @@ bool HLSLExternalSource::MatchArguments(
       } else {
         badArgIdx = std::min(badArgIdx, i);
       }
+#endif // ENABLE_SPIRV_CODEGEN
     } else if (pArgument->uLegalComponentTypes ==
                LICOMPTYPE_USER_DEFINED_TYPE) {
       if (objectElement.isNull()) {
@@ -13919,6 +13932,7 @@ void hlsl::HandleDeclAttributeForHLSL(Sema &S, Decl *D, const AttributeList &A,
         A.getRange(), S.Context, A.getAttributeSpellingListIndex());
     break;
   // SPIRV Change Starts
+#ifdef ENABLE_SPIRV_CODEGEN
   case AttributeList::AT_VKAliasedPointer: {
     declAttr = ::new (S.Context) VKAliasedPointerAttr(
         A.getRange(), S.Context, A.getAttributeSpellingListIndex());
@@ -13952,6 +13966,7 @@ void hlsl::HandleDeclAttributeForHLSL(Sema &S, Decl *D, const AttributeList &A,
         VKDecorateIdExtAttr(A.getRange(), S.Context, decoration, args.data(),
                             args.size(), A.getAttributeSpellingListIndex());
   } break;
+#endif // ENABLE_SPIRV_CODEGEN
     // SPIRV Change Ends
 
   default:
@@ -14169,6 +14184,7 @@ void hlsl::HandleDeclAttributeForHLSL(Sema &S, Decl *D, const AttributeList &A,
     return; // SPIRV Change
   }
 
+#ifdef ENABLE_SPIRV_CODEGEN
   // SPIRV Change Starts
   Handled = true;
   switch (A.getKind()) {
@@ -14360,6 +14376,7 @@ void hlsl::HandleDeclAttributeForHLSL(Sema &S, Decl *D, const AttributeList &A,
     Handled = false;
     return;
   }
+#endif // ENABLE_SPIRV_CODEGEN
 
   if (declAttr != nullptr) {
     DXASSERT_NOMSG(Handled);
@@ -14389,6 +14406,7 @@ Attr *hlsl::ProcessStmtAttributeForHLSL(Sema &S, Stmt *St,
   Handled = true;
 
   // SPIRV Change Starts
+#ifdef ENABLE_SPIRV_CODEGEN
   if (A.hasScope() && A.getScopeName()->getName().equals("vk")) {
     switch (A.getKind()) {
     case AttributeList::AT_VKCapabilityExt:
@@ -14404,6 +14422,7 @@ Attr *hlsl::ProcessStmtAttributeForHLSL(Sema &S, Stmt *St,
       return nullptr;
     }
   }
+#endif // ENABLE_SPIRV_CODEGEN
   // SPIRV Change Ends
 
   switch (A.getKind()) {
