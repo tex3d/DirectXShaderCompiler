@@ -36,11 +36,11 @@
 #include <xmllite.h>
 #pragma comment(lib, "xmllite.lib")
 
-// Duplicate definition of kDxCompilerLib to that in dxcapi.use.cpp
-// These tests need the header, but don't want to depend on the source
-// Since this is windows only, we only need the windows variant
+// Duplicate definition of DxcDllSupport::DxCompilerLibName to that in
+// dxcapi.use.cpp These tests need the header, but don't want to depend on the
+// source Since this is windows only, we only need the windows variant
 namespace dxc {
-const char *kDxCompilerLib = "dxcompiler.dll";
+const char *DxcDllSupport::DxCompilerLibName = "dxcompiler.dll";
 }
 
 ///////////////////////////////////////////////////////////////////////////////

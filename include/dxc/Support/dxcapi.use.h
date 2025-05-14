@@ -16,11 +16,12 @@
 
 namespace dxc {
 
-extern const char *kDxCompilerLib;
-extern const char *kDxilLib;
-
 // Helper class to dynamically load the dxcompiler or a compatible libraries.
 class DxcDllSupport {
+public:
+  static const char *DxCompilerLibName;
+  static const char *DxilLibName;
+
 protected:
   HMODULE m_dll;
   DxcCreateInstanceProc m_createFn;
@@ -88,7 +89,7 @@ public:
   ~DxcDllSupport() { Cleanup(); }
 
   HRESULT Initialize() {
-    return InitializeInternal(kDxCompilerLib, "DxcCreateInstance");
+    return InitializeInternal(DxCompilerLibName, "DxcCreateInstance");
   }
 
   HRESULT InitializeForDll(LPCSTR dll, LPCSTR entryPoint) {

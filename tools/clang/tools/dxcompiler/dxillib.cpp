@@ -26,7 +26,8 @@ static llvm::sys::Mutex *cs = nullptr;
 HRESULT DxilLibInitialize() {
   cs = new llvm::sys::Mutex;
   cs->lock();
-  g_DllLibResult = g_DllSupport.InitializeForDll(kDxilLib, "DxcCreateInstance");
+  g_DllLibResult = g_DllSupport.InitializeForDll(
+      DxcDllSupport::DxCompilerLibName, "DxcCreateInstance");
   cs->unlock();
   return S_OK;
 }
@@ -52,8 +53,8 @@ bool DxilLibIsEnabled() {
   cs->lock();
   if (SUCCEEDED(g_DllLibResult)) {
     if (!g_DllSupport.IsEnabled()) {
-      g_DllLibResult =
-          g_DllSupport.InitializeForDll(kDxilLib, "DxcCreateInstance");
+      g_DllLibResult = g_DllSupport.InitializeForDll(
+          DxcDllSupport::DxCompilerLibName, "DxcCreateInstance");
     }
   }
   cs->unlock();

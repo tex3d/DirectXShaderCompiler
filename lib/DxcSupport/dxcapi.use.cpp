@@ -21,9 +21,9 @@
 
 namespace dxc {
 
-const char *kDxCompilerLib =
+const char *DxcDllSupport::DxCompilerLibName =
     CMAKE_SHARED_LIBRARY_PREFIX "dxcompiler" CMAKE_SHARED_LIBRARY_SUFFIX;
-const char *kDxilLib =
+const char *DxcDllSupport::DxilLibName =
     CMAKE_SHARED_LIBRARY_PREFIX "dxil" CMAKE_SHARED_LIBRARY_SUFFIX;
 
 #ifdef _WIN32
