@@ -62,7 +62,7 @@ stages:
           CC: clang-18
           CXX: clang++-18
           CMAKE_OPTS: -DLLVM_ENABLE_WERROR=On -DLLVM_USE_SANITIZER='Address;Undefined' -DLLVM_ENABLE_LIBCXX=On -DLLVM_USE_LINKER=lld
-          CHECK_ALL_ENV: ASAN_OPTIONS=alloc_dealloc_mismatch=0 LSAN_OPTIONS=suppressions=$BUILD_SOURCESDIRECTORY/utils/asan/x86_64-pc-linux-clang.lsan.supp:print_suppressions=0
+          CHECK_ALL_ENV: ASAN_OPTIONS=alloc_dealloc_mismatch=0 LSAN_OPTIONS=suppressions=$BUILD_SOURCESDIRECTORY/utils/asan/x86_64-pc-linux-clang.lsan.supp:print_suppressions=1 ASAN_SYMBOLIZER_PATH=llvm-symbolizer-18 LSAN_SYMBOLIZER_PATH=llvm-symbolizer-18
           OS: Linux
         Linux_Clang_Debug:
           image: ${{ variables.linux }}
