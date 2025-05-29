@@ -112,9 +112,10 @@ stages:
         chmod u+x llvm.sh
         sudo ./llvm.sh 18
         sudo apt-get install libc++-18-dev
+        sudo apt-get update
+        sudo apt-get upgrade libc6 libc6-dbg
         dpkg -s libc6 | grep Version # Check libc6 version ## DEBUG ##
         apt list -a libc6-dbg # Check libc6 packages ## DEBUG ##
-        sudo apt-get install libc6-dbg
       displayName: 'Installing dependencies'
       condition: eq(variables['image'], variables['linux'])
 
