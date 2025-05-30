@@ -121,6 +121,47 @@ stages:
       condition: eq(variables['image'], variables['linux'])
 
     - bash: |
+        echo "=== Environment Variables ==="
+        env | grep -i 'lang\|locale'
+        echo
+        echo "=== locale output ==="
+        locale
+        echo
+        echo "=== locale -a output ==="
+        locale -a
+        echo
+        echo "=== Locales available via /usr/share/locale and /usr/lib/locale ==="
+        ls -l /usr/share/locale 2>/dev/null || echo "/usr/share/locale not found"
+        ls -l /usr/lib/locale 2>/dev/null || echo "/usr/lib/locale not found"
+        echo
+        echo "=== glibc version (if available) ==="
+        ldd --version 2>/dev/null | head -n1 || echo "ldd not found"
+        echo
+        echo "=== macOS version (if available) ==="
+        sw_vers 2>/dev/null || echo "Not macOS or sw_vers not found"
+        echo
+        echo "=== Try creating C.UTF-8 and C.utf8 locales in C code ==="
+        cat <<EOF > test_locale.c
+        #include <locale.h>
+        #include <stdio.h>
+        int main() {
+        locale_t loc1 = newlocale(LC_CTYPE_MASK, "C.UTF-8", NULL);
+        printf("newlocale(\"C.UTF-8\"): %s\\n", loc1 ? "success" : "fail");
+        if (loc1) freelocale(loc1);
+        locale_t loc2 = newlocale(LC_CTYPE_MASK, "C.utf8", NULL);
+        printf("newlocale(\"C.utf8\"): %s\\n", loc2 ? "success" : "fail");
+        if (loc2) freelocale(loc2);
+        return 0;
+        }
+        EOF
+        cc test_locale.c -o test_locale && ./test_locale || echo "C compilation failed"
+        rm -f test_locale.c test_locale
+        echo
+        echo "=== Done ==="
+      displayName: 'Testing locale settings'
+      condition: eq(variables['image'], variables['macOS'])
+
+    - bash: |
         brew update
         brew install ninja
         ulimit -Sn 1024

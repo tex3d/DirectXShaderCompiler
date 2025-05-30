@@ -926,6 +926,8 @@ public:
     Utf8Locale = newlocale(LC_CTYPE_MASK, "C.UTF-8", NULL);
     if (!Utf8Locale)
       Utf8Locale = newlocale(LC_CTYPE_MASK, "C.utf8", NULL);
+    if (!Utf8Locale)
+      Utf8Locale = newlocale(LC_CTYPE_MASK, "en_US.UTF-8", NULL);
     assert(Utf8Locale && "Failed to create UTF-8 locale");
     if (!Utf8Locale)
       return;
