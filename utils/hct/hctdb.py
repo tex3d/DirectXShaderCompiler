@@ -405,13 +405,13 @@ class db_dxil(object):
                     t.id > last_table_id
                 ), "DXIL op table IDs must be strictly increasing"
             last_table_id = t.id
-        # Set cur_table.
-        self.set_dxil_op_table()
 
-        self.populate_llvm_instructions()
-        self.call_instr = self.get_instr_by_llvm_name("CallInst")
-        self.populate_dxil_operations()
-        self.populate_experimental_ops()
+        with self.defining_ops_for_table("CoreOps") as table:
+            self.populate_llvm_instructions()
+            self.call_instr = self.get_instr_by_llvm_name("CallInst")
+            self.populate_dxil_operations(table)
+        with self.defining_ops_for_table("ExperimentalOps") as table:
+            self.populate_ExperimentalOps_ops(table)
         self.finalize_dxil_operations()
         self.build_indices()
         self.populate_extended_docs()
@@ -425,9 +425,30 @@ class db_dxil(object):
         self.build_indices()
         self.populate_counters()
 
-    def set_dxil_op_table(self, table_name="CoreOps"):
-        "Set the current DXIL operation table, defaulting to CoreOps."
-        self.cur_table = self.dxil_op_tables_by_name[table_name]
+    def defining_ops_for_table(self, table_name):
+        "Context manager for defining DXIL operations for a specific table."
+        # Provide an object with __enter__/__exit__ so it can be used in a with-statement.
+        table = self.dxil_op_tables_by_name[table_name]
+
+        class _Definer:
+            def __init__(self, outer, table):
+                self._outer = outer
+                self._table = table
+
+            def __enter__(self):
+                # Ensure that this is only ever called once for each table, and never nested.
+                assert not hasattr(self._outer, "_cur_table"), "Nested defining_ops_for_table not allowed"
+                assert self._table.get_count() == 0, "defining_ops_for_table called multiple times for table"
+                self._outer._cur_table = self._table
+                return self._table
+
+            def __exit__(self, exc_type, exc, tb):
+                # Always remove the state on scope exit.
+                delattr(self._outer, "_cur_table")
+                # Do not suppress exceptions.
+                return False
+
+        return _Definer(self, table)
 
     def get_dxil_op_table(self, table_name="CoreOps"):
         "Get the specified DXIL operation table."
@@ -525,7 +546,7 @@ class db_dxil(object):
             val = i_val
 
     def set_op_count_for_version(self, major, minor):
-        return self.cur_table.set_op_count_for_version(major, minor)
+        return self._cur_table.set_op_count_for_version(major, minor)
 
     def populate_categories_and_models(self):
         "Populate the category and shader_stages member of instructions."
@@ -1508,7 +1529,8 @@ class db_dxil(object):
             [],
         )
 
-    def populate_dxil_operations(self):
+    def populate_dxil_operations(self, table):
+        assert table.name == "CoreOps", "Unexpected table"
         # $o in a parameter type means the overload type
         # $r in a parameter type means the resource type
         # $cb in a parameter type means cbuffer legacy load return type
@@ -5985,14 +6007,9 @@ class db_dxil(object):
             % op_count
         )
 
-    def populate_experimental_ops(self):
-        "Populate experimental DXIL operations."
-        self.set_dxil_op_table("ExperimentalOps")
-        self.populate_ExperimentalOps_ops()
-        self.set_dxil_op_table()
-
-    def populate_ExperimentalOps_ops(self):
+    def populate_ExperimentalOps_ops(self, table):
         "Populate experimental DXIL operations for ExperimentalOps."
+        assert table.name == "ExperimentalOps", "Unexpected table"
         # Add Nop to test experimental table infrastructure.
         self.add_dxil_op(
             "ExperimentalNop",
@@ -8648,15 +8665,15 @@ class db_dxil(object):
         )
 
     def add_inst(self, i):
-        assert i.table_id() == self.cur_table.id, "Instruction table mismatch"
-        self.cur_table.instr.append(i)
+        assert i.table_id() == self._cur_table.id, "Instruction table mismatch"
+        self._cur_table.instr.append(i)
         self.instr.append(i)
 
     def add_llvm_instr(
         self, kind, llvm_id, name, llvm_name, doc, oload_types, op_params, **props
     ):
         assert (
-            self.cur_table.name == "CoreOps"
+            self._cur_table.name == "CoreOps"
         ), "LLVM instructions can only be added to the CoreOps table"
         i = db_dxil_inst(
             name,
@@ -8679,8 +8696,8 @@ class db_dxil(object):
             llvm_id=self.call_instr.llvm_id,
             llvm_name=self.call_instr.llvm_name,
             dxil_op=name,
-            dxil_opid=self.cur_table.next_id(),
-            dxil_table=self.cur_table.name,
+            dxil_opid=self._cur_table.next_id(),
+            dxil_table=self._cur_table.name,
             doc=doc,
             ops=op_params,
             dxil_class=code_class,
@@ -8698,8 +8715,8 @@ class db_dxil(object):
             llvm_id=self.call_instr.llvm_id,
             llvm_name=self.call_instr.llvm_name,
             dxil_op=name,
-            dxil_opid=self.cur_table.next_id(),
-            dxil_table=self.cur_table.name,
+            dxil_opid=self._cur_table.next_id(),
+            dxil_table=self._cur_table.name,
             doc="reserved",
             ops=op_params,
             dxil_class="Reserved",
