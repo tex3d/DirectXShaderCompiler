@@ -1,4 +1,8 @@
+// RUN: %dxc -T cs_6_10 -E main -fcgl %s | FileCheck %s --check-prefix=FCGL
 // RUN: %dxc -T cs_6_10 -E main %s | FileCheck %s
+
+// FCGL: call i32 @"dx.hl.op.rn.i32 (i32)"(i32 396)
+// FCGL: call i32 @"dx.hl.op.rn.i32 (i32)"(i32 395)
 
 // CHECK: %[[Index:[^ ]+]] = call i32 @dx.op.getGroupWaveIndex(i32 -2147483647)  ; GetGroupWaveIndex()
 // CHECK: %[[Count:[^ ]+]] = call i32 @dx.op.getGroupWaveCount(i32 -2147483646)  ; GetGroupWaveCount()
