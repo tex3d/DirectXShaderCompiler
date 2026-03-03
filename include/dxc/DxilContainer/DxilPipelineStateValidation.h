@@ -938,6 +938,12 @@ inline void DxilPipelineStateValidation::CheckedReaderWriter::Clear() {
 //      PSVComputeInputOutputTableDwords(SigPatchConstOrPrimVectors,
 //      SigOutputVectors[0]) }
 //        - Outputs affected by patch constant inputs as a table of bitmasks
+// If PSVRuntimeInfo4:
+//    uint NumLinAlgUses
+//    If NumLinAlgUses:
+//      uint32_t LinAlgUseSize
+//      { PSVLinearAlgebraUseN structure } * NumLinAlgUses
+//      
 // returns true if no errors occurred.
 inline bool
 DxilPipelineStateValidation::ReadOrWrite(const void *pBits, uint32_t *pSize,
