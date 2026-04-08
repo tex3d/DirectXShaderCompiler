@@ -649,7 +649,7 @@ public:
   _T *GetRecord(void *pRecords, uint32_t recordSize, uint32_t numRecords,
                 uint32_t index) const {
     if (pRecords && index < numRecords && sizeof(_T) <= recordSize) {
-      if (!((size_t)index * (size_t)recordSize <= UINT_MAX))
+      if (!((size_t)(index + 1) * (size_t)recordSize <= UINT_MAX))
         return nullptr;
       return reinterpret_cast<_T *>(reinterpret_cast<uint8_t *>(pRecords) +
                                     (index * recordSize));
