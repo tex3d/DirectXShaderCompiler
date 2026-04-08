@@ -84,8 +84,7 @@
 #define RDAT_FLAGS(sTy, eTy, name) sTy name;
 #define RDAT_BYTES(name)                                                       \
   uint32_t name;                                                               \
-  uint32_t name##_Size;                                                        \
-  name;
+  uint32_t name##_Size;
 #define RDAT_ARRAY_VALUE(type, count, type_name, name) type_name name;
 
 #elif DEF_RDAT_TYPES == DEF_RDAT_TYPES_USE_HELPERS
