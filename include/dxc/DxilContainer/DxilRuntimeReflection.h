@@ -549,7 +549,7 @@ public:
       InvalidateReader();
   }
   RecordReader() : BaseRecordReader() {}
-  template <typename _ReaderType> _ReaderType as() { _ReaderType(*this); }
+  template <typename _ReaderType> _ReaderType as() { return _ReaderType(*this); }
 
 protected:
   template <typename _FieldRecordReader>
