@@ -68,7 +68,21 @@ enum class RuntimeDataPartType : uint32_t {
   NodeShaderInfoTable = 11,
   Last_1_8 = NodeShaderInfoTable,
 
-  Reserved_MeshNodesPreviewInfoTable = 12,
+  // // Why is this here in main?
+  // Reserved_MeshNodesPreviewInfoTable = 12,
+
+  // Linear Algebra feature usage tables
+  ExtendedFunctionPropertiesTable = 12,
+  LinAlgMatrixOperationShapeTable = 13,
+  LinAlgMatrixConstructionTable = 14,
+  LinAlgThreadVectorMatrixMultiplyTable = 15,
+  // LinAlgMatrixMultiplyTable = 16,
+  LinAlgWaveMatrixMultiplyTable = 16,
+  LinAlgThreadGroupMatrixMultiplyTable = 17,
+  LinAlgOuterProductTable = 18,
+  LinAlgAccumulateStoreTable = 19,
+
+  //Last_1_10 = LinAlgAccumulateStoreTable,
 
   // Insert experimental here.
   SignatureElementTable,
@@ -121,6 +135,17 @@ enum class RecordTableIndex : unsigned {
   NodeShaderInfoTable,
 
   Reserved_MeshNodesPreviewInfoTable,
+
+  // Linear Algebra feature usage tables
+  ExtendedFunctionPropertiesTable,
+  LinAlgMatrixOperationShapeTable,
+  LinAlgMatrixConstructionTable,
+  LinAlgThreadVectorMatrixMultiplyTable,
+  LinAlgMatrixMultiplyTable,
+  LinAlgWaveMatrixMultiplyTable,
+  LinAlgThreadGroupMatrixMultiplyTable,
+  LinAlgOuterProductTable,
+  LinAlgAccumulateStoreTable,
 
   DxilPdbInfoTable,
   DxilPdbInfoSourceTable,

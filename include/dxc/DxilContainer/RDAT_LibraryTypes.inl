@@ -498,10 +498,89 @@ RDAT_STRUCT_END()
 
 #endif // DEF_RDAT_TYPES
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // The following are experimental, and are not currently supported on any
 // validator version.
+
+// ------------ RuntimeDataFunctionInfo3 dependencies ------------
+
+#ifdef DEF_RDAT_ENUMS
+
+RDAT_ENUM_START(FunctionPropertyType, uint32_t)
+  RDAT_ENUM_VALUE(Flags, 0)
+  RDAT_ENUM_VALUE(LinAlgMatrixConstruction, 1)
+  RDAT_ENUM_VALUE(LinAlgThreadVectorMatrixMultiply, 2)
+#ifdef UNIFY_MATRIX_MULTIPLY_STRUCTURES
+  RDAT_ENUM_VALUE(LinAlgMatrixMultiply, 3)
+#else
+  RDAT_ENUM_VALUE(LinAlgWaveMatrixMultiply, 3)
+  RDAT_ENUM_VALUE(LinAlgThreadGroupMatrixMultiply, 4)
+#endif // UNIFY_MATRIX_MULTIPLY_STRUCTURES
+  RDAT_ENUM_VALUE(LinAlgOuterProduct, 5)
+  RDAT_ENUM_VALUE(LinAlgAccumulateStore, 6)
+RDAT_ENUM_END()
+
+#endif // DEF_RDAT_ENUMS
+
+#ifdef DEF_RDAT_TYPES
+
+#define RECORD_TYPE ExtendedFunctionProperties
+RDAT_STRUCT_TABLE(ExtendedFunctionProperties, ExtendedFunctionPropertiesTable)
+  RDAT_ENUM(uint32_t, FunctionPropertyType, PropertyType)
+
+  RDAT_UNION()
+    RDAT_UNION_IF(Flags, getPropertyType() == FunctionPropertyType::Flags)
+      RDAT_VALUE(uint32_t, Flags)
+      RDAT_UNION_ELIF(LinAlgMatrixConstruction, getPropertyType() ==
+                      FunctionPropertyType::LinAlgMatrixConstruction)
+        RDAT_RECORD_ARRAY_REF(LinAlgMatrixConstruction, MatrixConstructionArray)
+      RDAT_UNION_ELIF(
+          LinAlgThreadVectorMatrixMultiply,
+          getPropertyType() ==
+              FunctionPropertyType::LinAlgThreadVectorMatrixMultiply)
+        RDAT_RECORD_ARRAY_REF(LinAlgThreadVectorMatrixMultiply,
+                              LinAlgThreadVectorMatrixMultiplyArray)
+#ifdef UNIFY_MATRIX_MULTIPLY_STRUCTURES
+      RDAT_UNION_ELIF(LinAlgMatrixMultiply,
+                      getPropertyType() ==
+                          FunctionPropertyType::LinAlgMatrixMultiply)
+        RDAT_RECORD_ARRAY_REF(LinAlgMatrixMultiply, LinAlgMatrixMultiplyArray)
+#else
+      RDAT_UNION_ELIF(LinAlgWaveMatrixMultiply,
+                      getPropertyType() ==
+                          FunctionPropertyType::LinAlgWaveMatrixMultiply)
+        RDAT_RECORD_ARRAY_REF(LinAlgWaveMatrixMultiply,
+                              LinAlgWaveMatrixMultiplyArray)
+      RDAT_UNION_ELIF(LinAlgThreadGroupMatrixMultiply,
+                      getPropertyType() ==
+                          FunctionPropertyType::LinAlgThreadGroupMatrixMultiply)
+        RDAT_RECORD_ARRAY_REF(LinAlgThreadGroupMatrixMultiply,
+                              LinAlgThreadGroupMatrixMultiplyArray)
+#endif // UNIFY_MATRIX_MULTIPLY_STRUCTURES
+      RDAT_UNION_ELIF(LinAlgOuterProduct,
+                      getPropertyType() ==
+                          FunctionPropertyType::LinAlgOuterProduct)
+        RDAT_RECORD_ARRAY_REF(LinAlgOuterProduct, LinAlgOuterProductArray)
+      RDAT_UNION_ELIF(LinAlgAccumulateStore,
+                      getPropertyType() ==
+                          FunctionPropertyType::LinAlgAccumulateStore)
+        RDAT_RECORD_ARRAY_REF(LinAlgAccumulateStore, LinAlgAccumulateStoreArray)
+    RDAT_UNION_ENDIF()
+  RDAT_UNION_END()
+
+RDAT_STRUCT_END()
+#undef RECORD_TYPE
+
+// ------------ RuntimeDataFunctionInfo3 ------------
+
+#define RECORD_TYPE RuntimeDataFunctionInfo3
+RDAT_STRUCT_TABLE_DERIVED(RuntimeDataFunctionInfo3, RuntimeDataFunctionInfo2,
+                          FunctionTable)
+RDAT_RECORD_ARRAY_REF(ExtendedFunctionProperties, ExtendedProperties)
+RDAT_STRUCT_END()
+#undef RECORD_TYPE
+
+#endif // DEF_RDAT_TYPES
 
 #ifdef DEF_DXIL_ENUMS
 

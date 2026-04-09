@@ -175,8 +175,16 @@ struct PSVRuntimeInfo3 : public PSVRuntimeInfo2 {
   uint32_t EntryFunctionName;
 };
 
+enum class PSVRuntimeInfo4Flag : uint32_t {
+  None = 0x00000000,
+  // Indicates use of LinAlg operations beyond the Tier 1 required set, thus
+  // the presence of the PSVLinAlgRuntimeInfo structure with usage details.
+  LinAlgRuntimeInfoPresent = 0x00000001,
+};
+
 struct PSVRuntimeInfo4 : public PSVRuntimeInfo3 {
   uint32_t NumBytesGroupSharedMemory;
+  uint32_t Flags; // PSVRuntimeInfo4Flag
 };
 
 enum class PSVResourceType {
@@ -478,10 +486,129 @@ public:
              const uint32_t *SemanticIndexes) const;
 };
 
+#ifdef UNIFY_MATRIX_MULTIPLY_STRUCTURES
+enum class PSVLinAlgMatrixMultiplyFlag : uint8_t {
+  None = 0x00000000,
+  // Whether the matrix multiply is thread-group-scoped, otherwise it's
+  // wave-scoped:
+  ThreadGroupScoped = 0x00000001,
+};
+#endif // UNIFY_MATRIX_MULTIPLY_STRUCTURES
+
+struct PSVLinAlgRuntimeInfo0 {
+  // Presence of each table indicated by non-zero count.
+  // Tables are serialized in this order, with each starting with the record
+  // stride in bytes, followed by the records.
+  uint32_t MatrixOperationShapeCount;
+  uint32_t MatrixConstructionCount;
+  uint32_t ThreadVectorMatrixMultiplyCount;
+#ifdef UNIFY_MATRIX_MULTIPLY_STRUCTURES
+  uint32_t MatrixMultiplyCount;
+#else
+  uint32_t WaveMatrixMultiplyCount;
+  uint32_t ThreadGroupMatrixMultiplyCount;
+#endif // UNIFY_MATRIX_MULTIPLY_STRUCTURES
+  uint32_t OuterProductCount;
+  uint32_t AccumulateStoreCount;
+};
+
+struct PSVLinAlgMatrixOperationShape0 {
+  // For each dimension, Unused == 0
+  // For MatrixConstruction, Unused dim depends on matrix Use.
+  uint32_t M; // Rows in matrix A / Accumulator
+  uint32_t N; // Columns in matrix B / Accumulator
+  uint32_t K; // Columns in matrix A / Rows in matrix B
+};
+
+struct PSVLinAlgMatrixShapeArrayReference {
+  uint32_t ShapesIndex; // Index into SemanticIndexTable where array of indexes
+                        // into LinAlgMatrixOperationShape table is located
+  uint32_t Count;
+};
+
+struct PSVLinAlgMatrixConstruction0 {
+  PSVLinAlgMatrixShapeArrayReference OperationShapes;
+  uint8_t MatrixType;
+};
+
+enum class PSVLinAlgThreadVectorMatrixMultiplyFlag : uint8_t {
+  None = 0,
+  // MatrixTransposed: The matrix is loaded from MulOptimalTranspose layout.
+  MatrixTransposed = 1 << 0,
+};
+
+struct PSVLinAlgThreadVectorMatrixMultiply0 {
+  // Do we need shapes? If so, K would be unused (0)
+  PSVLinAlgMatrixShapeArrayReference OperationShapes;
+  uint8_t ResultType;
+  uint8_t MatrixType;
+  uint8_t VectorInputType;
+  // For Bias, 0 could mean unused or same as ResultType, since bias is
+  // optional, and supporting a bias type that's the same as a supported
+  // ResultType is required.
+  uint8_t BiasInputType;
+  uint8_t Flags; // PSVLinAlgThreadVectorMatrixMultiplyFlag
+  uint8_t Reserved[3];
+};
+
+#ifdef UNIFY_MATRIX_MULTIPLY_STRUCTURES
+// Wave or Thread-group scoped matrix multiply; flag indicates the scope.
+struct PSVLinAlgMatrixMultiply0 {
+  PSVLinAlgMatrixShapeArrayReference OperationShapes;
+  uint8_t AccumulatorType;
+  uint8_t MatrixAType;
+  uint8_t MatrixBType;
+  uint8_t Flags; // PSVLinAlgMatrixMultiplyFlag
+};
+#else
+struct PSVLinAlgWaveMatrixMultiply0 {
+  PSVLinAlgMatrixShapeArrayReference OperationShapes;
+  uint8_t AccumulatorType;
+  uint8_t MatrixAType;
+  uint8_t MatrixBType;
+  uint8_t Reserved;
+};
+
+// Since ThreadGroup structure matches Wave structure, these could be shared if
+// we want, but would rather do that after eliminating the possibility that they
+// could differ for final structures.
+struct PSVLinAlgThreadGroupMatrixMultiply0 {
+  PSVLinAlgMatrixShapeArrayReference OperationShapes;
+  uint8_t AccumulatorType;
+  uint8_t MatrixAType;
+  uint8_t MatrixBType;
+  uint8_t Reserved;
+};
+#endif // UNIFY_MATRIX_MULTIPLY_STRUCTURES
+
+struct PSVLinAlgOuterProduct0 {
+  uint8_t ResultType;
+  uint8_t VectorInputType;
+  uint8_t Reserved[2];
+};
+
+enum class PSVLinAlgAccumulateStoreFlag : uint8_t {
+  None = 0,
+  // MatrixTransposed: Accumulate to OuterProductOptimalTranspose layout,
+  // thread-scope only.
+  MatrixTransposed = 1 << 0,
+  // RawBuffer: Accumulate is to a raw buffer, all scopes.
+  RawBuffer = 1 << 1,
+  // GroupShared: Accumulate to GroupShared memory, wave/group scope only.
+  GroupShared = 1 << 2,
+};
+
+struct PSVLinAlgAccumulateStore0 {
+  uint8_t AccumulatorType;
+  uint8_t Flags; // PSVLinAlgAccumulateStoreFlag
+  uint8_t Reserved[2];
+};
+
 #define MAX_PSV_VERSION 4
 
 struct PSVInitInfo {
-  PSVInitInfo(uint32_t psvVersion) : PSVVersion(psvVersion) {}
+  PSVInitInfo(uint32_t psvVersion)
+      : PSVVersion(psvVersion) {}
   uint32_t PSVVersion = 0;
   uint32_t ResourceCount = 0;
   PSVShaderKind ShaderStage = PSVShaderKind::Invalid;
@@ -494,6 +621,8 @@ struct PSVInitInfo {
   uint8_t SigInputVectors = 0;
   uint8_t SigPatchConstOrPrimVectors = 0;
   uint8_t SigOutputVectors[PSV_GS_MAX_STREAMS] = {0, 0, 0, 0};
+  uint32_t Flags = 0;
+  PSVLinAlgRuntimeInfo0 LinAlgInfo = {};
 
   static_assert(MAX_PSV_VERSION == 4, "otherwise this needs updating.");
   uint32_t RuntimeInfoSize() const {
@@ -517,6 +646,36 @@ struct PSVInitInfo {
     return sizeof(PSVResourceBindInfo1);
   }
   uint32_t SignatureElementSize() const { return sizeof(PSVSignatureElement0); }
+  uint32_t LinAlgRuntimeInfoSize() const {
+    return sizeof(PSVLinAlgRuntimeInfo0);
+  }
+  uint32_t LinAlgMatrixOperationShapeSize() const {
+    return sizeof(PSVLinAlgMatrixOperationShape0);
+  }
+  uint32_t LinAlgMatrixConstructionSize() const {
+    return sizeof(PSVLinAlgMatrixConstruction0);
+  }
+  uint32_t LinAlgThreadVectorMatrixMultiplySize() const {
+    return sizeof(PSVLinAlgThreadVectorMatrixMultiply0);
+  }
+#ifdef UNIFY_MATRIX_MULTIPLY_STRUCTURES
+  uint32_t LinAlgMatrixMultiplySize() const {
+    return sizeof(PSVLinAlgMatrixMultiply0);
+  }
+#else
+  uint32_t LinAlgWaveMatrixMultiplySize() const {
+    return sizeof(PSVLinAlgWaveMatrixMultiply0);
+  }
+  uint32_t LinAlgThreadGroupMatrixMultiplySize() const {
+    return sizeof(PSVLinAlgThreadGroupMatrixMultiply0);
+  }
+#endif // UNIFY_MATRIX_MULTIPLY_STRUCTURES
+  uint32_t LinAlgOuterProductSize() const {
+    return sizeof(PSVLinAlgOuterProduct0);
+  }
+  uint32_t LinAlgAccumulateStoreSize() const {
+    return sizeof(PSVLinAlgAccumulateStore0);
+  }
 };
 
 class DxilPipelineStateValidation {
@@ -542,6 +701,30 @@ class DxilPipelineStateValidation {
                                                          nullptr, nullptr};
   uint32_t *m_pInputToPCOutputTable = nullptr;
   uint32_t *m_pPCInputToOutputTable = nullptr;
+
+  // LinAlg info, present if PSVRuntimeInfo4::Flags has
+  // LinAlgRuntimeInfoPresent bit set
+  uint32_t m_uLinAlgRuntimeInfoSize = 0;
+  PSVLinAlgRuntimeInfo0 *m_pLinAlgRuntimeInfo0 = nullptr;
+  uint32_t m_uLinAlgMatrixOperationShapeSize = 0;
+  void *m_pLinAlgMatrixOperationShapeRecords = nullptr;
+  uint32_t m_uLinAlgMatrixConstructionSize = 0;
+  void *m_pLinAlgMatrixConstructionRecords = nullptr;
+  uint32_t m_uLinAlgThreadVectorMatrixMultiplySize = 0;
+  void *m_pLinAlgThreadVectorMatrixMultiplyRecords = nullptr;
+#ifdef UNIFY_MATRIX_MULTIPLY_STRUCTURES
+  uint32_t m_uLinAlgMatrixMultiplySize = 0;
+  void *m_pLinAlgMatrixMultiplyRecords = nullptr;
+#else
+  uint32_t m_uLinAlgWaveMatrixMultiplySize = 0;
+  void *m_pLinAlgWaveMatrixMultiplyRecords = nullptr;
+  uint32_t m_uLinAlgThreadGroupMatrixMultiplySize = 0;
+  void *m_pLinAlgThreadGroupMatrixMultiplyRecords = nullptr;
+#endif // UNIFY_MATRIX_MULTIPLY_STRUCTURES
+  uint32_t m_uLinAlgOuterProductSize = 0;
+  void *m_pLinAlgOuterProductRecords = nullptr;
+  uint32_t m_uLinAlgAccumulateStoreSize = 0;
+  void *m_pLinAlgAccumulateStoreRecords = nullptr;
 
 public:
   DxilPipelineStateValidation() {}
@@ -791,13 +974,76 @@ public:
                ? m_StringTable.Get(m_pPSVRuntimeInfo3->EntryFunctionName)
                : "";
   }
+
+  // LinAlg info accessors.
+  PSVLinAlgRuntimeInfo0 *GetLinAlgRuntimeInfo0() const {
+    return m_pLinAlgRuntimeInfo0;
+  }
+  PSVLinAlgMatrixOperationShape0 *GetLinAlgMatrixOperationShape0(uint32_t index) const {
+    return GetRecord<PSVLinAlgMatrixOperationShape0>(
+        m_pLinAlgMatrixOperationShapeRecords, m_uLinAlgMatrixOperationShapeSize,
+        m_pLinAlgRuntimeInfo0->MatrixOperationShapeCount, index);
+  }
+  PSVLinAlgMatrixOperationShape0 *IndexArrayLinAlgMatrixOperationShape0(
+      const PSVLinAlgMatrixShapeArrayReference &shapeArrayRef,
+      uint32_t index) const {
+    if (!shapeArrayRef.Count || index >= shapeArrayRef.Count)
+      return nullptr;
+    const uint32_t *Shapes = m_SemanticIndexTable.Get(shapeArrayRef.ShapesIndex);
+    if (!Shapes)
+      return nullptr;
+    return GetLinAlgMatrixOperationShape0(Shapes[index]);
+  }
+  PSVLinAlgMatrixConstruction0 *GetLinAlgMatrixConstruction0(uint32_t index) const {
+    return GetRecord<PSVLinAlgMatrixConstruction0>(
+        m_pLinAlgMatrixConstructionRecords, m_uLinAlgMatrixConstructionSize,
+        m_pLinAlgRuntimeInfo0->MatrixConstructionCount, index);
+  }
+  PSVLinAlgThreadVectorMatrixMultiply0 *
+  GetLinAlgThreadVectorMatrixMultiply0(uint32_t index) const {
+    return GetRecord<PSVLinAlgThreadVectorMatrixMultiply0>(
+        m_pLinAlgThreadVectorMatrixMultiplyRecords, m_uLinAlgThreadVectorMatrixMultiplySize,
+        m_pLinAlgRuntimeInfo0->ThreadVectorMatrixMultiplyCount, index);
+  }
+#ifdef UNIFY_MATRIX_MULTIPLY_STRUCTURES
+  PSVLinAlgMatrixMultiply0 *GetLinAlgMatrixMultiply0(uint32_t index) const {
+    return GetRecord<PSVLinAlgMatrixMultiply0>(
+        m_pLinAlgMatrixMultiplyRecords, m_uLinAlgMatrixMultiplySize,
+        m_pLinAlgRuntimeInfo0->MatrixMultiplyCount, index);
+  }
+#else
+  PSVLinAlgWaveMatrixMultiply0 *
+  GetLinAlgWaveMatrixMultiply0(uint32_t index) const {
+    return GetRecord<PSVLinAlgWaveMatrixMultiply0>(
+        m_pLinAlgWaveMatrixMultiplyRecords, m_uLinAlgWaveMatrixMultiplySize,
+        m_pLinAlgRuntimeInfo0->WaveMatrixMultiplyCount, index);
+  }
+  PSVLinAlgThreadGroupMatrixMultiply0 *
+  GetLinAlgThreadGroupMatrixMultiply0(uint32_t index) const {
+    return GetRecord<PSVLinAlgThreadGroupMatrixMultiply0>(
+        m_pLinAlgThreadGroupMatrixMultiplyRecords,
+        m_uLinAlgThreadGroupMatrixMultiplySize,
+        m_pLinAlgRuntimeInfo0->ThreadGroupMatrixMultiplyCount, index);
+  }
+#endif // UNIFY_MATRIX_MULTIPLY_STRUCTURES
+  PSVLinAlgOuterProduct0 *GetLinAlgOuterProduct0(uint32_t index) const {
+    return GetRecord<PSVLinAlgOuterProduct0>(
+        m_pLinAlgOuterProductRecords, m_uLinAlgOuterProductSize,
+        m_pLinAlgRuntimeInfo0->OuterProductCount, index);
+  }
+  PSVLinAlgAccumulateStore0 *GetLinAlgAccumulateStore0(uint32_t index) const {
+    return GetRecord<PSVLinAlgAccumulateStore0>(
+        m_pLinAlgAccumulateStoreRecords, m_uLinAlgAccumulateStoreSize,
+        m_pLinAlgRuntimeInfo0->AccumulateStoreCount, index);
+  }
+
   void PrintPSVRuntimeInfo(llvm::raw_ostream &O, uint8_t ShaderKind,
                            const char *Comment) const;
   void PrintViewIDState(llvm::raw_ostream &OS) const;
   void Print(llvm::raw_ostream &O, uint8_t ShaderKind) const;
 };
 
-// Return true if size fits in remaing buffer.
+// Return true if size fits in remaining buffer.
 inline bool
 DxilPipelineStateValidation::CheckedReaderWriter::CheckBounds(size_t size) {
   if (Mode != RWMode::CalcSize) {
@@ -938,12 +1184,47 @@ inline void DxilPipelineStateValidation::CheckedReaderWriter::Clear() {
 //      PSVComputeInputOutputTableDwords(SigPatchConstOrPrimVectors,
 //      SigOutputVectors[0]) }
 //        - Outputs affected by patch constant inputs as a table of bitmasks
-// If PSVRuntimeInfo4:
-//    uint NumLinAlgUses
-//    If NumLinAlgUses:
-//      uint32_t LinAlgUseSize
-//      { PSVLinearAlgebraUseN structure } * NumLinAlgUses
-//      
+// If PSVRuntimeInfo4 and LinAlgRuntimeInfoPresent:
+//    uint32_t LinAlgRuntimeInfoSize
+//    (PSVLinAlgRuntimeInfoN) char[LinAlgRuntimeInfoSize]
+//    If MatrixOperationShapeCount > 0:
+//      uint32_t LinAlgMatrixOperationShapeSize
+//      { (PSVLinAlgMatrixOperationShapeN) char[LinAlgMatrixOperationShapeSize]
+//      } * LinAlgMatrixOperationShapeCount
+//    If MatrixConstructionCount > 0:
+//      uint32_t LinAlgMatrixConstructionSize
+//      { (PSVLinAlgMatrixConstructionN)
+//        char[LinAlgMatrixConstructionSize] } *
+//      MatrixConstructionCount
+//    If ThreadVectorMatrixMultiplyCount > 0:
+//      uint32_t LinAlgThreadVectorMatrixMultiplySize
+//      { (PSVLinAlgThreadVectorMatrixMultiplyN)
+//        char[LinAlgThreadVectorMatrixMultiplySize] } *
+//      ThreadVectorMatrixMultiplyCount
+#ifdef UNIFY_MATRIX_MULTIPLY_STRUCTURES
+//    If MatrixMultiplyCount > 0:
+//      uint32_t LinAlgMatrixMultiplySize
+//      { (PSVLinAlgMatrixMultiplyN) char[LinAlgMatrixMultiplySize] } *
+//      MatrixMultiplyCount
+#else
+//    If WaveMatrixMultiplyCount > 0:
+//      uint32_t LinAlgWaveMatrixMultiplySize
+//      { (PSVLinAlgWaveMatrixMultiplyN) char[LinAlgWaveMatrixMultiplySize] } *
+//      WaveMatrixMultiplyCount
+//    If ThreadGroupMatrixMultiplyCount > 0:
+//      uint32_t LinAlgThreadGroupMatrixMultiplySize
+//      { (PSVLinAlgThreadGroupMatrixMultiplyN)
+//        char[LinAlgThreadGroupMatrixMultiplySize] } *
+//      ThreadGroupMatrixMultiplyCount
+#endif // UNIFY_MATRIX_MULTIPLY_STRUCTURES
+//   If OuterProductCount > 0:
+//      uint32_t LinAlgOuterProductSize
+//      { (PSVLinAlgOuterProductN) char[LinAlgOuterProductSize] } *
+//      OuterProductCount
+//   If AccumulateStoreCount > 0:
+//      uint32_t LinAlgAccumulateStoreSize
+//      { (PSVLinAlgAccumulateStoreN) char[LinAlgAccumulateStoreSize] } *
+//      AccumulateStoreCount
 // returns true if no errors occurred.
 inline bool
 DxilPipelineStateValidation::ReadOrWrite(const void *pBits, uint32_t *pSize,
@@ -969,7 +1250,7 @@ DxilPipelineStateValidation::ReadOrWrite(const void *pBits, uint32_t *pSize,
 
   // In RWMode::CalcSize, use temp runtime info to hold needed values from
   // initInfo
-  PSVRuntimeInfo1 tempRuntimeInfo = {};
+  PSVRuntimeInfo4 tempRuntimeInfo = {};
   if (mode == RWMode::CalcSize && initInfo.PSVVersion > 0) {
     m_pPSVRuntimeInfo1 = &tempRuntimeInfo;
   }
@@ -1095,6 +1376,107 @@ DxilPipelineStateValidation::ReadOrWrite(const void *pBits, uint32_t *pSize,
                            PSVComputeInputOutputTableDwords(
                                m_pPSVRuntimeInfo1->SigPatchConstOrPrimVectors,
                                m_pPSVRuntimeInfo1->SigOutputVectors[0])));
+    }
+  }
+
+  // In RWMode::CalcSize, use temp runtime info to hold needed values from initInfo.
+  PSVLinAlgRuntimeInfo0 tempLinAlgRuntimeInfo0 = {};
+  if (mode == RWMode::CalcSize && initInfo.PSVVersion >= 4) {
+    m_pPSVRuntimeInfo4 = &tempRuntimeInfo;
+    m_pLinAlgRuntimeInfo0 = &tempLinAlgRuntimeInfo0;
+  }
+
+  if (m_pPSVRuntimeInfo4) {
+    if (mode != RWMode::Read) {
+      m_pPSVRuntimeInfo4->Flags = initInfo.Flags;
+      *m_pLinAlgRuntimeInfo0 = initInfo.LinAlgInfo;
+    }
+
+    if (m_pPSVRuntimeInfo4->Flags &
+        (uint32_t)PSVRuntimeInfo4Flag::LinAlgRuntimeInfoPresent) {
+      PSV_RETB(rw.MapValue(&m_uLinAlgRuntimeInfoSize,
+                           initInfo.LinAlgRuntimeInfoSize()));
+      PSV_RETB(sizeof(PSVLinAlgRuntimeInfo0) <= m_uLinAlgRuntimeInfoSize);
+      PSV_RETB(
+          rw.MapArray(&m_pLinAlgRuntimeInfo0, 1, m_uLinAlgRuntimeInfoSize));
+
+      if (m_pLinAlgRuntimeInfo0->MatrixOperationShapeCount > 0) {
+        PSV_RETB(rw.MapValue(&m_uLinAlgMatrixOperationShapeSize,
+                             initInfo.LinAlgMatrixOperationShapeSize()));
+        PSV_RETB(sizeof(PSVLinAlgMatrixOperationShape0) <=
+                 m_uLinAlgMatrixOperationShapeSize);
+        PSV_RETB(rw.MapArray(&m_pLinAlgMatrixOperationShapeRecords,
+                             m_pLinAlgRuntimeInfo0->MatrixOperationShapeCount,
+                             m_uLinAlgMatrixOperationShapeSize));
+      }
+      if (m_pLinAlgRuntimeInfo0->MatrixConstructionCount > 0) {
+        PSV_RETB(rw.MapValue(&m_uLinAlgMatrixConstructionSize,
+                             initInfo.LinAlgMatrixConstructionSize()));
+        PSV_RETB(sizeof(PSVLinAlgMatrixConstruction0) <=
+                 m_uLinAlgMatrixConstructionSize);
+        PSV_RETB(rw.MapArray(&m_pLinAlgMatrixConstructionRecords,
+                             m_pLinAlgRuntimeInfo0->MatrixConstructionCount,
+                             m_uLinAlgMatrixConstructionSize));
+      }
+      if (m_pLinAlgRuntimeInfo0->ThreadVectorMatrixMultiplyCount > 0) {
+        PSV_RETB(rw.MapValue(&m_uLinAlgThreadVectorMatrixMultiplySize,
+                             initInfo.LinAlgThreadVectorMatrixMultiplySize()));
+        PSV_RETB(sizeof(PSVLinAlgThreadVectorMatrixMultiply0) <=
+                 m_uLinAlgThreadVectorMatrixMultiplySize);
+        PSV_RETB(
+            rw.MapArray(&m_pLinAlgThreadVectorMatrixMultiplyRecords,
+                        m_pLinAlgRuntimeInfo0->ThreadVectorMatrixMultiplyCount,
+                        m_uLinAlgThreadVectorMatrixMultiplySize));
+      }
+#ifdef UNIFY_MATRIX_MULTIPLY_STRUCTURES
+      if (m_pLinAlgRuntimeInfo0->MatrixMultiplyCount > 0) {
+        PSV_RETB(rw.MapValue(&m_uLinAlgMatrixMultiplySize,
+                             initInfo.LinAlgMatrixMultiplySize()));
+        PSV_RETB(sizeof(PSVLinAlgMatrixMultiply0) <=
+                 m_uLinAlgMatrixMultiplySize);
+        PSV_RETB(rw.MapArray(&m_pLinAlgMatrixMultiplyRecords,
+                             m_pLinAlgRuntimeInfo0->MatrixMultiplyCount,
+                             m_uLinAlgMatrixMultiplySize));
+      }
+#else
+      if (m_pLinAlgRuntimeInfo0->WaveMatrixMultiplyCount > 0) {
+        PSV_RETB(rw.MapValue(&m_uLinAlgWaveMatrixMultiplySize,
+                             initInfo.LinAlgWaveMatrixMultiplySize()));
+        PSV_RETB(sizeof(PSVLinAlgWaveMatrixMultiply0) <=
+                 m_uLinAlgWaveMatrixMultiplySize);
+        PSV_RETB(rw.MapArray(&m_pLinAlgWaveMatrixMultiplyRecords,
+                             m_pLinAlgRuntimeInfo0->WaveMatrixMultiplyCount,
+                             m_uLinAlgWaveMatrixMultiplySize));
+      }
+      if (m_pLinAlgRuntimeInfo0->ThreadGroupMatrixMultiplyCount > 0) {
+        PSV_RETB(rw.MapValue(&m_uLinAlgThreadGroupMatrixMultiplySize,
+                             initInfo.LinAlgThreadGroupMatrixMultiplySize()));
+        PSV_RETB(sizeof(PSVLinAlgThreadGroupMatrixMultiply0) <=
+                 m_uLinAlgThreadGroupMatrixMultiplySize);
+        PSV_RETB(
+            rw.MapArray(&m_pLinAlgThreadGroupMatrixMultiplyRecords,
+                        m_pLinAlgRuntimeInfo0->ThreadGroupMatrixMultiplyCount,
+                        m_uLinAlgThreadGroupMatrixMultiplySize));
+      }
+#endif // UNIFY_MATRIX_MULTIPLY_STRUCTURES
+      if (m_pLinAlgRuntimeInfo0->OuterProductCount > 0) {
+        PSV_RETB(rw.MapValue(&m_uLinAlgOuterProductSize,
+                             initInfo.LinAlgOuterProductSize()));
+        PSV_RETB(sizeof(PSVLinAlgOuterProduct0) <=
+                 m_uLinAlgOuterProductSize);
+        PSV_RETB(rw.MapArray(&m_pLinAlgOuterProductRecords,
+                             m_pLinAlgRuntimeInfo0->OuterProductCount,
+                             m_uLinAlgOuterProductSize));
+      }
+      if (m_pLinAlgRuntimeInfo0->AccumulateStoreCount > 0) {
+        PSV_RETB(rw.MapValue(&m_uLinAlgAccumulateStoreSize,
+                             initInfo.LinAlgAccumulateStoreSize()));
+        PSV_RETB(sizeof(PSVLinAlgAccumulateStore0) <=
+                 m_uLinAlgAccumulateStoreSize);
+        PSV_RETB(rw.MapArray(&m_pLinAlgAccumulateStoreRecords,
+                             m_pLinAlgRuntimeInfo0->AccumulateStoreCount,
+                             m_uLinAlgAccumulateStoreSize));
+      }
     }
   }
 
