@@ -1513,12 +1513,16 @@ private:
           functionDependencies =
               Builder.InsertArray(m_FuncToDependencies[&function].begin(),
                                   m_FuncToDependencies[&function].end());
-        RuntimeDataFunctionInfo2 info_latest = {};
+        RuntimeDataFunctionInfo3 info_latest = {};
         RuntimeDataFunctionInfo &info = info_latest;
         RuntimeDataFunctionInfo2 *pInfo2 = (sizeof(RuntimeDataFunctionInfo2) <=
                                             m_pFunctionTable->GetRecordStride())
                                                ? &info_latest
                                                : nullptr;
+        // RuntimeDataFunctionInfo3 *pInfo3 = (sizeof(RuntimeDataFunctionInfo3) <=
+        //                                     m_pFunctionTable->GetRecordStride())
+        //                                        ? &info_latest
+        //                                        : nullptr;
 
         const DxilModule::ShaderCompatInfo &compatInfo =
             *DM.GetCompatInfoForFunction(&function);
