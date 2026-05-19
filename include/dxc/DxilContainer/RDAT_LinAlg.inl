@@ -70,6 +70,10 @@ RDAT_STRUCT_END()
 
 #define RECORD_TYPE LinAlgMatrixConstruction
 RDAT_STRUCT_TABLE(LinAlgMatrixConstruction, LinAlgMatrixConstructionTable)
+  // Each shape collects only the dimensions needed for a single matrix Use.
+  // For instance, an Accumulator only uses M and N, so K will be set to 0.
+  // Different Matrix Use types are not combined to avoid implying uses that
+  // aren't present.
   RDAT_RECORD_ARRAY_REF(LinAlgMatrixOperationShape, OperationShapes)
   RDAT_ENUM(uint8_t, hlsl::DXIL::ComponentType, MatrixType)
 RDAT_STRUCT_END()

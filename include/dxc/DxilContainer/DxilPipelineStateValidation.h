@@ -527,6 +527,10 @@ struct PSVLinAlgMatrixShapeArrayReference {
 };
 
 struct PSVLinAlgMatrixConstruction0 {
+  // Each shape collects only the dimensions needed for a single matrix Use.
+  // For instance, an Accumulator only uses M and N, so K will be set to 0.
+  // Different Matrix Use types are not combined to avoid implying uses that
+  // aren't present.
   PSVLinAlgMatrixShapeArrayReference OperationShapes;
   uint8_t MatrixType;
 };
