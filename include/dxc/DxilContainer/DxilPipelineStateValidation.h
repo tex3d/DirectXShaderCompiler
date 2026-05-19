@@ -514,6 +514,7 @@ struct PSVLinAlgRuntimeInfo0 {
 
 struct PSVLinAlgMatrixOperationShape0 {
   // For each dimension, Unused == 0
+  // For MatrixConstruction, Unused dim depends on matrix Use.
   uint32_t M; // Rows in matrix A / Accumulator
   uint32_t N; // Columns in matrix B / Accumulator
   uint32_t K; // Columns in matrix A / Rows in matrix B
@@ -526,11 +527,7 @@ struct PSVLinAlgMatrixShapeArrayReference {
 };
 
 struct PSVLinAlgMatrixConstruction0 {
-  // Combined minimum M/N/K across all constructions of the same type.
-  // For each, 0 means unused (e.g. K=0 indicates only Accumulator Use)
-  uint32_t MinM;
-  uint32_t MinN;
-  uint32_t MinK;
+  PSVLinAlgMatrixShapeArrayReference OperationShapes;
   uint8_t MatrixType;
 };
 

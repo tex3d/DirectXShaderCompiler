@@ -59,6 +59,7 @@ RDAT_ENUM_END()
 RDAT_STRUCT_TABLE(LinAlgMatrixOperationShape,
                   LinAlgMatrixOperationShapeTable)
   // For each dimension, Unused == 0
+  // For MatrixConstruction, Unused dim depends on matrix Use.
   RDAT_VALUE(uint32_t, M) // Rows in matrix A / Accumulator
   RDAT_VALUE(uint32_t, N) // Columns in matrix B / Accumulator
   RDAT_VALUE(uint32_t, K) // Columns in matrix A / Rows in matrix B
@@ -69,11 +70,7 @@ RDAT_STRUCT_END()
 
 #define RECORD_TYPE LinAlgMatrixConstruction
 RDAT_STRUCT_TABLE(LinAlgMatrixConstruction, LinAlgMatrixConstructionTable)
-  // Combined minimum M/N/K across all constructions of the same type.
-  // For each, 0 means unused (e.g. K=0 indicates only Accumulator Use)
-  RDAT_VALUE(uint32_t, MinM)
-  RDAT_VALUE(uint32_t, MinN)
-  RDAT_VALUE(uint32_t, MinK)
+  RDAT_RECORD_ARRAY_REF(LinAlgMatrixOperationShape, OperationShapes)
   RDAT_ENUM(uint8_t, hlsl::DXIL::ComponentType, MatrixType)
 RDAT_STRUCT_END()
 #undef RECORD_TYPE
