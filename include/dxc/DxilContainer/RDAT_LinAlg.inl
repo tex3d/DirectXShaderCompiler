@@ -86,7 +86,6 @@ RDAT_STRUCT_TABLE(LinAlgThreadMatrixVectorMultiply,
   RDAT_ENUM(uint8_t, hlsl::DXIL::ComponentType, ResultType)
   RDAT_ENUM(uint8_t, hlsl::DXIL::ComponentType, MatrixType)
   RDAT_ENUM(uint8_t, hlsl::DXIL::ComponentType, VectorInputType)
-  RDAT_ENUM(uint8_t, hlsl::DXIL::ComponentType, BiasInputType)
   RDAT_FLAGS(uint8_t, LinAlgThreadMatrixVectorMultiplyFlag, Flags)
 RDAT_STRUCT_END()
 #undef RECORD_TYPE

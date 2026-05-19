@@ -546,17 +546,10 @@ enum class PSVLinAlgThreadMatrixVectorMultiplyFlag : uint8_t {
 };
 
 struct PSVLinAlgThreadMatrixVectorMultiply0 {
-  // Do we need shapes? If so, K would be unused (0)
-  PSVLinAlgMatrixShapeArrayReference OperationShapes;
   uint8_t ResultType;
   uint8_t MatrixType;
   uint8_t VectorInputType;
-  // For Bias, 0 could mean unused or same as ResultType, since bias is
-  // optional, and supporting a bias type that's the same as a supported
-  // ResultType is required.
-  uint8_t BiasInputType;
   uint8_t Flags; // PSVLinAlgThreadMatrixVectorMultiplyFlag
-  uint8_t Reserved[3];
 };
 
 #ifdef UNIFY_MATRIX_MULTIPLY_STRUCTURES
