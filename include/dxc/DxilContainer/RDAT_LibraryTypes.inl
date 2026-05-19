@@ -509,7 +509,7 @@ RDAT_STRUCT_END()
 RDAT_ENUM_START(FunctionPropertyType, uint32_t)
   RDAT_ENUM_VALUE(Flags, 0)
   RDAT_ENUM_VALUE(LinAlgMatrixConstruction, 1)
-  RDAT_ENUM_VALUE(LinAlgThreadVectorMatrixMultiply, 2)
+  RDAT_ENUM_VALUE(LinAlgThreadMatrixVectorMultiply, 2)
 #ifdef UNIFY_MATRIX_MULTIPLY_STRUCTURES
   RDAT_ENUM_VALUE(LinAlgMatrixMultiply, 3)
 #else
@@ -535,11 +535,11 @@ RDAT_STRUCT_TABLE(ExtendedFunctionProperties, ExtendedFunctionPropertiesTable)
                       FunctionPropertyType::LinAlgMatrixConstruction)
         RDAT_RECORD_ARRAY_REF(LinAlgMatrixConstruction, MatrixConstructionArray)
       RDAT_UNION_ELIF(
-          LinAlgThreadVectorMatrixMultiply,
+          LinAlgThreadMatrixVectorMultiply,
           getPropertyType() ==
-              FunctionPropertyType::LinAlgThreadVectorMatrixMultiply)
-        RDAT_RECORD_ARRAY_REF(LinAlgThreadVectorMatrixMultiply,
-                              LinAlgThreadVectorMatrixMultiplyArray)
+              FunctionPropertyType::LinAlgThreadMatrixVectorMultiply)
+        RDAT_RECORD_ARRAY_REF(LinAlgThreadMatrixVectorMultiply,
+                              LinAlgThreadMatrixVectorMultiplyArray)
 #ifdef UNIFY_MATRIX_MULTIPLY_STRUCTURES
       RDAT_UNION_ELIF(LinAlgMatrixMultiply,
                       getPropertyType() ==

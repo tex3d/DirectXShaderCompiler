@@ -23,7 +23,7 @@ RDAT_ENUM_START(LinAlgMatrixMultiplyFlag, uint8_t)
 RDAT_ENUM_END()
 #endif // UNIFY_MATRIX_MULTIPLY_STRUCTURES
 
-RDAT_ENUM_START(LinAlgThreadVectorMatrixMultiplyFlag, uint8_t)
+RDAT_ENUM_START(LinAlgThreadMatrixVectorMultiplyFlag, uint8_t)
   RDAT_ENUM_VALUE(None, 0)
   // MatrixTransposed: The matrix is loaded from MulOptimalTranspose layout.
   RDAT_ENUM_VALUE(MatrixTransposed, 1 << 0)
@@ -70,16 +70,16 @@ RDAT_STRUCT_TABLE(LinAlgMatrixConstruction, LinAlgMatrixConstructionTable)
 RDAT_STRUCT_END()
 #undef RECORD_TYPE
 
-// ------------ LinAlgThreadVectorMatrixMultiply ------------
+// ------------ LinAlgThreadMatrixVectorMultiply ------------
 
-#define RECORD_TYPE LinAlgThreadVectorMatrixMultiply
-RDAT_STRUCT_TABLE(LinAlgThreadVectorMatrixMultiply,
-                  LinAlgThreadVectorMatrixMultiplyTable)
+#define RECORD_TYPE LinAlgThreadMatrixVectorMultiply
+RDAT_STRUCT_TABLE(LinAlgThreadMatrixVectorMultiply,
+                  LinAlgThreadMatrixVectorMultiplyTable)
   RDAT_ENUM(uint8_t, hlsl::DXIL::ComponentType, ResultType)
   RDAT_ENUM(uint8_t, hlsl::DXIL::ComponentType, MatrixType)
   RDAT_ENUM(uint8_t, hlsl::DXIL::ComponentType, VectorInputType)
   RDAT_ENUM(uint8_t, hlsl::DXIL::ComponentType, BiasInputType)
-  RDAT_FLAGS(uint8_t, LinAlgThreadVectorMatrixMultiplyFlag, Flags)
+  RDAT_FLAGS(uint8_t, LinAlgThreadMatrixVectorMultiplyFlag, Flags)
 RDAT_STRUCT_END()
 #undef RECORD_TYPE
 

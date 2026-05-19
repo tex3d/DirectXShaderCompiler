@@ -501,7 +501,7 @@ struct PSVLinAlgRuntimeInfo0 {
   // stride in bytes, followed by the records.
   uint32_t MatrixOperationShapeCount;
   uint32_t MatrixConstructionCount;
-  uint32_t ThreadVectorMatrixMultiplyCount;
+  uint32_t ThreadMatrixVectorMultiplyCount;
 #ifdef UNIFY_MATRIX_MULTIPLY_STRUCTURES
   uint32_t MatrixMultiplyCount;
 #else
@@ -531,13 +531,13 @@ struct PSVLinAlgMatrixConstruction0 {
   uint8_t MatrixType;
 };
 
-enum class PSVLinAlgThreadVectorMatrixMultiplyFlag : uint8_t {
+enum class PSVLinAlgThreadMatrixVectorMultiplyFlag : uint8_t {
   None = 0,
   // MatrixTransposed: The matrix is loaded from MulOptimalTranspose layout.
   MatrixTransposed = 1 << 0,
 };
 
-struct PSVLinAlgThreadVectorMatrixMultiply0 {
+struct PSVLinAlgThreadMatrixVectorMultiply0 {
   // Do we need shapes? If so, K would be unused (0)
   PSVLinAlgMatrixShapeArrayReference OperationShapes;
   uint8_t ResultType;
@@ -547,7 +547,7 @@ struct PSVLinAlgThreadVectorMatrixMultiply0 {
   // optional, and supporting a bias type that's the same as a supported
   // ResultType is required.
   uint8_t BiasInputType;
-  uint8_t Flags; // PSVLinAlgThreadVectorMatrixMultiplyFlag
+  uint8_t Flags; // PSVLinAlgThreadMatrixVectorMultiplyFlag
   uint8_t Reserved[3];
 };
 
@@ -655,8 +655,8 @@ struct PSVInitInfo {
   uint32_t LinAlgMatrixConstructionSize() const {
     return sizeof(PSVLinAlgMatrixConstruction0);
   }
-  uint32_t LinAlgThreadVectorMatrixMultiplySize() const {
-    return sizeof(PSVLinAlgThreadVectorMatrixMultiply0);
+  uint32_t LinAlgThreadMatrixVectorMultiplySize() const {
+    return sizeof(PSVLinAlgThreadMatrixVectorMultiply0);
   }
 #ifdef UNIFY_MATRIX_MULTIPLY_STRUCTURES
   uint32_t LinAlgMatrixMultiplySize() const {
@@ -710,8 +710,8 @@ class DxilPipelineStateValidation {
   void *m_pLinAlgMatrixOperationShapeRecords = nullptr;
   uint32_t m_uLinAlgMatrixConstructionSize = 0;
   void *m_pLinAlgMatrixConstructionRecords = nullptr;
-  uint32_t m_uLinAlgThreadVectorMatrixMultiplySize = 0;
-  void *m_pLinAlgThreadVectorMatrixMultiplyRecords = nullptr;
+  uint32_t m_uLinAlgThreadMatrixVectorMultiplySize = 0;
+  void *m_pLinAlgThreadMatrixVectorMultiplyRecords = nullptr;
 #ifdef UNIFY_MATRIX_MULTIPLY_STRUCTURES
   uint32_t m_uLinAlgMatrixMultiplySize = 0;
   void *m_pLinAlgMatrixMultiplyRecords = nullptr;
@@ -999,11 +999,11 @@ public:
         m_pLinAlgMatrixConstructionRecords, m_uLinAlgMatrixConstructionSize,
         m_pLinAlgRuntimeInfo0->MatrixConstructionCount, index);
   }
-  PSVLinAlgThreadVectorMatrixMultiply0 *
-  GetLinAlgThreadVectorMatrixMultiply0(uint32_t index) const {
-    return GetRecord<PSVLinAlgThreadVectorMatrixMultiply0>(
-        m_pLinAlgThreadVectorMatrixMultiplyRecords, m_uLinAlgThreadVectorMatrixMultiplySize,
-        m_pLinAlgRuntimeInfo0->ThreadVectorMatrixMultiplyCount, index);
+  PSVLinAlgThreadMatrixVectorMultiply0 *
+  GetLinAlgThreadMatrixVectorMultiply0(uint32_t index) const {
+    return GetRecord<PSVLinAlgThreadMatrixVectorMultiply0>(
+        m_pLinAlgThreadMatrixVectorMultiplyRecords, m_uLinAlgThreadMatrixVectorMultiplySize,
+        m_pLinAlgRuntimeInfo0->ThreadMatrixVectorMultiplyCount, index);
   }
 #ifdef UNIFY_MATRIX_MULTIPLY_STRUCTURES
   PSVLinAlgMatrixMultiply0 *GetLinAlgMatrixMultiply0(uint32_t index) const {
@@ -1196,11 +1196,11 @@ inline void DxilPipelineStateValidation::CheckedReaderWriter::Clear() {
 //      { (PSVLinAlgMatrixConstructionN)
 //        char[LinAlgMatrixConstructionSize] } *
 //      MatrixConstructionCount
-//    If ThreadVectorMatrixMultiplyCount > 0:
-//      uint32_t LinAlgThreadVectorMatrixMultiplySize
-//      { (PSVLinAlgThreadVectorMatrixMultiplyN)
-//        char[LinAlgThreadVectorMatrixMultiplySize] } *
-//      ThreadVectorMatrixMultiplyCount
+//    If ThreadMatrixVectorMultiplyCount > 0:
+//      uint32_t LinAlgThreadMatrixVectorMultiplySize
+//      { (PSVLinAlgThreadMatrixVectorMultiplyN)
+//        char[LinAlgThreadMatrixVectorMultiplySize] } *
+//      ThreadMatrixVectorMultiplyCount
 #ifdef UNIFY_MATRIX_MULTIPLY_STRUCTURES
 //    If MatrixMultiplyCount > 0:
 //      uint32_t LinAlgMatrixMultiplySize
@@ -1418,15 +1418,15 @@ DxilPipelineStateValidation::ReadOrWrite(const void *pBits, uint32_t *pSize,
                              m_pLinAlgRuntimeInfo0->MatrixConstructionCount,
                              m_uLinAlgMatrixConstructionSize));
       }
-      if (m_pLinAlgRuntimeInfo0->ThreadVectorMatrixMultiplyCount > 0) {
-        PSV_RETB(rw.MapValue(&m_uLinAlgThreadVectorMatrixMultiplySize,
-                             initInfo.LinAlgThreadVectorMatrixMultiplySize()));
-        PSV_RETB(sizeof(PSVLinAlgThreadVectorMatrixMultiply0) <=
-                 m_uLinAlgThreadVectorMatrixMultiplySize);
+      if (m_pLinAlgRuntimeInfo0->ThreadMatrixVectorMultiplyCount > 0) {
+        PSV_RETB(rw.MapValue(&m_uLinAlgThreadMatrixVectorMultiplySize,
+                             initInfo.LinAlgThreadMatrixVectorMultiplySize()));
+        PSV_RETB(sizeof(PSVLinAlgThreadMatrixVectorMultiply0) <=
+                 m_uLinAlgThreadMatrixVectorMultiplySize);
         PSV_RETB(
-            rw.MapArray(&m_pLinAlgThreadVectorMatrixMultiplyRecords,
-                        m_pLinAlgRuntimeInfo0->ThreadVectorMatrixMultiplyCount,
-                        m_uLinAlgThreadVectorMatrixMultiplySize));
+            rw.MapArray(&m_pLinAlgThreadMatrixVectorMultiplyRecords,
+                        m_pLinAlgRuntimeInfo0->ThreadMatrixVectorMultiplyCount,
+                        m_uLinAlgThreadMatrixVectorMultiplySize));
       }
 #ifdef UNIFY_MATRIX_MULTIPLY_STRUCTURES
       if (m_pLinAlgRuntimeInfo0->MatrixMultiplyCount > 0) {
