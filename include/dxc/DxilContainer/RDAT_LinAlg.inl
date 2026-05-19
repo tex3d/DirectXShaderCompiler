@@ -26,11 +26,11 @@ RDAT_ENUM_END()
 RDAT_ENUM_START(LinAlgThreadMatrixVectorMultiplyFlag, uint8_t)
   RDAT_ENUM_VALUE(None, 0)
   // If neither MatrixTransposed or MatrixNonMulOptimalLayout is set, the matrix
-  // is loaded from MulOptimal layout.
-  // MatrixTransposed: The matrix is loaded from MulOptimalTranspose layout.
+  // is only loaded from MulOptimal layout.
+  // MatrixTransposed: The matrix is loaded from MulOptimalTransposed layout.
   RDAT_ENUM_VALUE(MatrixTransposed, 1 << 0)
   // MatrixNonMulOptimalLayout: The matrix is loaded from a non-MulOptimal
-  // layout. Can't be combined with MatrixTransposed flag.
+  // layout.
   RDAT_ENUM_VALUE(MatrixNonMulOptimalLayout, 1 << 1)
 RDAT_ENUM_END()
 

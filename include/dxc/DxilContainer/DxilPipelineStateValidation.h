@@ -538,11 +538,11 @@ struct PSVLinAlgMatrixConstruction0 {
 enum class PSVLinAlgThreadMatrixVectorMultiplyFlag : uint8_t {
   None = 0,
   // If neither MatrixTransposed or MatrixNonMulOptimalLayout is set, the matrix
-  // is loaded from MulOptimal layout.
-  // MatrixTransposed: The matrix is loaded from MulOptimalTranspose layout.
+  // is only loaded from MulOptimal layout.
+  // MatrixTransposed: The matrix is loaded from MulOptimalTransposed layout.
   MatrixTransposed = 1 << 0,
   // MatrixNonMulOptimalLayout: The matrix is loaded from a non-MulOptimal
-  // layout. Can't be combined with MatrixTransposed flag.
+  // layout.
   MatrixNonMulOptimalLayout = 1 << 1,
 };
 
