@@ -575,7 +575,7 @@ RDAT_STRUCT_END()
 
 #define RECORD_TYPE RuntimeDataFunctionInfo3
 RDAT_STRUCT_TABLE_DERIVED(RuntimeDataFunctionInfo3, RuntimeDataFunctionInfo2,
-                          FunctionTable)
+                          FunctionTable, 1, 10)
 RDAT_RECORD_ARRAY_REF(ExtendedFunctionProperties, ExtendedProperties)
 RDAT_STRUCT_END()
 #undef RECORD_TYPE
